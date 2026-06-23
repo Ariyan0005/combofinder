@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/mobile/"
+title = "ComboFinder Mobile"
+version = "1.0.0"
+id = "artifacts/combo-finder"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/mobile/" ]
+localPort = 20397
+
+[services.development]
+run = "pnpm --filter @workspace/combo-finder run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/combo-finder", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/combo-finder", "run", "serve" ]
+
+[services.env]
+PORT = "20397"
+BASE_PATH = "/mobile/"

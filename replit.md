@@ -1,6 +1,6 @@
-# [Project name]
+# ComboFinder
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Phone display combo compatibility app — search brands, models, and find compatible display assembly combos.
 
 ## Run & Operate
 
@@ -22,15 +22,25 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `lib/api-spec/openapi.yaml` — source of truth for API contract
+- `lib/db/src/schema/` — Drizzle DB schema (brands, models, combos tables)
+- `lib/api-client-react/src/generated/` — generated React Query hooks + Zod schemas
+- `artifacts/api-server/src/routes/` — Express route handlers
+- `artifacts/admin-panel/src/` — React + Vite admin panel
+- `artifacts/combo-finder/app/` — Expo mobile app screens
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Contract-first API: OpenAPI spec → Orval codegen → shared hooks used by both admin panel and mobile app
+- Single shared `@workspace/api-client-react` lib consumed by both web and mobile artifacts
+- Expo mobile app uses absolute URLs via `setBaseUrl(https://${EXPO_PUBLIC_DOMAIN})` in `_layout.tsx`
+- Mobile app navigates: Search tab (search + stats) → model detail; Brands tab → brand models → model detail
+- Admin panel theme: Circuit Blue cobalt (HSL 205 100% 43%), slate background, Inter font
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- **Admin Panel** (`/`): Manage brands, models, and display combos. Full CRUD with search and stats dashboard.
+- **Mobile App** (`/mobile/`): Search brands/models by name, browse all brands, drill into model detail to see compatible display combos with type (OEM/Compatible/Refurbished), quality grade, stock status, and price range.
 
 ## User preferences
 
@@ -38,7 +48,9 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Run `pnpm --filter @workspace/api-spec run codegen` after any OpenAPI spec change before touching mobile/admin code
+- Mobile app needs `EXPO_PUBLIC_DOMAIN` env var — injected automatically by the Expo workflow script
+- Do not hardcode port numbers anywhere — all ports are dynamic via `PORT` env var
 
 ## Pointers
 

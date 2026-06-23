@@ -3,20 +3,29 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: ComboFinder API — phone display combo compatibility
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: brands
+    description: Phone brands
+  - name: models
+    description: Phone models
+  - name: combos
+    description: Display combos
+  - name: search
+    description: Search
+  - name: stats
+    description: Statistics
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +33,407 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /stats:
+    get:
+      operationId: getStats
+      tags: [stats]
+      summary: Get overall statistics
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stats"
+
+  /search:
+    get:
+      operationId: searchModels
+      tags: [search]
+      summary: Search brands and models
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: brand_id
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResults"
+
+  /brands:
+    get:
+      operationId: getBrands
+      tags: [brands]
+      summary: List all brands
+      responses:
+        "200":
+          description: List of brands
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Brand"
+    post:
+      operationId: createBrand
+      tags: [brands]
+      summary: Create a brand
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBrandInput"
+      responses:
+        "201":
+          description: Created brand
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Brand"
+
+  /brands/{id}:
+    get:
+      operationId: getBrand
+      tags: [brands]
+      summary: Get a brand by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Brand
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Brand"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateBrand
+      tags: [brands]
+      summary: Update a brand
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBrandInput"
+      responses:
+        "200":
+          description: Updated brand
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Brand"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteBrand
+      tags: [brands]
+      summary: Delete a brand
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /brands/{id}/models:
+    get:
+      operationId: getBrandModels
+      tags: [brands]
+      summary: Get all models for a brand
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Models
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Model"
+
+  /models:
+    get:
+      operationId: getModels
+      tags: [models]
+      summary: List all models
+      parameters:
+        - name: brand_id
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of models
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Model"
+    post:
+      operationId: createModel
+      tags: [models]
+      summary: Create a model
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateModelInput"
+      responses:
+        "201":
+          description: Created model
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Model"
+
+  /models/{id}:
+    get:
+      operationId: getModel
+      tags: [models]
+      summary: Get a model by ID with its combos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Model with combos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelWithCombos"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateModel
+      tags: [models]
+      summary: Update a model
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateModelInput"
+      responses:
+        "200":
+          description: Updated model
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Model"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteModel
+      tags: [models]
+      summary: Delete a model
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /models/{id}/combos:
+    get:
+      operationId: getModelCombos
+      tags: [models]
+      summary: Get all combos for a model
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Combos for the model
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Combo"
+
+  /combos:
+    get:
+      operationId: getCombos
+      tags: [combos]
+      summary: List all combos
+      parameters:
+        - name: model_id
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of combos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Combo"
+    post:
+      operationId: createCombo
+      tags: [combos]
+      summary: Create a combo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateComboInput"
+      responses:
+        "201":
+          description: Created combo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Combo"
+
+  /combos/{id}:
+    get:
+      operationId: getCombo
+      tags: [combos]
+      summary: Get a combo by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Combo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Combo"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateCombo
+      tags: [combos]
+      summary: Update a combo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateComboInput"
+      responses:
+        "200":
+          description: Updated combo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Combo"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteCombo
+      tags: [combos]
+      summary: Delete a combo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +444,225 @@ components:
       required:
         - status
 
+    Stats:
+      type: object
+      properties:
+        totalBrands:
+          type: integer
+        totalModels:
+          type: integer
+        totalCombos:
+          type: integer
+      required:
+        - totalBrands
+        - totalModels
+        - totalCombos
+
+    Brand:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        logoUrl:
+          type: string
+          nullable: true
+        modelCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - modelCount
+        - createdAt
+
+    CreateBrandInput:
+      type: object
+      properties:
+        name:
+          type: string
+        logoUrl:
+          type: string
+          nullable: true
+      required:
+        - name
+
+    Model:
+      type: object
+      properties:
+        id:
+          type: integer
+        brandId:
+          type: integer
+        brandName:
+          type: string
+        name:
+          type: string
+        releaseYear:
+          type: integer
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+        comboCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - brandId
+        - brandName
+        - name
+        - comboCount
+        - createdAt
+
+    ModelWithCombos:
+      type: object
+      properties:
+        id:
+          type: integer
+        brandId:
+          type: integer
+        brandName:
+          type: string
+        name:
+          type: string
+        releaseYear:
+          type: integer
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+        combos:
+          type: array
+          items:
+            $ref: "#/components/schemas/Combo"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - brandId
+        - brandName
+        - name
+        - combos
+        - createdAt
+
+    CreateModelInput:
+      type: object
+      properties:
+        brandId:
+          type: integer
+        name:
+          type: string
+        releaseYear:
+          type: integer
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+      required:
+        - brandId
+        - name
+
+    Combo:
+      type: object
+      properties:
+        id:
+          type: integer
+        modelId:
+          type: integer
+        modelName:
+          type: string
+        brandName:
+          type: string
+        name:
+          type: string
+        comboType:
+          type: string
+          enum: [OEM, Compatible, Refurbished]
+        qualityGrade:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        priceRange:
+          type: string
+          nullable: true
+        inStock:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - modelId
+        - modelName
+        - brandName
+        - name
+        - comboType
+        - inStock
+        - createdAt
+
+    CreateComboInput:
+      type: object
+      properties:
+        modelId:
+          type: integer
+        name:
+          type: string
+        comboType:
+          type: string
+          enum: [OEM, Compatible, Refurbished]
+        qualityGrade:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        priceRange:
+          type: string
+          nullable: true
+        inStock:
+          type: boolean
+      required:
+        - modelId
+        - name
+        - comboType
+        - inStock
+
+    SearchResults:
+      type: object
+      properties:
+        brands:
+          type: array
+          items:
+            $ref: "#/components/schemas/Brand"
+        models:
+          type: array
+          items:
+            $ref: "#/components/schemas/Model"
+      required:
+        - brands
+        - models
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

@@ -1,0 +1,1 @@
+- [ComboFinder architecture](combofinder-arch.md) — contract-first API with shared hooks consumed by both web admin and Expo mobile
