@@ -1,6 +1,6 @@
 [Unit]
 Description=ComboFinder API Server
-After=network.target postgresql.service
+After=network.target
 
 [Service]
 Type=simple
@@ -9,7 +9,7 @@ WorkingDirectory=/var/www/combofinder
 
 Environment=PORT=3001
 Environment=NODE_ENV=production
-Environment=DATABASE_URL=postgresql://combouser:YOUR_DB_PASSWORD@localhost:5432/combofinder
+Environment=SUPABASE_DATABASE_URL=postgresql://postgres:YOUR_SUPABASE_PASSWORD@db.rueghpjcjoocorejovtz.supabase.co:5432/postgres
 Environment=SESSION_SECRET=YOUR_SESSION_SECRET_MIN_32_CHARS
 Environment=ADMIN_USERNAME=YOUR_ADMIN_USERNAME
 Environment=ADMIN_PASSWORD=YOUR_ADMIN_PASSWORD
