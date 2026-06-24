@@ -47,3 +47,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Large binary/media assets (not needed on VPS)
+attached_assets/
