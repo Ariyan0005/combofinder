@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/layout/app-layout";
+import { AuthProvider, useAuth } from "@/context/auth-context";
 
 import Dashboard from "@/pages/dashboard";
 import Brands from "@/pages/brands";
@@ -11,6 +12,7 @@ import ModelDetail from "@/pages/model-detail";
 import Combos from "@/pages/combos";
 import Search from "@/pages/search";
 import NotFound from "@/pages/not-found";
+import LoginPage from "@/pages/login";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,6 +24,20 @@ const queryClient = new QueryClient({
 });
 
 function Router() {
+  const { authenticated } = useAuth();
+
+  if (authenticated === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!authenticated) {
+    return <LoginPage />;
+  }
+
   return (
     <AppLayout>
       <Switch>
@@ -42,7 +58,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
+          <AuthProvider>
+            <Router />
+          </AuthProvider>
         </WouterRouter>
         <Toaster />
       </TooltipProvider>

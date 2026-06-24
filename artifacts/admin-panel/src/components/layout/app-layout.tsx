@@ -5,11 +5,13 @@ import {
   Smartphone, 
   Layers, 
   Search,
-  Settings
+  LogOut
 } from "lucide-react";
+import { useAuth } from "@/context/auth-context";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
+  const { logout } = useAuth();
 
   const navigation = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -51,10 +53,13 @@ export function AppLayout({ children }: { children: ReactNode }) {
           </nav>
         </div>
         <div className="p-4 border-t border-border">
-          <div className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground cursor-not-allowed">
-            <Settings className="h-4 w-4" />
-            Settings
-          </div>
+          <button
+            onClick={() => logout()}
+            className="flex w-full items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </button>
         </div>
       </aside>
 
