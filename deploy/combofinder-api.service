@@ -1,6 +1,6 @@
 [Unit]
 Description=ComboFinder API Server
-After=network.target
+After=network.target postgresql.service
 
 [Service]
 Type=simple
@@ -9,14 +9,16 @@ WorkingDirectory=/var/www/combofinder
 
 Environment=PORT=3001
 Environment=NODE_ENV=production
-Environment=DATABASE_URL=postgresql://combofinder:SIFIRDAN_GUCLU_SIFRE@localhost:5432/combofinder
-Environment=SESSION_SECRET=en-az-32-karakterli-rastgele-bir-string-yazin
-Environment=ADMIN_USERNAME=admin
-Environment=ADMIN_PASSWORD=guclu-sifrenizi-yazin
+Environment=DATABASE_URL=postgresql://combouser:YOUR_DB_PASSWORD@localhost:5432/combofinder
+Environment=SESSION_SECRET=YOUR_SESSION_SECRET_MIN_32_CHARS
+Environment=ADMIN_USERNAME=YOUR_ADMIN_USERNAME
+Environment=ADMIN_PASSWORD=YOUR_ADMIN_PASSWORD
 
 ExecStart=/usr/bin/node /var/www/combofinder/artifacts/api-server/dist/index.mjs
 Restart=always
 RestartSec=10
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

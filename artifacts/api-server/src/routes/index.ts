@@ -13,6 +13,9 @@ router.use(healthRouter);
 router.use(authRouter);
 
 function requireAuth(req: any, res: any, next: any) {
+  if (req.method === "GET") {
+    return next();
+  }
   if (req.session?.authenticated) {
     next();
   } else {
