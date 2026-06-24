@@ -1,0 +1,26 @@
+# ComboFinder API Server - Systemd Service
+# এই ফাইলটি /etc/systemd/system/combofinder-api.service তে রাখুন
+
+[Unit]
+Description=ComboFinder API Server
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/combofinder/api-server
+
+# Environment Variables - এগুলো আপনার আসল value দিয়ে পরিবর্তন করুন
+Environment=PORT=3001
+Environment=NODE_ENV=production
+Environment=DATABASE_URL=postgresql://username:password@localhost:5432/combofinder
+Environment=SESSION_SECRET=change-this-to-a-long-random-string-minimum-32-chars
+Environment=ADMIN_USERNAME=admin
+Environment=ADMIN_PASSWORD=your-strong-password-here
+
+ExecStart=/usr/bin/node /var/www/combofinder/api-server/dist/index.mjs
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
