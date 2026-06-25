@@ -9,10 +9,10 @@ WorkingDirectory=/var/www/combofinder
 
 Environment=PORT=3001
 Environment=NODE_ENV=production
-Environment=SUPABASE_DATABASE_URL=postgresql://postgres:YOUR_SUPABASE_PASSWORD@db.rueghpjcjoocorejovtz.supabase.co:5432/postgres
-Environment=SESSION_SECRET=YOUR_SESSION_SECRET_MIN_32_CHARS
-Environment=ADMIN_USERNAME=YOUR_ADMIN_USERNAME
-Environment=ADMIN_PASSWORD=YOUR_ADMIN_PASSWORD
+Environment=SUPABASE_DATABASE_URL=postgresql://postgres:AriyancomBD100@db.rueghpjcjoocorejovtz.supabase.co:5432/postgres
+Environment=SESSION_SECRET=ComboFinderSecret2024AriyanBD100
+Environment=ADMIN_USERNAME=Ariyan005
+Environment=ADMIN_PASSWORD=AriyancomBD100
 
 ExecStart=/usr/bin/node /var/www/combofinder/artifacts/api-server/dist/index.mjs
 Restart=always

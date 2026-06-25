@@ -150,7 +150,7 @@ export default function Brands() {
                   <TableCell>{brand.modelCount}</TableCell>
                   <TableCell className="text-muted-foreground">{new Date(brand.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex justify-end gap-2 flex-wrap">
                       <Button variant="ghost" size="icon" onClick={() => setEditingBrand(brand)}>
                         <Edit2 className="h-4 w-4" />
                       </Button>
