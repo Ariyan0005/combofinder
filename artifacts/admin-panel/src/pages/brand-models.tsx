@@ -218,7 +218,7 @@ export default function BrandModels() {
                   </TableCell>
                   <TableCell>{model.comboCount}</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex justify-end gap-2 ">
                       <Button variant="ghost" size="icon" onClick={() => setEditingModel(model)}>
                         <Edit2 className="h-4 w-4" />
                       </Button>
@@ -282,145 +282,32 @@ export default function BrandModels() {
       </Dialog>
 
       {/* Edit Dialog */}
-      
-      
-    </div>
-  );
-}
-        </Link>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            {brandLoading ? "Loading..." : brand?.name} Models
-          </h1>
-          <p className="text-muted-foreground mt-1">Manage device models for this brand.</p>
-        </div>
-        <div className="ml-auto"><Button onClick={() => setIsCreateOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Add</Button></div>
-      </div>
-
-      <div className="flex items-center space-x-2 bg-card p-2 rounded-lg border border-border">
-        <Search className="h-5 w-5 text-muted-foreground ml-2" />
-        <Input 
-          placeholder="Search models..." 
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border-0 shadow-none focus-visible:ring-0"
-        />
-      </div>
-
-      <div className="flex gap-2"><Button variant="outline" onClick={() => setIsBulkAddOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Bulk Add</Button>{selectedIds.length > 0 && (<Button variant="destructive" onClick={handleBulkDelete} className="gap-2"><Trash className="h-4 w-4 text-red-500" /> Delete ({selectedIds.length})</Button>)}</div>
-
-      <div className="bg-card rounded-lg border border-border overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10">
-                <Checkbox
-                  checked={filteredModels.length > 0 && selectedIds.length === filteredModels.length}
-                  onCheckedChange={toggleSelectAll}
+      <Dialog open={!!editingModel} onOpenChange={(open) => { if (!open) setEditingModel(null); }}>
+        <DialogContent>
+          <form onSubmit={handleUpdate}>
+            <DialogHeader>
+              <DialogTitle>Edit Model</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Model Name</Label>
+                <Input
+                  id="edit-name"
+                  name="name"
+                  required
+                  autoFocus
+                  defaultValue={editingModel?.name ?? ""}
+                  key={editingModel?.id}
                 />
-              </TableHead>
-              <TableHead>Model Name</TableHead>
-              <TableHead>Combos</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {modelsLoading ? (
-              <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">Loading models...</TableCell>
-              </TableRow>
-            ) : filteredModels.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                  No models found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredModels.map((model) => (
-                <TableRow key={model.id} className="group">
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedIds.includes(model.id)}
-                      onCheckedChange={() => toggleSelect(model.id)}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    <Link href={`/models/${model.id}`} className="hover:underline flex items-center gap-2">
-                      <div className="w-8 h-8 rounded bg-muted flex items-center justify-center">
-                         <Layers className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      {model.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{model.comboCount}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" onClick={() => setEditingModel(model)}>
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(model.id)}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Create Dialog */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent>
-          <form onSubmit={handleCreate}>
-            <DialogHeader>
-              <DialogTitle>Add New Model</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Model Name</Label>
-                <Input id="name" name="name" required autoFocus placeholder="e.g. Oppo A17" />
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={createModel.isPending}>Save</Button>
+              <Button type="button" variant="outline" onClick={() => setEditingModel(null)}>Cancel</Button>
+              <Button type="submit" disabled={updateModel.isPending}>Save</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* Bulk Add Dialog */}
-      <Dialog open={isBulkAddOpen} onOpenChange={setIsBulkAddOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Bulk Add Models</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Model Names (one per line)</Label>
-              <Textarea
-                rows={8}
-                placeholder={"Oppo A17\nOppo A18\nOppo A38"}
-                value={bulkNames}
-                onChange={(e) => setBulkNames(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsBulkAddOpen(false)}>Cancel</Button>
-            <Button onClick={handleBulkAdd} disabled={createModel.isPending}>
-              Add All
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Dialog */}
-      
-      
-      
     </div>
   );
 }

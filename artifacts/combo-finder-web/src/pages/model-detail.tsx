@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useGetModel } from "@workspace/api-client-react";
-import { ArrowLeft, CheckCircle, XCircle, Star, BadgeCheck, Repeat2 } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, Star, BadgeCheck, Repeat2, Copy, Check, Share2 } from "lucide-react";
 
 type ComboType = "OEM" | "Compatible" | "Refurbished";
 
@@ -10,10 +11,32 @@ const comboTypeConfig: Record<ComboType, { label: string; color: string; icon: R
   Refurbished: { label: "Refurbished", color: "bg-amber-100 text-amber-700", icon: Repeat2 },
 };
 
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button onClick={handleCopy} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors" title="Copy">
+      {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+      {copied ? "Copied!" : "Copy"}
+    </button>
+  );
+}
+
 export default function ModelDetail() {
   const { id } = useParams<{ id: string }>();
   const modelId = Number(id);
   const [, navigate] = useLocation();
+
+  const handleShare = (modelName: string, brandName: string) => {
+    const url = window.location.href;
+    if (navigator.share) { navigator.share({ title: `${brandName} ${modelName} — Display Combos`, url }); }
+    else { navigator.clipboard.writeText(url); }
+  };
 
   const { data: model, isLoading } = useGetModel(modelId);
 
@@ -45,7 +68,12 @@ export default function ModelDetail() {
             >
               {model.brandName}
             </button>
-            <h1 className="text-2xl font-bold mt-0.5">{model.name}</h1>
+            <div className="flex items-center justify-between gap-2">
+              <h1 className="text-2xl font-bold mt-0.5">{model.name}</h1>
+              <button onClick={() => handleShare(model.name, model.brandName)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors shrink-0">
+                <Share2 className="w-3.5 h-3.5" />Share
+              </button>
+            </div>
             {model.releaseYear && (
               <p className="text-sm text-muted-foreground mt-1">Released {model.releaseYear}</p>
             )}
@@ -82,7 +110,10 @@ export default function ModelDetail() {
                 return (
                   <div key={combo.id} className="bg-white rounded-xl border border-border p-4 space-y-2.5">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="font-semibold text-sm">{combo.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-sm">{combo.name}</p>
+                        <CopyButton text={`${model.brandName} ${model.name} — ${combo.name} (${combo.comboType})`} />
+                      </div>
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${config?.color ?? "bg-gray-100 text-gray-600"}`}>
                         <Icon className="w-3 h-3" />
                         {combo.comboType}

@@ -218,7 +218,7 @@ export default function ModelDetail() {
                   <TableCell className="font-medium">{combo.name}</TableCell>
                   <TableCell><ComboBadge type={combo.comboType} /></TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex justify-end gap-2 ">
                       <Button variant="ghost" size="icon" onClick={() => setEditingCombo(combo)}>
                         <Edit2 className="h-4 w-4" />
                       </Button>
@@ -304,103 +304,20 @@ export default function ModelDetail() {
       </Dialog>
 
       {/* Edit Dialog */}
-      
-      
-    </div>
-  );
-}
-          </Link>
-        )}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            {modelLoading ? "Loading..." : `${model?.brandName} ${model?.name} Combos`}
-          </h1>
-          <p className="text-muted-foreground mt-1">Manage display parts and compatibility.</p>
-        </div>
-        <div className="ml-auto"><Button onClick={() => setIsCreateOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Add Combo</Button></div>
-      </div>
-
-      <div className="flex items-center space-x-2 bg-card p-2 rounded-lg border border-border">
-        <Search className="h-5 w-5 text-muted-foreground ml-2" />
-        <Input 
-          placeholder="Search combos..." 
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border-0 shadow-none focus-visible:ring-0"
-        />
-      </div>
-
-      <div className="flex gap-2"><Button variant="outline" onClick={() => setIsBulkAddOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Bulk Add</Button>{selectedIds.length > 0 && (<Button variant="destructive" onClick={handleBulkDelete} className="gap-2"><Trash className="h-4 w-4 text-red-500" /> Delete ({selectedIds.length})</Button>)}</div>
-
-      <div className="bg-card rounded-lg border border-border overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10">
-                <Checkbox
-                  checked={filteredCombos.length > 0 && selectedIds.length === filteredCombos.length}
-                  onCheckedChange={toggleSelectAll}
-                />
-              </TableHead>
-              <TableHead>Combo Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {modelLoading ? (
-              <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">Loading combos...</TableCell>
-              </TableRow>
-            ) : filteredCombos.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                  No combos found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredCombos.map((combo) => (
-                <TableRow key={combo.id} className="group">
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedIds.includes(combo.id)}
-                      onCheckedChange={() => toggleSelect(combo.id)}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">{combo.name}</TableCell>
-                  <TableCell><ComboBadge type={combo.comboType} /></TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" onClick={() => setEditingCombo(combo)}>
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(combo.id)}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Create Dialog */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+      <Dialog open={!!editingCombo} onOpenChange={(open) => { if (!open) setEditingCombo(null); }}>
         <DialogContent>
-          <form onSubmit={handleCreate}>
+          <form onSubmit={handleUpdate}>
             <DialogHeader>
-              <DialogTitle>Add New Combo</DialogTitle>
+              <DialogTitle>Edit Combo</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Combo Name</Label>
-                <Input id="name" name="name" required autoFocus placeholder="e.g. A18, A17k" />
+                <Label htmlFor="edit-name">Combo Name</Label>
+                <Input id="edit-name" name="name" required autoFocus defaultValue={editingCombo?.name ?? ""} key={editingCombo?.id} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="comboType">Type</Label>
-                <Select name="comboType" defaultValue="Compatible">
+                <Label>Type</Label>
+                <Select name="comboType" defaultValue={editingCombo?.comboType ?? "Compatible"} key={`type-${editingCombo?.id}`}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="OEM">OEM</SelectItem>
@@ -411,53 +328,12 @@ export default function ModelDetail() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={createCombo.isPending}>Save</Button>
+              <Button type="button" variant="outline" onClick={() => setEditingCombo(null)}>Cancel</Button>
+              <Button type="submit" disabled={updateCombo.isPending}>Save</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* Bulk Add Dialog */}
-      <Dialog open={isBulkAddOpen} onOpenChange={setIsBulkAddOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Bulk Add Combos</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Type</Label>
-              <Select value={bulkType} onValueChange={(v) => setBulkType(v as CreateComboInputComboType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="OEM">OEM</SelectItem>
-                  <SelectItem value="Compatible">Compatible</SelectItem>
-                  <SelectItem value="Refurbished">Refurbished</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Combo Names (one per line)</Label>
-              <Textarea
-                rows={8}
-                placeholder={"A18\nA17k\nA38\nA57"}
-                value={bulkNames}
-                onChange={(e) => setBulkNames(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsBulkAddOpen(false)}>Cancel</Button>
-            <Button onClick={handleBulkAdd} disabled={createCombo.isPending}>
-              Add All
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Dialog */}
-      
-      
     </div>
   );
 }
