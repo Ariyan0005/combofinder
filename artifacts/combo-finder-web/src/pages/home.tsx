@@ -131,7 +131,7 @@ export default function Home() {
               Download the ComboFinder app — faster search with offline support
             </p>
             <div className="flex flex-col gap-2.5">
-              <a href="#android" className="flex items-center gap-3 bg-[#1a1a1a] text-white rounded-xl px-4 py-3 hover:bg-black transition-colors">
+              <a href="https://github.com/Ariyan0005/combofinder-releases/releases/download/v1.0/combofinder-v1.0.apk" className="flex items-center gap-3 bg-[#1a1a1a] text-white rounded-xl px-4 py-3 hover:bg-black transition-colors">
                 <svg className="w-6 h-6 shrink-0" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M17.523 15.341 14.63 12l2.893-3.341A1 1 0 0 0 16.77 7.2l-3.233 3.73L10.305 7.2a1 1 0 0 0-1.752.459 1 1 0 0 0 .228.9L11.674 12l-2.893 3.341a1 1 0 0 0 1.524 1.295L13.537 13l3.233 3.636a1 1 0 0 0 1.524-1.295zM12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z"/>
                 </svg>
