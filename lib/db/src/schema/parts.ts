@@ -4,7 +4,6 @@ import { z } from "zod/v4";
 
 export const partsTable = pgTable("parts", {
   id: serial("id").primaryKey(),
-  icNumber: text("ic_number").notNull().unique(),
   partName: text("part_name").notNull(),
   partType: text("part_type").notNull(),
   compatibleModels: text("compatible_models").notNull(),
