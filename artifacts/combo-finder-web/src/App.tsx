@@ -5,13 +5,10 @@ import Home from "@/pages/home";
 import Brands from "@/pages/brands";
 import BrandDetail from "@/pages/brand-detail";
 import ModelDetail from "@/pages/model-detail";
+import Parts from "@/pages/parts";
 import NotFound from "@/pages/not-found";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: 1, refetchOnWindowFocus: false },
-  },
-});
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry:1, refetchOnWindowFocus:false } } });
 
 function Router() {
   return (
@@ -21,6 +18,7 @@ function Router() {
         <Route path="/brands" component={Brands} />
         <Route path="/brands/:id" component={BrandDetail} />
         <Route path="/models/:id" component={ModelDetail} />
+        <Route path="/parts" component={Parts} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
