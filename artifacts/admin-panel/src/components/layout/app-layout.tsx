@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Smartphone, Layers, Search, LogOut } from "lucide-react";
+import { LayoutDashboard, Smartphone, Layers, Search, LogOut, Cpu } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 
 export function AppLayout({ children }: { children: ReactNode }) {
@@ -10,6 +10,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Brands", href: "/brands", icon: Layers },
     { name: "Combos", href: "/combos", icon: Smartphone },
+    { name: "Parts", href: "/parts", icon: Cpu },
     { name: "Search", href: "/search", icon: Search },
   ];
   return (

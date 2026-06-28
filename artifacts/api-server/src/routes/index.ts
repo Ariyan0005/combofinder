@@ -6,6 +6,7 @@ import modelsRouter from "./models";
 import combosRouter from "./combos";
 import statsRouter from "./stats";
 import searchRouter from "./search";
+import partsRouter from "./parts";
 
 const router: IRouter = Router();
 
@@ -29,5 +30,6 @@ router.use(modelsRouter);
 router.use(combosRouter);
 router.use(statsRouter);
 router.use(searchRouter);
+router.use("/parts", partsRouter);
 
 export default router;

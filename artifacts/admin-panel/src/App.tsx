@@ -11,6 +11,7 @@ import BrandModels from "@/pages/brand-models";
 import ModelDetail from "@/pages/model-detail";
 import Combos from "@/pages/combos";
 import Search from "@/pages/search";
+import Parts from "@/pages/parts";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 
@@ -47,6 +48,7 @@ function Router() {
         <Route path="/models/:id" component={ModelDetail} />
         <Route path="/combos" component={Combos} />
         <Route path="/search" component={Search} />
+        <Route path="/parts" component={Parts} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>
