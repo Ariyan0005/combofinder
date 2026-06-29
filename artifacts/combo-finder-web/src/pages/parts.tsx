@@ -128,11 +128,13 @@ export default function Parts() {
   const urlCat = typeof window !== "undefined"
     ? new URLSearchParams(window.location.search).get("cat")
     : null;
-  const [selected, setSelected] = useState<string | null>(urlCat);
+  // Only accept known category values; ignore unknown ?cat= params
+  const validUrlCat = CATEGORIES.find(c => c.value === urlCat) ? urlCat : null;
+  const [selected, setSelected] = useState<string | null>(validUrlCat);
 
   useEffect(() => {
     const cat = new URLSearchParams(window.location.search).get("cat");
-    if (cat) setSelected(cat);
+    if (cat && CATEGORIES.find(c => c.value === cat)) setSelected(cat);
   }, []);
 
   // Reset search when switching category

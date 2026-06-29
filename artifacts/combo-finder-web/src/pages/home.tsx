@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useGetStats, useSearchModels } from "@workspace/api-client-react";
-import { Search, Smartphone, Tag, Layers, ChevronRight, Battery, Zap, CircuitBoard, ExternalLink, ShieldCheck, Cpu, MoreHorizontal } from "lucide-react";
+import { Search, Smartphone, Tag, Layers, ChevronRight, Battery, Zap, ExternalLink, ShieldCheck, Cpu, MoreHorizontal } from "lucide-react";
 
 function StatCard({ label, value, icon: Icon }: { label: string; value: number|undefined; icon: React.ElementType }) {
   return (
@@ -26,9 +26,9 @@ function MobileLcdIcon({ className }: { className?: string }) {
 
 const SHORTCUTS = [
   { label:"Battery", icon:Battery, color:"bg-green-50 text-green-600 border-green-100", href:"/parts?cat=Battery" },
-  { label:"LCD Connector", icon:CircuitBoard, color:"bg-blue-50 text-blue-600 border-blue-100", href:"/parts?cat=FPC+Connector" },
+  { label:"Charging Board", icon:Zap, color:"bg-orange-50 text-orange-600 border-orange-100", href:"/parts?cat=Charging+Sub+Board" },
   { label:"IC Compatible", icon:Cpu, color:"bg-violet-50 text-violet-600 border-violet-100", href:"/parts?cat=IC+Compatible" },
-  { label:"More Parts", icon:MoreHorizontal, color:"bg-orange-50 text-orange-600 border-orange-100", href:"/parts" },
+  { label:"More Parts", icon:MoreHorizontal, color:"bg-slate-50 text-slate-600 border-slate-100", href:"/parts" },
 ];
 
 export default function Home() {
