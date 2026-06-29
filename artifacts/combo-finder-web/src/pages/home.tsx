@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useGetStats, useSearchModels } from "@workspace/api-client-react";
-import { Search, Smartphone, Tag, Layers, ChevronRight, Monitor, Battery, Zap, CircuitBoard, ExternalLink, ShieldCheck } from "lucide-react";
+import { Search, Smartphone, Tag, Layers, ChevronRight, Battery, Zap, CircuitBoard, ExternalLink, ShieldCheck, Cpu, MoreHorizontal } from "lucide-react";
 
 function StatCard({ label, value, icon: Icon }: { label: string; value: number|undefined; icon: React.ElementType }) {
   return (
@@ -12,11 +12,22 @@ function StatCard({ label, value, icon: Icon }: { label: string; value: number|u
   );
 }
 
+// Mobile LCD icon (SVG inline)
+function MobileLcdIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="2" width="14" height="20" rx="2"/>
+      <rect x="7" y="4" width="10" height="13" rx="1"/>
+      <circle cx="12" cy="19.5" r="0.7" fill="currentColor" stroke="none"/>
+    </svg>
+  );
+}
+
 const SHORTCUTS = [
-  { label:"LCD / Display", icon:Monitor, color:"bg-blue-50 text-blue-600 border-blue-100" },
-  { label:"Battery", icon:Battery, color:"bg-green-50 text-green-600 border-green-100" },
-  { label:"FPC Connector", icon:CircuitBoard, color:"bg-violet-50 text-violet-600 border-violet-100" },
-  { label:"Charging Sub Board", icon:Zap, color:"bg-orange-50 text-orange-600 border-orange-100" },
+  { label:"Battery", icon:Battery, color:"bg-green-50 text-green-600 border-green-100", href:"/parts?cat=Battery" },
+  { label:"LCD Connector", icon:CircuitBoard, color:"bg-blue-50 text-blue-600 border-blue-100", href:"/parts?cat=FPC+Connector" },
+  { label:"IC Compatible", icon:Cpu, color:"bg-violet-50 text-violet-600 border-violet-100", href:"/parts?cat=IC+Compatible" },
+  { label:"More Parts", icon:MoreHorizontal, color:"bg-orange-50 text-orange-600 border-orange-100", href:"/parts" },
 ];
 
 export default function Home() {
@@ -29,7 +40,7 @@ export default function Home() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Find Display Combos</h1>
-        <p className="text-muted-foreground mt-1 text-sm">Search your phone model for display combos & spare parts</p>
+        <p className="text-muted-foreground mt-1 text-sm">Search your phone model for display combos &amp; spare parts</p>
       </div>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/>
@@ -45,8 +56,8 @@ export default function Home() {
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Brands</p>
                 <div className="space-y-2">{results.brands.map(b=>(
                   <button key={b.id} onClick={()=>navigate(`/brands/${b.id}`)} className="w-full bg-white rounded-xl border border-border p-3 flex items-center justify-between hover:border-primary/40 hover:shadow-sm transition-all text-left">
-                    <div className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center"><Tag className="w-4 h-4 text-primary"/></div><div><p className="font-medium text-sm">{b.name}</p><p className="text-xs text-muted-foreground">{b.modelCount} models</p></div></div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground"/>
+                    <div className="flex items-center gap-2 min-w-0"><div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Tag className="w-4 h-4 text-primary"/></div><div className="min-w-0"><p className="font-semibold text-sm truncate">{b.name}</p><p className="text-xs text-muted-foreground">{b.modelCount} models</p></div></div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0"/>
                   </button>
                 ))}</div>
               </div>
@@ -56,8 +67,8 @@ export default function Home() {
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Models</p>
                 <div className="space-y-2">{results.models.map(m=>(
                   <button key={m.id} onClick={()=>navigate(`/models/${m.id}`)} className="w-full bg-white rounded-xl border border-border p-3 flex items-center justify-between hover:border-primary/40 hover:shadow-sm transition-all text-left">
-                    <div className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center"><Smartphone className="w-4 h-4 text-primary"/></div><div><p className="font-medium text-sm">{m.name}</p><p className="text-xs text-muted-foreground">{m.brandName} · {m.comboCount} combos</p></div></div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground"/>
+                    <div className="flex items-center gap-2 min-w-0"><div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Smartphone className="w-4 h-4 text-primary"/></div><div className="min-w-0"><p className="font-semibold text-sm truncate">{m.name}</p><p className="text-xs text-muted-foreground truncate">{m.brandName} · {m.comboCount} combos</p></div></div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0"/>
                   </button>
                 ))}</div>
               </div>
@@ -85,8 +96,8 @@ export default function Home() {
               <Link href="/parts" className="text-xs text-primary font-medium">View all →</Link>
             </div>
             <div className="grid grid-cols-2 gap-2.5">
-              {SHORTCUTS.map(({label,icon:Icon,color})=>(
-                <Link key={label} href={`/parts`}>
+              {SHORTCUTS.map(({label,icon:Icon,color,href})=>(
+                <Link key={label} href={href}>
                   <div className={`flex items-center gap-2.5 p-3 rounded-xl border ${color} hover:opacity-80 transition-opacity cursor-pointer`}>
                     <Icon className="w-4 h-4 shrink-0"/><span className="text-xs font-medium leading-tight">{label}</span>
                   </div>
