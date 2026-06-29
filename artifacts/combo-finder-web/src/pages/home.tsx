@@ -40,8 +40,8 @@ export default function Home() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Find Display Combos</h1>
-        <p className="text-muted-foreground mt-1 text-sm">Search your phone model for display combos &amp; spare parts</p>
+        <h1 className="text-2xl font-bold">Compatible Parts Finder</h1>
+        <p className="text-muted-foreground mt-1 text-sm">Search your phone model to find compatible display combos &amp; spare parts</p>
       </div>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/>

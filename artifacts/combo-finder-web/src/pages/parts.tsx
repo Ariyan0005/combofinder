@@ -15,13 +15,12 @@ function MobileLcdIcon({ className }: { className?: string }) {
 }
 
 const CATEGORIES = [
-  { label: "LCD / Display", value: "LCD / Display", iconType: "lcd" as const, bg: "from-blue-500 to-blue-600", light: "bg-blue-50 text-blue-700", desc: "Display assemblies & touch screens", navigateHome: true },
-  { label: "Battery", value: "Battery", iconType: "battery" as const, bg: "from-green-500 to-green-600", light: "bg-green-50 text-green-700", desc: "Original & compatible batteries", navigateHome: false },
-  { label: "LCD Connector", value: "FPC Connector", iconType: "circuit" as const, bg: "from-violet-500 to-violet-600", light: "bg-violet-50 text-violet-700", desc: "Flex cable connectors for displays", navigateHome: false },
-  { label: "Charging Sub Board", value: "Charging Sub Board", iconType: "zap" as const, bg: "from-orange-500 to-orange-600", light: "bg-orange-50 text-orange-700", desc: "USB charging boards", navigateHome: false },
+  { label: "LCD / Display", value: "LCD / Display", iconType: "lcd" as const, bg: "from-blue-500 to-blue-600", light: "bg-blue-50 text-blue-700", desc: "Compatible display assemblies", navigateHome: true },
+  { label: "Battery", value: "Battery", iconType: "battery" as const, bg: "from-green-500 to-green-600", light: "bg-green-50 text-green-700", desc: "Compatible batteries by model", navigateHome: false },
+  { label: "LCD Connector", value: "FPC Connector", iconType: "circuit" as const, bg: "from-violet-500 to-violet-600", light: "bg-violet-50 text-violet-700", desc: "Compatible LCD flex connectors", navigateHome: false },
+  { label: "Charging Sub Board", value: "Charging Sub Board", iconType: "zap" as const, bg: "from-orange-500 to-orange-600", light: "bg-orange-50 text-orange-700", desc: "Compatible USB charging boards", navigateHome: false },
   { label: "IC Compatible", value: "IC Compatible", iconType: "cpu" as const, bg: "from-cyan-500 to-cyan-600", light: "bg-cyan-50 text-cyan-700", desc: "Compatible integrated circuits", navigateHome: false },
-  { label: "Power/Volume Flex", value: "Power/Volume Flex", iconType: "zap" as const, bg: "from-pink-500 to-pink-600", light: "bg-pink-50 text-pink-700", desc: "Side button flex cables", navigateHome: false },
-  { label: "Other Parts", value: "Other", iconType: "wrench" as const, bg: "from-slate-500 to-slate-600", light: "bg-slate-50 text-slate-700", desc: "Back cover, frame & more", navigateHome: false },
+  { label: "Other Parts", value: "Other", iconType: "wrench" as const, bg: "from-slate-500 to-slate-600", light: "bg-slate-50 text-slate-700", desc: "Compatible back cover, frame & more", navigateHome: false },
 ];
 
 type IconType = "lcd" | "battery" | "circuit" | "zap" | "cpu" | "wrench";
@@ -86,8 +85,8 @@ export default function Parts() {
             <ArrowLeft className="w-4 h-4"/> Back to categories
           </button>
         )}
-        <h1 className="text-2xl font-bold text-foreground">Phone Parts</h1>
-        <p className="text-muted-foreground mt-0.5 text-sm">{selected ? activeCategory?.desc : "Select a category"}</p>
+        <h1 className="text-2xl font-bold text-foreground">Compatible Parts</h1>
+        <p className="text-muted-foreground mt-0.5 text-sm">{selected ? activeCategory?.desc : "Select a category to find compatible parts"}</p>
       </div>
 
       {isLoading ? <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"/></div>

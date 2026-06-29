@@ -1,16 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Background circle -->
-  <circle cx="32" cy="32" r="32" fill="#0f1b2d"/>
-  <!-- Big blue C arc -->
-  <path d="M44 14 A22 22 0 1 0 44 50" stroke="#2563eb" stroke-width="7" fill="none" stroke-linecap="round"/>
-  <!-- Phone body -->
-  <rect x="25" y="20" width="14" height="22" rx="3" fill="#2563eb"/>
-  <!-- Phone screen -->
-  <rect x="27" y="22" width="10" height="16" rx="1.5" fill="#0f1b2d"/>
-  <!-- Phone home dot -->
-  <circle cx="32" cy="40.5" r="1.2" fill="#2563eb"/>
-  <!-- Magnifier circle -->
-  <circle cx="36" cy="36" r="5" stroke="white" stroke-width="2.5" fill="none"/>
+  <!-- Blue rounded square background -->
+  <rect width="64" height="64" rx="14" fill="#2563eb"/>
+  <!-- Phone body (white) -->
+  <rect x="18" y="8" width="28" height="42" rx="5" fill="white"/>
+  <!-- Phone screen (blue) -->
+  <rect x="22" y="13" width="20" height="28" rx="2" fill="#2563eb"/>
+  <!-- Home button dot -->
+  <circle cx="32" cy="46" r="2.5" fill="#2563eb"/>
+  <!-- Magnifier circle (white, bottom-right) -->
+  <circle cx="43" cy="44" r="9" fill="#1d4ed8" stroke="white" stroke-width="3"/>
+  <circle cx="43" cy="44" r="4" fill="none" stroke="white" stroke-width="2.5"/>
   <!-- Magnifier handle -->
-  <line x1="40" y1="40" x2="44" y2="44" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="47.5" y1="48.5" x2="51.5" y2="52.5" stroke="white" stroke-width="3" stroke-linecap="round"/>
 </svg>
