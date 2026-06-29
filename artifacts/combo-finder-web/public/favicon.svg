@@ -1,15 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Blue rounded square background -->
-  <rect width="64" height="64" rx="14" fill="#2563eb"/>
-  <!-- Phone body (white) -->
-  <rect x="18" y="8" width="28" height="42" rx="5" fill="white"/>
-  <!-- Phone screen (blue) -->
-  <rect x="22" y="13" width="20" height="28" rx="2" fill="#2563eb"/>
-  <!-- Home button dot -->
-  <circle cx="32" cy="46" r="2.5" fill="#2563eb"/>
-  <!-- Magnifier circle (white, bottom-right) -->
-  <circle cx="43" cy="44" r="9" fill="#1d4ed8" stroke="white" stroke-width="3"/>
-  <circle cx="43" cy="44" r="4" fill="none" stroke="white" stroke-width="2.5"/>
-  <!-- Magnifier handle -->
-  <line x1="47.5" y1="48.5" x2="51.5" y2="52.5" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <!-- Blue rounded square -->
+  <rect width="64" height="64" rx="12" fill="#2563eb"/>
+  <!-- Phone outline (white) -->
+  <rect x="16" y="6" width="32" height="48" rx="6" fill="white"/>
+  <!-- Screen area (blue) -->
+  <rect x="20" y="11" width="24" height="34" rx="2" fill="#2563eb"/>
+  <!-- Home button -->
+  <circle cx="32" cy="50" r="3" fill="#2563eb"/>
+  <!-- Magnifier over screen -->
+  <circle cx="36" cy="27" r="8" fill="none" stroke="white" stroke-width="3"/>
+  <circle cx="36" cy="27" r="3.5" fill="none" stroke="white" stroke-width="2.5"/>
+  <line x1="42" y1="33" x2="47" y2="38" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
 </svg>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Wrench, ChevronDown, ChevronUp, Battery, Zap, CircuitBoard, ArrowLeft, ExternalLink, Cpu } from "lucide-react";
+import { Wrench, ChevronDown, ChevronUp, Battery, Zap, CircuitBoard, ArrowLeft, ExternalLink, Cpu, Search } from "lucide-react";
 
 // Mobile LCD icon
 function MobileLcdIcon({ className }: { className?: string }) {
@@ -15,12 +15,13 @@ function MobileLcdIcon({ className }: { className?: string }) {
 }
 
 const CATEGORIES = [
-  { label: "LCD / Display", value: "LCD / Display", iconType: "lcd" as const, bg: "from-blue-500 to-blue-600", light: "bg-blue-50 text-blue-700", desc: "Compatible display assemblies", navigateHome: true },
-  { label: "Battery", value: "Battery", iconType: "battery" as const, bg: "from-green-500 to-green-600", light: "bg-green-50 text-green-700", desc: "Compatible batteries by model", navigateHome: false },
-  { label: "LCD Connector", value: "FPC Connector", iconType: "circuit" as const, bg: "from-violet-500 to-violet-600", light: "bg-violet-50 text-violet-700", desc: "Compatible LCD flex connectors", navigateHome: false },
-  { label: "Charging Sub Board", value: "Charging Sub Board", iconType: "zap" as const, bg: "from-orange-500 to-orange-600", light: "bg-orange-50 text-orange-700", desc: "Compatible USB charging boards", navigateHome: false },
-  { label: "IC Compatible", value: "IC Compatible", iconType: "cpu" as const, bg: "from-cyan-500 to-cyan-600", light: "bg-cyan-50 text-cyan-700", desc: "Compatible integrated circuits", navigateHome: false },
-  { label: "Other Parts", value: "Other", iconType: "wrench" as const, bg: "from-slate-500 to-slate-600", light: "bg-slate-50 text-slate-700", desc: "Compatible back cover, frame & more", navigateHome: false },
+  { label: "LCD / Display", value: "LCD / Display", iconType: "lcd" as const, bg: "from-blue-500 to-blue-600", light: "bg-blue-50 text-blue-700", desc: "Compatible display assemblies", navigateHome: true, dataKey: "LCD / Display" },
+  { label: "Battery", value: "Battery", iconType: "battery" as const, bg: "from-green-500 to-green-600", light: "bg-green-50 text-green-700", desc: "Compatible batteries by model", navigateHome: false, dataKey: "Battery" },
+  // LCD Connector uses same data as LCD / Display (connector compatible = display compatible)
+  { label: "LCD Connector", value: "FPC Connector", iconType: "circuit" as const, bg: "from-violet-500 to-violet-600", light: "bg-violet-50 text-violet-700", desc: "Compatible LCD flex connectors", navigateHome: false, dataKey: "LCD / Display" },
+  { label: "Charging Sub Board", value: "Charging Sub Board", iconType: "zap" as const, bg: "from-orange-500 to-orange-600", light: "bg-orange-50 text-orange-700", desc: "Compatible USB charging boards", navigateHome: false, dataKey: "Charging Sub Board" },
+  { label: "IC Compatible", value: "IC Compatible", iconType: "cpu" as const, bg: "from-cyan-500 to-cyan-600", light: "bg-cyan-50 text-cyan-700", desc: "Compatible integrated circuits", navigateHome: false, dataKey: "IC Compatible" },
+  { label: "Other Parts", value: "Other", iconType: "wrench" as const, bg: "from-slate-500 to-slate-600", light: "bg-slate-50 text-slate-700", desc: "Compatible back cover, frame & more", navigateHome: false, dataKey: "Other" },
 ];
 
 type IconType = "lcd" | "battery" | "circuit" | "zap" | "cpu" | "wrench";
@@ -55,6 +56,7 @@ function PartCard({ part }: { part: Part }) {
 
 export default function Parts() {
   const [, navigate] = useLocation();
+  const [catSearch, setCatSearch] = useState("");
 
   // Read ?cat= param from URL to auto-select category
   const urlCat = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("cat") : null;
@@ -65,15 +67,26 @@ export default function Parts() {
     if (cat) setSelected(cat);
   }, []);
 
+  // Reset search when category changes
+  useEffect(() => { setCatSearch(""); }, [selected]);
+
   const { data:allParts=[], isLoading } = useQuery({ queryKey:["web-parts"], queryFn:fetchParts });
-  const displayParts = selected ? allParts.filter(p=>p.partType===selected) : [];
+
   const activeCategory = CATEGORIES.find(c=>c.value===selected);
+  // LCD Connector shares same data as LCD / Display
+  const dataKey = activeCategory?.dataKey ?? selected ?? "";
+  const categoryParts = selected ? allParts.filter(p=>p.partType===dataKey) : [];
+
+  // Filter by search within category
+  const displayParts = catSearch.length >= 2
+    ? categoryParts.filter(p =>
+        p.partName.toLowerCase().includes(catSearch.toLowerCase()) ||
+        p.compatibleModels.toLowerCase().includes(catSearch.toLowerCase())
+      )
+    : categoryParts;
 
   function handleCategoryClick(value: string, navigateHome: boolean) {
-    if (navigateHome) {
-      navigate("/");
-      return;
-    }
+    if (navigateHome) { navigate("/"); return; }
     setSelected(value);
   }
 
@@ -81,7 +94,7 @@ export default function Parts() {
     <div className="space-y-5">
       <div>
         {selected && (
-          <button onClick={()=>setSelected(null)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-3 transition-colors">
+          <button onClick={()=>{ setSelected(null); setCatSearch(""); }} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-3 transition-colors">
             <ArrowLeft className="w-4 h-4"/> Back to categories
           </button>
         )}
@@ -92,22 +105,45 @@ export default function Parts() {
       {isLoading ? <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"/></div>
       : selected ? (
         <div className="space-y-3">
+          {/* Category header */}
           {activeCategory && (
             <div className={`flex items-center gap-2.5 px-3 py-2 rounded-lg ${activeCategory.light}`}>
               <CatIcon type={activeCategory.iconType} className="w-4 h-4"/>
               <span className="text-sm font-medium">{activeCategory.label}</span>
-              <span className="ml-auto text-xs opacity-70">{displayParts.length} parts</span>
+              <span className="ml-auto text-xs opacity-70">{categoryParts.length} parts</span>
             </div>
           )}
+
+          {/* Category-level search bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/>
+            <input
+              type="search"
+              placeholder={`Search ${activeCategory?.label ?? ""} by model name...`}
+              value={catSearch}
+              onChange={e=>setCatSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+              autoComplete="off"
+            />
+          </div>
+
           {displayParts.length===0 ? (
-            <div className="text-center py-12 text-muted-foreground"><Wrench className="w-10 h-10 mx-auto mb-3 opacity-30"/><p className="text-sm font-medium">No {activeCategory?.label} parts yet</p><p className="text-xs mt-1 opacity-70">Parts are added regularly — check back soon</p></div>
+            <div className="text-center py-12 text-muted-foreground">
+              <Wrench className="w-10 h-10 mx-auto mb-3 opacity-30"/>
+              <p className="text-sm font-medium">
+                {catSearch.length>=2 ? `No results for "${catSearch}"` : `No ${activeCategory?.label} parts yet`}
+              </p>
+              <p className="text-xs mt-1 opacity-70">
+                {catSearch.length>=2 ? "Try a different model name" : "Parts are added regularly — check back soon"}
+              </p>
+            </div>
           ) : displayParts.map(p=><PartCard key={p.id} part={p}/>)}
         </div>
       ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            {CATEGORIES.map(({label,value,iconType,bg,desc,navigateHome})=>{
-              const count=allParts.filter(p=>p.partType===value).length;
+            {CATEGORIES.map(({label,value,iconType,bg,desc,navigateHome,dataKey:dk})=>{
+              const count=allParts.filter(p=>p.partType===dk).length;
               return (
                 <button key={value} onClick={()=>handleCategoryClick(value, navigateHome)} className="relative overflow-hidden rounded-2xl text-left hover:scale-[1.02] active:scale-[0.98] transition-transform">
                   <div className={`bg-gradient-to-br ${bg} p-4`}>
