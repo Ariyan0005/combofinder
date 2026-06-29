@@ -5,9 +5,10 @@ import { Search, Smartphone, Tag, Layers, ChevronRight, Battery, Zap, CircuitBoa
 
 function StatCard({ label, value, icon: Icon }: { label: string; value: number|undefined; icon: React.ElementType }) {
   return (
-    <div className="bg-white rounded-xl border border-border p-4 flex items-center gap-3">
-      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Icon className="w-5 h-5 text-primary"/></div>
-      <div><p className="text-2xl font-bold">{value ?? "—"}</p><p className="text-xs text-muted-foreground">{label}</p></div>
+    <div className="bg-white rounded-xl border border-border p-3 flex flex-col items-center gap-1.5 text-center">
+      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Icon className="w-4 h-4 text-primary"/></div>
+      <p className="text-xl font-bold leading-none">{value ?? "—"}</p>
+      <p className="text-[11px] text-muted-foreground">{label}</p>
     </div>
   );
 }
@@ -110,10 +111,10 @@ export default function Home() {
             <div><p className="text-[10px] text-white/70 leading-none">Direct Download</p><p className="text-sm font-semibold leading-tight">Download APK (Android)</p></div>
             <span className="ml-auto text-xs bg-white text-primary font-semibold px-2 py-0.5 rounded-full">v1.0</span>
           </a>
-          <a href="https://iunlockd.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-xl p-4 hover:opacity-90 transition-opacity">
-            <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0"><ShieldCheck className="w-5 h-5 text-blue-400"/></div>
-            <div className="flex-1"><p className="text-[10px] text-slate-400 uppercase tracking-wide font-medium">Professional Service</p><p className="text-sm font-bold">Phone Unlock Service</p><p className="text-xs text-slate-400 mt-0.5">All networks · iUnlockd.com</p></div>
-            <ExternalLink className="w-4 h-4 text-slate-400 shrink-0"/>
+          <a href="https://iunlockd.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-700 text-white rounded-xl p-4 hover:opacity-90 transition-opacity shadow-lg shadow-indigo-500/25">
+            <div className="w-10 h-10 rounded-lg bg-white/15 flex items-center justify-center shrink-0"><ShieldCheck className="w-5 h-5 text-white"/></div>
+            <div className="flex-1"><p className="text-[10px] text-white/70 uppercase tracking-wide font-medium">Professional Service</p><p className="text-sm font-bold">Phone Unlock Service</p><p className="text-xs text-white/60 mt-0.5">All networks · iUnlockd.com</p></div>
+            <ExternalLink className="w-4 h-4 text-white/60 shrink-0"/>
           </a>
         </div>
       )}
