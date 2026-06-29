@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
   Wrench, ChevronDown, ChevronUp, Battery, Zap, CircuitBoard,
-  ArrowLeft, ExternalLink, Cpu, Search, Camera, Layers
+  ArrowLeft, ExternalLink, Cpu, Search
 } from "lucide-react";
 
 function MobileLcdIcon({ className }: { className?: string }) {
@@ -12,17 +12,6 @@ function MobileLcdIcon({ className }: { className?: string }) {
       <rect x="5" y="2" width="14" height="20" rx="2"/>
       <rect x="7" y="4" width="10" height="13" rx="1"/>
       <circle cx="12" cy="19.5" r="0.7" fill="currentColor" stroke="none"/>
-    </svg>
-  );
-}
-
-function TouchGlassIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="5" y="2" width="14" height="20" rx="2"/>
-      <path d="M9 10 L12 7 L15 10"/>
-      <path d="M12 7 L12 14"/>
-      <circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/>
     </svg>
   );
 }
@@ -50,23 +39,13 @@ const CATEGORIES = [
   },
   {
     label: "LCD Connector",
-    value: "FPC Connector",
+    value: "LCD Connector",
     iconType: "circuit" as const,
     bg: "from-violet-500 to-violet-600",
     light: "bg-violet-50 text-violet-700",
     desc: "Compatible LCD flex connectors",
     navigateHome: false,
-    dataKey: "FPC Connector",
-  },
-  {
-    label: "Touch Glass",
-    value: "Touch Glass",
-    iconType: "touch" as const,
-    bg: "from-sky-500 to-sky-600",
-    light: "bg-sky-50 text-sky-700",
-    desc: "Touch panel & OCA glass",
-    navigateHome: false,
-    dataKey: "Touch Glass",
+    dataKey: "LCD / Display",
   },
   {
     label: "Charging Board",
@@ -79,16 +58,6 @@ const CATEGORIES = [
     dataKey: "Charging Sub Board",
   },
   {
-    label: "Camera",
-    value: "Camera Module",
-    iconType: "camera" as const,
-    bg: "from-rose-500 to-rose-600",
-    light: "bg-rose-50 text-rose-700",
-    desc: "Front & rear camera modules",
-    navigateHome: false,
-    dataKey: "Camera Module",
-  },
-  {
     label: "IC Compatible",
     value: "IC Compatible",
     iconType: "cpu" as const,
@@ -99,47 +68,25 @@ const CATEGORIES = [
     dataKey: "IC Compatible",
   },
   {
-    label: "Back Cover",
-    value: "Back Cover",
-    iconType: "backcover" as const,
-    bg: "from-amber-500 to-amber-600",
-    light: "bg-amber-50 text-amber-700",
-    desc: "Compatible back covers & housing",
-    navigateHome: false,
-    dataKey: "Back Cover",
-  },
-  {
     label: "Other Parts",
     value: "Other",
     iconType: "wrench" as const,
     bg: "from-slate-500 to-slate-600",
     light: "bg-slate-50 text-slate-700",
-    desc: "Frame, speaker & more",
+    desc: "Back cover, frame & more",
     navigateHome: false,
     dataKey: "Other",
   },
 ];
 
-type IconType = "lcd" | "battery" | "circuit" | "touch" | "zap" | "camera" | "cpu" | "backcover" | "wrench";
-
-function BackCoverIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="5" y="2" width="14" height="20" rx="2"/>
-      <path d="M9 2v20M15 2v20" strokeOpacity="0.4"/>
-    </svg>
-  );
-}
+type IconType = "lcd" | "battery" | "circuit" | "zap" | "cpu" | "wrench";
 
 function CatIcon({ type, className }: { type: IconType; className?: string }) {
-  if (type === "lcd")       return <MobileLcdIcon className={className} />;
-  if (type === "battery")   return <Battery className={className} />;
-  if (type === "circuit")   return <CircuitBoard className={className} />;
-  if (type === "touch")     return <TouchGlassIcon className={className} />;
-  if (type === "zap")       return <Zap className={className} />;
-  if (type === "camera")    return <Camera className={className} />;
-  if (type === "cpu")       return <Cpu className={className} />;
-  if (type === "backcover") return <BackCoverIcon className={className} />;
+  if (type === "lcd")     return <MobileLcdIcon className={className} />;
+  if (type === "battery") return <Battery className={className} />;
+  if (type === "circuit") return <CircuitBoard className={className} />;
+  if (type === "zap")     return <Zap className={className} />;
+  if (type === "cpu")     return <Cpu className={className} />;
   return <Wrench className={className} />;
 }
 
@@ -167,7 +114,8 @@ function PartCard({ part }: { part: Part }) {
         <p className="text-xs text-muted-foreground mt-1">{part.description}</p>
       )}
       <button
-        onClick={() => setExpanded(!expanded)}
+        type="button"
+        onClick={() => setExpanded(v => !v)}
         className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mt-3 transition-colors"
       >
         {expanded ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>}
@@ -198,6 +146,7 @@ export default function Parts() {
     if (cat) setSelected(cat);
   }, []);
 
+  // Reset search when switching category
   useEffect(() => {
     setCatSearch("");
   }, [selected]);
@@ -205,16 +154,19 @@ export default function Parts() {
   const { data: allParts = [], isLoading } = useQuery({
     queryKey: ["web-parts"],
     queryFn: fetchParts,
+    staleTime: 0,
   });
 
   const activeCategory = CATEGORIES.find(c => c.value === selected);
-  const dataKey = activeCategory?.dataKey ?? selected ?? "";
+  // LCD Connector (value="LCD Connector") shares dataKey "LCD / Display"
+  const dataKey = activeCategory?.dataKey ?? "";
   const categoryParts = selected ? allParts.filter(p => p.partType === dataKey) : [];
 
-  const displayParts = catSearch.length >= 2
+  const searchTerm = catSearch.trim().toLowerCase();
+  const displayParts = searchTerm.length >= 1
     ? categoryParts.filter(p =>
-        p.partName.toLowerCase().includes(catSearch.toLowerCase()) ||
-        p.compatibleModels.toLowerCase().includes(catSearch.toLowerCase())
+        p.partName.toLowerCase().includes(searchTerm) ||
+        p.compatibleModels.toLowerCase().includes(searchTerm)
       )
     : categoryParts;
 
@@ -228,6 +180,7 @@ export default function Parts() {
       <div>
         {selected && (
           <button
+            type="button"
             onClick={() => { setSelected(null); setCatSearch(""); }}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-3 transition-colors"
           >
@@ -246,6 +199,7 @@ export default function Parts() {
         </div>
       ) : selected ? (
         <div className="space-y-3">
+          {/* Category header */}
           {activeCategory && (
             <div className={`flex items-center gap-2.5 px-3 py-2 rounded-lg ${activeCategory.light}`}>
               <CatIcon type={activeCategory.iconType} className="w-4 h-4"/>
@@ -254,15 +208,18 @@ export default function Parts() {
             </div>
           )}
 
+          {/* Search bar */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/>
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none"/>
             <input
-              type="search"
+              type="text"
               placeholder={`Search ${activeCategory?.label ?? ""} by model name...`}
               value={catSearch}
               onChange={e => setCatSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
               autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
             />
           </div>
 
@@ -270,12 +227,12 @@ export default function Parts() {
             <div className="text-center py-12 text-muted-foreground">
               <Wrench className="w-10 h-10 mx-auto mb-3 opacity-30"/>
               <p className="text-sm font-medium">
-                {catSearch.length >= 2
+                {searchTerm.length >= 1
                   ? `No results for "${catSearch}"`
                   : `No ${activeCategory?.label} parts yet`}
               </p>
               <p className="text-xs mt-1 opacity-70">
-                {catSearch.length >= 2
+                {searchTerm.length >= 1
                   ? "Try a different model name"
                   : "Parts are added regularly — check back soon"}
               </p>
@@ -288,10 +245,11 @@ export default function Parts() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             {CATEGORIES.map(({ label, value, iconType, bg, desc, navigateHome, dataKey: dk }) => {
-              const count = allParts.filter(p => p.partType === dk).length;
+              const count = navigateHome ? 0 : allParts.filter(p => p.partType === dk).length;
               return (
                 <button
                   key={value}
+                  type="button"
                   onClick={() => handleCategoryClick(value, navigateHome)}
                   className="relative overflow-hidden rounded-2xl text-left hover:scale-[1.02] active:scale-[0.98] transition-transform"
                 >
@@ -303,11 +261,6 @@ export default function Parts() {
                     <p className="text-[11px] text-white/70 mt-0.5 leading-tight">{desc}</p>
                     {count > 0 && (
                       <p className="text-[10px] text-white/50 mt-2 font-medium">{count} parts</p>
-                    )}
-                    {navigateHome && (
-                      <p className="text-[10px] text-white/50 mt-2 font-medium flex items-center gap-1">
-                        <Layers className="w-2.5 h-2.5"/> View combos
-                      </p>
                     )}
                   </div>
                 </button>
