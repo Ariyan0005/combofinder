@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Wrench, ChevronDown, ChevronUp, Battery, Zap, CircuitBoard,
+  Wrench, ChevronDown, ChevronUp, Battery, Zap,
   ArrowLeft, ExternalLink, Cpu, Search
 } from "lucide-react";
 
@@ -38,16 +38,6 @@ const CATEGORIES = [
     dataKey: "Battery",
   },
   {
-    label: "LCD Connector",
-    value: "LCD Connector",
-    iconType: "circuit" as const,
-    bg: "from-violet-500 to-violet-600",
-    light: "bg-violet-50 text-violet-700",
-    desc: "Compatible LCD flex connectors",
-    navigateHome: false,
-    dataKey: "LCD / Display",
-  },
-  {
     label: "Charging Board",
     value: "Charging Sub Board",
     iconType: "zap" as const,
@@ -79,12 +69,11 @@ const CATEGORIES = [
   },
 ];
 
-type IconType = "lcd" | "battery" | "circuit" | "zap" | "cpu" | "wrench";
+type IconType = "lcd" | "battery" | "zap" | "cpu" | "wrench";
 
 function CatIcon({ type, className }: { type: IconType; className?: string }) {
   if (type === "lcd")     return <MobileLcdIcon className={className} />;
   if (type === "battery") return <Battery className={className} />;
-  if (type === "circuit") return <CircuitBoard className={className} />;
   if (type === "zap")     return <Zap className={className} />;
   if (type === "cpu")     return <Cpu className={className} />;
   return <Wrench className={className} />;

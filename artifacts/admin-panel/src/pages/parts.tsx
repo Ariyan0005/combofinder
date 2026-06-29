@@ -10,11 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-// These types MUST match the web frontend dataKey values exactly.
-// LCD / Display → shows under LCD Connector tab on web (same data)
-// Battery, Charging Sub Board, IC Compatible, Other → own tabs
+// These types match the web frontend Parts tabs exactly.
 const PART_TYPES = [
-  "LCD / Display",
   "Battery",
   "Charging Sub Board",
   "IC Compatible",
