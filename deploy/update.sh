@@ -29,8 +29,9 @@ cp -r artifacts/admin-panel/dist/public/* /var/www/combofinder/admin/
 cp -r artifacts/combo-finder-web/dist/public/* /var/www/combofinder/web/
 
 echo "=== Restart API server via pm2 ==="
-pm2 delete api-server 2>/dev/null || true
-pm2 start /var/www/combofinder/deploy/ecosystem.config.cjs
+# startOrRestart: already running হলে restart করবে, না থাকলে নতুন করে start করবে
+# অন্য pm2 processes এ কোনো effect নেই
+pm2 startOrRestart /var/www/combofinder/deploy/ecosystem.config.cjs --only api-server
 pm2 save
 
 echo ""
