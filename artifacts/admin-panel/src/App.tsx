@@ -12,6 +12,9 @@ import ModelDetail from "@/pages/model-detail";
 import Combos from "@/pages/combos";
 import Search from "@/pages/search";
 import Parts from "@/pages/parts";
+import Repairs from "@/pages/repairs";
+import Customers from "@/pages/customers";
+import Inventory from "@/pages/inventory";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 
@@ -49,6 +52,9 @@ function Router() {
         <Route path="/combos" component={Combos} />
         <Route path="/search" component={Search} />
         <Route path="/parts" component={Parts} />
+        <Route path="/repairs" component={Repairs} />
+        <Route path="/customers" component={Customers} />
+        <Route path="/inventory" component={Inventory} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

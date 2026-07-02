@@ -7,6 +7,9 @@ import combosRouter from "./combos";
 import statsRouter from "./stats";
 import searchRouter from "./search";
 import partsRouter from "./parts";
+import customersRouter from "./customers";
+import repairsRouter from "./repairs";
+import inventoryRouter from "./inventory";
 
 const router: IRouter = Router();
 
@@ -31,5 +34,8 @@ router.use(combosRouter);
 router.use(statsRouter);
 router.use(searchRouter);
 router.use("/parts", partsRouter);
+router.use("/customers", customersRouter);
+router.use("/repairs", repairsRouter);
+router.use("/inventory", inventoryRouter);
 
 export default router;

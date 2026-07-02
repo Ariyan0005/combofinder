@@ -1,14 +1,23 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Smartphone, Layers, Search, LogOut, Cpu, Menu, X, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Smartphone, Layers, Search, LogOut, Cpu, Menu, X, ChevronRight, Wrench, Users, Package } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Brands", href: "/brands", icon: Layers },
-  { name: "Combos", href: "/combos", icon: Smartphone },
-  { name: "Parts", href: "/parts", icon: Cpu },
-  { name: "Search", href: "/search", icon: Search },
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, group: "overview" },
+  { name: "Repairs", href: "/repairs", icon: Wrench, group: "workshop" },
+  { name: "Customers", href: "/customers", icon: Users, group: "workshop" },
+  { name: "Inventory", href: "/inventory", icon: Package, group: "workshop" },
+  { name: "Brands", href: "/brands", icon: Layers, group: "catalog" },
+  { name: "Combos", href: "/combos", icon: Smartphone, group: "catalog" },
+  { name: "Parts", href: "/parts", icon: Cpu, group: "catalog" },
+  { name: "Search", href: "/search", icon: Search, group: "catalog" },
+];
+
+const GROUPS = [
+  { key: "overview", label: "Overview" },
+  { key: "workshop", label: "Workshop" },
+  { key: "catalog", label: "Catalog" },
 ];
 
 export function AppLayout({ children }: { children: ReactNode }) {
@@ -40,41 +49,34 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
         {/* Navigation */}
         <div className="flex-1 py-4 px-3 overflow-y-auto">
-          <p className="text-[10px] font-semibold uppercase tracking-wider mb-3 px-3" style={{ color: "hsl(215 25% 40%)" }}>Menu</p>
-          <nav className="flex flex-col gap-0.5">
-            {navigation.map((item) => {
-              const active = isActive(item.href);
+          <nav className="flex flex-col gap-4">
+            {GROUPS.map((group) => {
+              const items = navigation.filter(n => n.group === group.key);
               return (
-                <Link key={item.name} href={item.href}>
-                  <div
-                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all text-sm font-medium cursor-pointer group ${
-                      active ? "nav-active" : ""
-                    }`}
-                    style={
-                      !active
-                        ? { color: "hsl(215 25% 65%)" }
-                        : {}
-                    }
-                    onMouseEnter={(e) => {
-                      if (!active) {
-                        (e.currentTarget as HTMLDivElement).style.background = "hsl(var(--sidebar-accent))";
-                        (e.currentTarget as HTMLDivElement).style.color = "hsl(210 40% 98%)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!active) {
-                        (e.currentTarget as HTMLDivElement).style.background = "";
-                        (e.currentTarget as HTMLDivElement).style.color = "hsl(215 25% 65%)";
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <item.icon className="h-4 w-4 flex-shrink-0" />
-                      {item.name}
-                    </div>
-                    {active && <ChevronRight className="h-3 w-3 opacity-60" />}
+                <div key={group.key}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-1 px-3" style={{ color: "hsl(215 25% 40%)" }}>{group.label}</p>
+                  <div className="flex flex-col gap-0.5">
+                    {items.map((item) => {
+                      const active = isActive(item.href);
+                      return (
+                        <Link key={item.name} href={item.href}>
+                          <div
+                            className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all text-sm font-medium cursor-pointer group ${active ? "nav-active" : ""}`}
+                            style={!active ? { color: "hsl(215 25% 65%)" } : {}}
+                            onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLDivElement).style.background = "hsl(var(--sidebar-accent))"; (e.currentTarget as HTMLDivElement).style.color = "hsl(210 40% 98%)"; } }}
+                            onMouseLeave={(e) => { if (!active) { (e.currentTarget as HTMLDivElement).style.background = ""; (e.currentTarget as HTMLDivElement).style.color = "hsl(215 25% 65%)"; } }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <item.icon className="h-4 w-4 flex-shrink-0" />
+                              {item.name}
+                            </div>
+                            {active && <ChevronRight className="h-3 w-3 opacity-60" />}
+                          </div>
+                        </Link>
+                      );
+                    })}
                   </div>
-                </Link>
+                </div>
               );
             })}
           </nav>
