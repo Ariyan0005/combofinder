@@ -1,9 +1,53 @@
 import { useGetStats } from "@workspace/api-client-react";
-import { Layers, Smartphone, Database, Activity, Search, ExternalLink, Wrench } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Layers, Smartphone, Database, Activity, Search, ExternalLink, Wrench, TrendingUp, ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+
+function StatCard({
+  label,
+  value,
+  sub,
+  icon: Icon,
+  colorClass,
+  isLoading,
+}: {
+  label: string;
+  value?: number;
+  sub: string;
+  icon: React.ElementType;
+  colorClass: string;
+  isLoading: boolean;
+}) {
+  return (
+    <div className={`bg-card border border-border rounded-xl p-5 flex flex-col gap-3 hover-elevate transition-all ${colorClass}`}>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
+        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Icon className="h-4.5 w-4.5 text-primary" style={{ width: "1.1rem", height: "1.1rem" }} />
+        </div>
+      </div>
+      {isLoading ? (
+        <Skeleton className="h-9 w-24" />
+      ) : (
+        <div className="text-3xl font-bold tracking-tight text-foreground">
+          {value?.toLocaleString() ?? "—"}
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground flex items-center gap-1">
+        <TrendingUp className="h-3 w-3 text-green-500" />
+        {sub}
+      </p>
+    </div>
+  );
+}
+
+const quickActions = [
+  { label: "Manage Brands", href: "/brands", icon: Layers, variant: "default" as const, desc: "Add or edit phone brands" },
+  { label: "All Combos", href: "/combos", icon: Database, variant: "secondary" as const, desc: "Browse compatible combos" },
+  { label: "Manage Parts", href: "/parts", icon: Wrench, variant: "secondary" as const, desc: "Batteries, ICs & boards" },
+  { label: "Search DB", href: "/search", icon: Search, variant: "outline" as const, desc: "Find models instantly" },
+];
 
 export default function Dashboard() {
   const { data: stats, isLoading, isError } = useGetStats();
@@ -21,76 +65,79 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Phone parts compatibility database overview.</p>
+        </div>
+        <a href="https://combofinder.iunlockd.com" target="_blank" rel="noreferrer">
+          <Button variant="outline" size="sm" className="gap-2 text-xs">
+            <ExternalLink className="h-3.5 w-3.5" />
+            View Live Site
+          </Button>
+        </a>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        <StatCard
+          label="Total Brands"
+          value={stats?.totalBrands}
+          sub="Registered manufacturers"
+          icon={Layers}
+          colorClass="stat-card-blue"
+          isLoading={isLoading}
+        />
+        <StatCard
+          label="Total Models"
+          value={stats?.totalModels}
+          sub="Device variations"
+          icon={Smartphone}
+          colorClass="stat-card-green"
+          isLoading={isLoading}
+        />
+        <StatCard
+          label="Total Combos"
+          value={stats?.totalCombos}
+          sub="Compatible display parts"
+          icon={Database}
+          colorClass="stat-card-purple"
+          isLoading={isLoading}
+        />
+      </div>
+
+      {/* Quick Actions */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Overview of the phone parts database.</p>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {quickActions.map((action) => (
+            <Link key={action.href} href={action.href}>
+              <div className="group flex items-center gap-4 bg-card border border-border rounded-xl p-4 hover:border-primary/40 hover:shadow-sm transition-all cursor-pointer">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+                  <action.icon className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-foreground">{action.label}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{action.desc}</div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="hover-elevate transition-all border-l-4 border-l-primary">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Brands</CardTitle>
-            <Layers className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-20" />
-            ) : (
-              <div className="text-3xl font-bold">{stats?.totalBrands.toLocaleString()}</div>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">Registered manufacturers</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover-elevate transition-all border-l-4 border-l-chart-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Models</CardTitle>
-            <Smartphone className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-20" />
-            ) : (
-              <div className="text-3xl font-bold">{stats?.totalModels.toLocaleString()}</div>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">Device variations</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover-elevate transition-all border-l-4 border-l-chart-3">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Combos</CardTitle>
-            <Database className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-20" />
-            ) : (
-              <div className="text-3xl font-bold">{stats?.totalCombos.toLocaleString()}</div>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">Compatible display parts</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="bg-card border rounded-lg p-4">
-        <p className="text-sm font-semibold mb-3">Quick Actions</p>
-        <div className="flex gap-3 flex-wrap">
-          <Link href="/brands">
-            <Button className="gap-2"><Layers className="h-4 w-4"/> Manage Brands</Button>
-          </Link>
-          <Link href="/combos">
-            <Button variant="secondary" className="gap-2"><Database className="h-4 w-4"/> View All Combos</Button>
-          </Link>
-          <Link href="/parts">
-            <Button variant="secondary" className="gap-2"><Wrench className="h-4 w-4"/> Manage Parts</Button>
-          </Link>
-          <Link href="/search">
-            <Button variant="outline" className="gap-2"><Search className="h-4 w-4"/> Search Database</Button>
-          </Link>
-          <a href="https://combofinder.iunlockd.com" target="_blank" rel="noreferrer">
-            <Button variant="outline" className="gap-2"><ExternalLink className="h-4 w-4"/> View Site</Button>
-          </a>
+      {/* Info Banner */}
+      <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-start gap-3">
+        <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <Smartphone className="h-4 w-4 text-primary" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-foreground">Mobile Technician Database</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Manage phone models, compatible display combos, spare parts (batteries, ICs, charging boards) all in one place. Search across the database to find compatible parts instantly.
+          </p>
         </div>
       </div>
     </div>

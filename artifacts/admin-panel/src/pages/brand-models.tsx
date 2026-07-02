@@ -2,26 +2,14 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
 import { 
-  useGetBrandModels, 
-  useCreateModel, 
-  useUpdateModel, 
-  useDeleteModel,
-  useGetBrand,
-  getGetBrandModelsQueryKey,
-  Model
+  useGetBrandModels, useCreateModel, useUpdateModel, useDeleteModel,
+  useGetBrand, getGetBrandModelsQueryKey, Model
 } from "@workspace/api-client-react";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Edit2, Trash2, ArrowLeft, Search, Layers, Trash , Pencil } from "lucide-react";
+import { Plus, Edit2, Trash2, ArrowLeft, Search, Smartphone, Trash, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -34,7 +22,6 @@ export default function BrandModels() {
   
   const { data: brand, isLoading: brandLoading } = useGetBrand(brandId, { query: { enabled: !!brandId } });
   const { data: models = [], isLoading: modelsLoading } = useGetBrandModels(brandId, { query: { enabled: !!brandId } });
-  
   const filteredModels = models.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -45,23 +32,20 @@ export default function BrandModels() {
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
-
   const createModel = useCreateModel();
   const updateModel = useUpdateModel();
   const deleteModel = useDeleteModel();
 
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const name = formData.get("name") as string;
-
+    const fd = new FormData(e.currentTarget);
     createModel.mutate(
-      { data: { brandId, name } },
+      { data: { brandId, name: fd.get("name") as string } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetBrandModelsQueryKey(brandId) });
           setIsCreateOpen(false);
-          toast({ title: "Model created successfully" });
+          toast({ title: "Model created" });
         },
         onError: () => toast({ title: "Failed to create model", variant: "destructive" })
       }
@@ -70,14 +54,11 @@ export default function BrandModels() {
 
   const handleBulkAdd = async () => {
     const names = bulkNames.split("\n").map(n => n.trim()).filter(Boolean);
-    if (names.length === 0) return;
+    if (!names.length) return;
     let success = 0;
     for (const name of names) {
       await new Promise<void>((resolve) => {
-        createModel.mutate(
-          { data: { brandId, name } },
-          { onSuccess: () => { success++; resolve(); }, onError: () => resolve() }
-        );
+        createModel.mutate({ data: { brandId, name } }, { onSuccess: () => { success++; resolve(); }, onError: () => resolve() });
       });
     }
     queryClient.invalidateQueries({ queryKey: getGetBrandModelsQueryKey(brandId) });
@@ -89,16 +70,14 @@ export default function BrandModels() {
   const handleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingModel) return;
-    const formData = new FormData(e.currentTarget);
-    const name = formData.get("name") as string;
-
+    const fd = new FormData(e.currentTarget);
     updateModel.mutate(
-      { id: editingModel.id, data: { brandId, name } },
+      { id: editingModel.id, data: { brandId, name: fd.get("name") as string } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetBrandModelsQueryKey(brandId) });
           setEditingModel(null);
-          toast({ title: "Model updated successfully" });
+          toast({ title: "Model updated" });
         },
         onError: () => toast({ title: "Failed to update model", variant: "destructive" })
       }
@@ -106,22 +85,18 @@ export default function BrandModels() {
   };
 
   const handleDelete = (id: number) => {
-    if (!confirm("Are you sure you want to delete this model?")) return;
-    deleteModel.mutate(
-      { id },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetBrandModelsQueryKey(brandId) });
-          toast({ title: "Model deleted successfully" });
-        },
-        onError: () => toast({ title: "Failed to delete model", variant: "destructive" })
-      }
-    );
+    if (!confirm("Delete this model?")) return;
+    deleteModel.mutate({ id }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetBrandModelsQueryKey(brandId) });
+        toast({ title: "Model deleted" });
+      },
+      onError: () => toast({ title: "Failed to delete model", variant: "destructive" })
+    });
   };
 
   const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) return;
-    if (!confirm(`Delete ${selectedIds.length} model(s)?`)) return;
+    if (!selectedIds.length || !confirm(`Delete ${selectedIds.length} model(s)?`)) return;
     for (const id of selectedIds) {
       await new Promise<void>((resolve) => {
         deleteModel.mutate({ id }, { onSuccess: () => resolve(), onError: () => resolve() });
@@ -132,76 +107,103 @@ export default function BrandModels() {
     toast({ title: `${selectedIds.length} model(s) deleted` });
   };
 
-  const toggleSelect = (id: number) => {
+  const toggleSelect = (id: number) =>
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedIds.length === filteredModels.length) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(filteredModels.map(m => m.id));
-    }
-  };
+  const toggleSelectAll = () =>
+    setSelectedIds(selectedIds.length === filteredModels.length ? [] : filteredModels.map(m => m.id));
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center gap-4">
+      {/* Header */}
+      <div className="flex items-start gap-3">
         <Link href="/brands">
-          <Button variant="outline" size="icon">
+          <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 mt-0.5">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+            <Link href="/brands"><span className="hover:text-foreground cursor-pointer">Brands</span></Link>
+            <ChevronRight className="h-3 w-3" />
+            <span className="text-foreground font-medium">{brandLoading ? "..." : brand?.name}</span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight">
             {brandLoading ? "Loading..." : brand?.name} Models
           </h1>
-          <p className="text-muted-foreground mt-1">Manage device models for this brand.</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Manage device models for this brand.</p>
         </div>
-        <div className="ml-auto"><Button onClick={() => setIsCreateOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Add</Button></div>
+        <Button onClick={() => setIsCreateOpen(true)} className="gap-2 h-9 text-sm shrink-0">
+          <Plus className="h-4 w-4" /> Add
+        </Button>
       </div>
 
-      <div className="flex items-center space-x-2 bg-card p-2 rounded-lg border border-border">
-        <Search className="h-5 w-5 text-muted-foreground ml-2" />
-        <Input 
-          placeholder="Search models..." 
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border-0 shadow-none focus-visible:ring-0"
-        />
+      {/* Search + actions */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search models..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-9 bg-card"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setIsBulkAddOpen(true)} className="gap-1.5 text-xs">
+            <Plus className="h-3.5 w-3.5" /> Bulk Add
+          </Button>
+          {selectedIds.length > 0 && (
+            <Button variant="destructive" size="sm" onClick={handleBulkDelete} className="gap-1.5 text-xs">
+              <Trash className="h-3.5 w-3.5" /> Delete ({selectedIds.length})
+            </Button>
+          )}
+        </div>
       </div>
 
-      <div className="flex gap-2"><Button variant="outline" onClick={() => setIsBulkAddOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Bulk Add</Button>{selectedIds.length > 0 && (<Button variant="destructive" onClick={handleBulkDelete} className="gap-2"><Trash className="h-4 w-4 text-red-500" /> Delete ({selectedIds.length})</Button>)}</div>
+      {!modelsLoading && (
+        <p className="text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">{filteredModels.length}</span> of{" "}
+          <span className="font-semibold text-foreground">{models.length}</span> models
+        </p>
+      )}
 
-      <div className="bg-card rounded-lg border border-border overflow-hidden">
+      {/* Table */}
+      <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead className="w-10">
                 <Checkbox
                   checked={filteredModels.length > 0 && selectedIds.length === filteredModels.length}
                   onCheckedChange={toggleSelectAll}
                 />
               </TableHead>
-              <TableHead>Model Name</TableHead>
-              <TableHead>Combos</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="font-semibold text-xs uppercase tracking-wider">Model Name</TableHead>
+              <TableHead className="font-semibold text-xs uppercase tracking-wider">Combos</TableHead>
+              <TableHead className="text-right font-semibold text-xs uppercase tracking-wider">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {modelsLoading ? (
-              <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">Loading models...</TableCell>
-              </TableRow>
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell colSpan={4} className="h-12">
+                    <div className="h-4 bg-muted animate-pulse rounded w-48" />
+                  </TableCell>
+                </TableRow>
+              ))
             ) : filteredModels.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                  No models found.
+                <TableCell colSpan={4} className="h-32 text-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <Smartphone className="h-8 w-8 text-muted-foreground opacity-30" />
+                    <span className="text-sm text-muted-foreground">No models found</span>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
               filteredModels.map((model) => (
-                <TableRow key={model.id} className="group">
+                <TableRow key={model.id} className="group hover:bg-muted/30 transition-colors">
                   <TableCell>
                     <Checkbox
                       checked={selectedIds.includes(model.id)}
@@ -209,21 +211,28 @@ export default function BrandModels() {
                     />
                   </TableCell>
                   <TableCell className="font-medium">
-                    <Link href={`/models/${model.id}`} className="hover:underline flex items-center gap-2">
-                      <div className="w-8 h-8 rounded bg-muted flex items-center justify-center">
-                         <Layers className="h-4 w-4 text-muted-foreground" />
+                    <Link href={`/models/${model.id}`}>
+                      <div className="flex items-center gap-2.5 cursor-pointer group/link">
+                        <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <Smartphone className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                        <span className="group-hover/link:text-primary transition-colors text-sm">{model.name}</span>
+                        <ChevronRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover/link:opacity-100 transition-opacity" />
                       </div>
-                      {model.name}
                     </Link>
                   </TableCell>
-                  <TableCell>{model.comboCount}</TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">
+                      {model.comboCount}
+                    </span>
+                  </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2 ">
-                      <Button variant="ghost" size="icon" onClick={() => setEditingModel(model)}>
-                        <Edit2 className="h-4 w-4" />
+                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingModel(model)}>
+                        <Edit2 className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(model.id)}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(model.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </TableCell>
@@ -236,20 +245,18 @@ export default function BrandModels() {
 
       {/* Create Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-sm">
           <form onSubmit={handleCreate}>
-            <DialogHeader>
-              <DialogTitle>Add New Model</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>Add New Model</DialogTitle></DialogHeader>
             <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Model Name</Label>
-                <Input id="name" name="name" required autoFocus placeholder="e.g. Oppo A17" />
+              <div className="space-y-1.5">
+                <Label htmlFor="name">Model Name *</Label>
+                <Input id="name" name="name" required autoFocus placeholder="e.g. Galaxy A15" />
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={createModel.isPending}>Save</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+              <Button type="submit" size="sm" disabled={createModel.isPending}>{createModel.isPending ? "Saving..." : "Save"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -258,52 +265,34 @@ export default function BrandModels() {
       {/* Bulk Add Dialog */}
       <Dialog open={isBulkAddOpen} onOpenChange={setIsBulkAddOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Bulk Add Models</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Bulk Add Models</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Model Names (one per line)</Label>
-              <Textarea
-                rows={8}
-                placeholder={"Oppo A17\nOppo A18\nOppo A38"}
-                value={bulkNames}
-                onChange={(e) => setBulkNames(e.target.value)}
-              />
+            <div className="space-y-1.5">
+              <Label>Model Names <span className="text-muted-foreground">(one per line)</span></Label>
+              <Textarea rows={8} placeholder={"Galaxy A15\nGalaxy A25\nGalaxy A35"} value={bulkNames} onChange={(e) => setBulkNames(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsBulkAddOpen(false)}>Cancel</Button>
-            <Button onClick={handleBulkAdd} disabled={createModel.isPending}>
-              Add All
-            </Button>
+            <Button variant="outline" size="sm" onClick={() => setIsBulkAddOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleBulkAdd} disabled={createModel.isPending}>Add All</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={!!editingModel} onOpenChange={(open) => { if (!open) setEditingModel(null); }}>
-        <DialogContent>
+        <DialogContent className="max-w-sm">
           <form onSubmit={handleUpdate}>
-            <DialogHeader>
-              <DialogTitle>Edit Model</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>Edit Model</DialogTitle></DialogHeader>
             <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-name">Model Name</Label>
-                <Input
-                  id="edit-name"
-                  name="name"
-                  required
-                  autoFocus
-                  defaultValue={editingModel?.name ?? ""}
-                  key={editingModel?.id}
-                />
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-name">Model Name *</Label>
+                <Input id="edit-name" name="name" required autoFocus defaultValue={editingModel?.name ?? ""} key={editingModel?.id} />
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditingModel(null)}>Cancel</Button>
-              <Button type="submit" disabled={updateModel.isPending}>Save</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setEditingModel(null)}>Cancel</Button>
+              <Button type="submit" size="sm" disabled={updateModel.isPending}>{updateModel.isPending ? "Saving..." : "Save"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

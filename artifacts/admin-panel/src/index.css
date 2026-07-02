@@ -96,55 +96,56 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  /* Calm, cool tech aesthetic - light mode */
-  --background: 214 32% 96%; /* Slate light */
+  /* Clean modern light mode */
+  --background: 220 20% 97%;
   --foreground: 222 47% 11%;
   
-  --border: 214 32% 90%;
+  --border: 220 16% 90%;
   
   --card: 0 0% 100%;
   --card-foreground: 222 47% 11%;
-  --card-border: 214 32% 90%;
+  --card-border: 220 16% 92%;
   
-  --sidebar: 214 32% 94%;
-  --sidebar-foreground: 222 47% 11%;
-  --sidebar-border: 214 32% 88%;
-  --sidebar-primary: 200 98% 39%;
+  /* Dark navy sidebar */
+  --sidebar: 222 47% 11%;
+  --sidebar-foreground: 215 25% 75%;
+  --sidebar-border: 222 40% 16%;
+  --sidebar-primary: 217 91% 60%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 214 32% 88%;
-  --sidebar-accent-foreground: 222 47% 11%;
-  --sidebar-ring: 200 98% 39%;
+  --sidebar-accent: 222 40% 16%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-ring: 217 91% 60%;
   
   --popover: 0 0% 100%;
   --popover-foreground: 222 47% 11%;
-  --popover-border: 214 32% 90%;
+  --popover-border: 220 16% 90%;
   
-  /* Primary: Cobalt / Circuit Blue */
-  --primary: 205 100% 43%;
+  /* Electric blue primary */
+  --primary: 217 91% 60%;
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 214 20% 86%;
+  --secondary: 220 14% 92%;
   --secondary-foreground: 222 47% 11%;
   
-  --muted: 214 20% 92%;
-  --muted-foreground: 215 16% 47%;
+  --muted: 220 14% 94%;
+  --muted-foreground: 215 16% 50%;
   
-  --accent: 214 32% 90%;
-  --accent-foreground: 222 47% 11%;
+  --accent: 217 91% 95%;
+  --accent-foreground: 217 91% 40%;
   
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
   
-  --input: 214 32% 86%;
-  --ring: 205 100% 43%;
+  --input: 220 16% 88%;
+  --ring: 217 91% 60%;
   
-  --chart-1: 205 100% 43%;
+  --chart-1: 217 91% 60%;
   --chart-2: 160 84% 39%;
   --chart-3: 45 93% 47%;
   --chart-4: 280 84% 60%;
   --chart-5: 340 84% 60%;
 
-  --radius: 0.375rem;
+  --radius: 0.5rem;
 
   --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
   --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
@@ -163,47 +164,47 @@
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  --background: 222 47% 11%;
+  --background: 222 47% 8%;
   --foreground: 210 40% 98%;
   
-  --border: 217 32% 17%;
+  --border: 217 32% 15%;
   
-  --card: 222 47% 12%;
+  --card: 222 47% 10%;
   --card-foreground: 210 40% 98%;
-  --card-border: 217 32% 17%;
+  --card-border: 217 32% 15%;
   
-  --sidebar: 222 47% 13%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-border: 217 32% 17%;
-  --sidebar-primary: 205 100% 43%;
+  --sidebar: 222 47% 7%;
+  --sidebar-foreground: 215 25% 65%;
+  --sidebar-border: 217 32% 13%;
+  --sidebar-primary: 217 91% 60%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 217 32% 17%;
+  --sidebar-accent: 217 32% 14%;
   --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-ring: 205 100% 43%;
+  --sidebar-ring: 217 91% 60%;
   
-  --popover: 222 47% 11%;
+  --popover: 222 47% 10%;
   --popover-foreground: 210 40% 98%;
-  --popover-border: 217 32% 17%;
+  --popover-border: 217 32% 15%;
   
-  --primary: 205 100% 50%;
+  --primary: 217 91% 60%;
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 217 32% 17%;
+  --secondary: 217 32% 15%;
   --secondary-foreground: 210 40% 98%;
   
-  --muted: 217 32% 17%;
-  --muted-foreground: 215 20% 65%;
+  --muted: 217 32% 14%;
+  --muted-foreground: 215 20% 55%;
   
-  --accent: 217 32% 17%;
-  --accent-foreground: 210 40% 98%;
+  --accent: 217 40% 16%;
+  --accent-foreground: 217 91% 70%;
   
   --destructive: 0 62% 30%;
   --destructive-foreground: 210 40% 98%;
   
-  --input: 217 32% 17%;
-  --ring: 205 100% 50%;
+  --input: 217 32% 15%;
+  --ring: 217 91% 60%;
   
-  --chart-1: 205 100% 50%;
+  --chart-1: 217 91% 60%;
   --chart-2: 160 84% 45%;
   --chart-3: 45 93% 55%;
   --chart-4: 280 84% 65%;
@@ -228,6 +229,20 @@
     color: hsl(var(--muted-foreground));
     pointer-events: none;
   }
+
+  /* Stat card gradient tops */
+  .stat-card-blue { border-top: 3px solid hsl(217 91% 60%); }
+  .stat-card-green { border-top: 3px solid hsl(160 84% 39%); }
+  .stat-card-purple { border-top: 3px solid hsl(280 84% 60%); }
+  .stat-card-orange { border-top: 3px solid hsl(45 93% 47%); }
+
+  /* Sidebar nav active glow */
+  .nav-active {
+    background: linear-gradient(90deg, hsl(217 91% 60% / 0.18), hsl(217 91% 60% / 0.08));
+    color: hsl(217 91% 70%);
+    border-left: 2px solid hsl(217 91% 60%);
+  }
+
   .no-default-hover-elevate {}
   .no-default-active-elevate {}
 
