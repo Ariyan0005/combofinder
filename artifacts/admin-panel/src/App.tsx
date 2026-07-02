@@ -15,6 +15,37 @@ import Parts from "@/pages/parts";
 import Repairs from "@/pages/repairs";
 import Customers from "@/pages/customers";
 import Inventory from "@/pages/inventory";
+
+// Management
+import Users from "@/pages/users";
+import Subscriptions from "@/pages/subscriptions";
+import Roles from "@/pages/roles";
+import TechnicianApprovals from "@/pages/technician-approvals";
+
+// Database additions
+import IssuesFixes from "@/pages/issues-fixes";
+import Schematics from "@/pages/schematics";
+import Documents from "@/pages/documents";
+import Videos from "@/pages/videos";
+
+// Business
+import RepairCategories from "@/pages/repair-categories";
+import InventoryCategories from "@/pages/inventory-categories";
+import Suppliers from "@/pages/suppliers";
+import UnlockServices from "@/pages/unlock-services";
+
+// Finance
+import Transactions from "@/pages/transactions";
+import Payouts from "@/pages/payouts";
+import Analytics from "@/pages/analytics";
+
+// System
+import Announcements from "@/pages/announcements";
+import Notifications from "@/pages/notifications";
+import Settings from "@/pages/settings";
+import BackupRestore from "@/pages/backup-restore";
+import ActivityLogs from "@/pages/activity-logs";
+
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 
@@ -46,15 +77,48 @@ function Router() {
     <AppLayout>
       <Switch>
         <Route path="/" component={Dashboard} />
+        
+        {/* Management */}
+        <Route path="/users" component={Users} />
+        <Route path="/subscriptions" component={Subscriptions} />
+        <Route path="/roles" component={Roles} />
+        <Route path="/technician-approvals" component={TechnicianApprovals} />
+
+        {/* Database */}
         <Route path="/brands" component={Brands} />
         <Route path="/brands/:id/models" component={BrandModels} />
         <Route path="/models/:id" component={ModelDetail} />
         <Route path="/combos" component={Combos} />
-        <Route path="/search" component={Search} />
         <Route path="/parts" component={Parts} />
+        <Route path="/issues-fixes" component={IssuesFixes} />
+        <Route path="/schematics" component={Schematics} />
+        <Route path="/documents" component={Documents} />
+        <Route path="/videos" component={Videos} />
+        
+        {/* Business */}
+        <Route path="/repair-categories" component={RepairCategories} />
+        <Route path="/inventory-categories" component={InventoryCategories} />
+        <Route path="/suppliers" component={Suppliers} />
+        <Route path="/unlock-services" component={UnlockServices} />
+        
+        {/* Finance */}
+        <Route path="/transactions" component={Transactions} />
+        <Route path="/payouts" component={Payouts} />
+        <Route path="/analytics" component={Analytics} />
+        
+        {/* System */}
+        <Route path="/announcements" component={Announcements} />
+        <Route path="/notifications" component={Notifications} />
+        <Route path="/settings" component={Settings} />
+        <Route path="/backup-restore" component={BackupRestore} />
+        <Route path="/activity-logs" component={ActivityLogs} />
+        
+        {/* Other */}
+        <Route path="/search" component={Search} />
         <Route path="/repairs" component={Repairs} />
         <Route path="/customers" component={Customers} />
         <Route path="/inventory" component={Inventory} />
+        
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

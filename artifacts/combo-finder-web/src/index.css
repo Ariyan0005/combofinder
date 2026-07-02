@@ -21,6 +21,8 @@
   --color-accent-foreground: hsl(var(--accent-foreground));
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
   --font-sans: var(--app-font-sans);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -29,12 +31,12 @@
 
 :root {
   --app-font-sans: 'Inter', sans-serif;
-  --background: 214 32% 96%;
+  --background: 214 32% 96%; /* #F1F4F8 */
   --foreground: 222 47% 11%;
-  --border: 214 32% 90%;
-  --card: 0 0% 100%;
+  --border: 218 28% 87%; /* #D5DCE8 */
+  --card: 0 0% 100%; /* #FFFFFF */
   --card-foreground: 222 47% 11%;
-  --primary: 205 100% 43%;
+  --primary: 205 100% 43%; /* #0080DB */
   --primary-foreground: 0 0% 100%;
   --secondary: 214 20% 86%;
   --secondary-foreground: 222 47% 11%;
@@ -44,8 +46,10 @@
   --accent-foreground: 222 47% 11%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
-  --input: 214 32% 86%;
+  --input: 218 28% 87%;
   --ring: 205 100% 43%;
+  --sidebar: 222 47% 11%; /* #0F172A */
+  --sidebar-foreground: 214 32% 90%;
   --radius: 0.5rem;
 }
 

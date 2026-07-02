@@ -1,156 +1,94 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Smartphone, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Smartphone, Lock, User } from "lucide-react";
+import { useLocation } from "wouter";
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const [, setLocation] = useLocation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  async function handleSubmit(e: FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
+    setError("");
     try {
       await login(username, password);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setLocation("/");
+    } catch (err: any) {
+      setError(err.message || "Failed to login");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4"
-      style={{ background: "hsl(var(--sidebar))" }}
-    >
-      {/* Background pattern */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div
-          className="absolute -top-40 -right-40 w-96 h-96 rounded-full opacity-10"
-          style={{ background: "hsl(217 91% 60%)" }}
-        />
-        <div
-          className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full opacity-10"
-          style={{ background: "hsl(280 84% 60%)" }}
-        />
-      </div>
-
-      <div className="relative w-full max-w-sm">
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 shadow-2xl"
-            style={{ background: "hsl(217 91% 60%)" }}
-          >
-            <Smartphone className="w-7 h-7 text-white" />
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-foreground font-sans">
+      <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
+        <div className="p-8 pb-6 text-center border-b border-border bg-card">
+          <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/20">
+            <Smartphone className="h-7 w-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">ComboFinder</h1>
-          <p className="text-sm mt-1" style={{ color: "hsl(215 25% 55%)" }}>
-            Admin Panel
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-white mb-1">ComboFinder Admin</h1>
+          <p className="text-sm text-muted-foreground">Sign in to the super-admin control panel</p>
         </div>
-
-        {/* Card */}
-        <div
-          className="rounded-2xl p-6 shadow-2xl border"
-          style={{
-            background: "hsl(222 47% 13%)",
-            borderColor: "hsl(222 40% 18%)",
-          }}
-        >
-          <div className="flex items-center gap-2 mb-6">
-            <ShieldCheck className="h-4 w-4" style={{ color: "hsl(217 91% 60%)" }} />
-            <h2 className="text-base font-semibold text-white">Sign in to continue</h2>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="username" className="text-sm font-medium" style={{ color: "hsl(215 25% 70%)" }}>
-                Username
-              </Label>
-              <Input
-                id="username"
-                type="text"
-                autoComplete="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin"
-                disabled={loading}
-                required
-                className="h-10 border text-white placeholder:text-muted-foreground"
-                style={{
-                  background: "hsl(222 47% 9%)",
-                  borderColor: "hsl(222 40% 20%)",
-                }}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-sm font-medium" style={{ color: "hsl(215 25% 70%)" }}>
-                Password
-              </Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  disabled={loading}
-                  required
-                  className="h-10 pr-10 border text-white placeholder:text-muted-foreground"
-                  style={{
-                    background: "hsl(222 47% 9%)",
-                    borderColor: "hsl(222 40% 20%)",
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
-                  style={{ color: "hsl(215 25% 50%)" }}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
+        
+        <div className="p-8 pt-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
-              <div className="flex items-center gap-2 p-3 rounded-lg text-sm" style={{ background: "hsl(0 84% 60% / 0.12)", color: "hsl(0 84% 70%)" }}>
-                <span>{error}</span>
+              <div className="p-3 text-sm text-red-500 bg-red-500/10 border border-red-500/20 rounded-lg text-center">
+                {error}
               </div>
             )}
-
-            <Button
-              type="submit"
-              className="w-full h-10 font-semibold mt-2"
+            
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Username</label>
+              <div className="relative">
+                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <input 
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full bg-input border border-border rounded-lg pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  placeholder="admin"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Password</label>
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <input 
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-input border border-border rounded-lg pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+            
+            <Button 
+              type="submit" 
+              className="w-full h-11 font-semibold shadow-md mt-2" 
               disabled={loading}
-              style={{ background: "hsl(217 91% 60%)", color: "white" }}
             >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Signing in...
-                </span>
-              ) : (
-                "Sign In"
-              )}
+              {loading ? "Signing in..." : "Sign In to Control Panel"}
             </Button>
           </form>
         </div>
-
-        <p className="text-center mt-4 text-xs" style={{ color: "hsl(215 25% 40%)" }}>
-          ComboFinder © {new Date().getFullYear()}
-        </p>
+      </div>
+      <div className="mt-8 text-xs text-muted-foreground">
+        &copy; {new Date().getFullYear()} ComboFinder Platform. All rights reserved.
       </div>
     </div>
   );
