@@ -1,3 +1,4 @@
+import type { ElementType } from "react";
 import { useGetStats } from "@workspace/api-client-react";
 import { Layers, Smartphone, Database, Activity, Search, ExternalLink, Wrench, TrendingUp, ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,7 +16,7 @@ function StatCard({
   label: string;
   value?: number;
   sub: string;
-  icon: React.ElementType;
+  icon: ElementType;
   colorClass: string;
   isLoading: boolean;
 }) {

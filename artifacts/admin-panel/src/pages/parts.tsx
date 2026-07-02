@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -113,12 +113,12 @@ export default function Parts() {
     onError: () => toast({ title: "Failed to delete part", variant: "destructive" }),
   });
 
-  const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleCreate = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     cm.mutate({ partName: (fd.get("partName") as string).trim(), partType: createPartType, compatibleModels: (fd.get("compatibleModels") as string).trim(), description: (fd.get("description") as string).trim() || null });
   };
-  const handleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdate = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingPart) return;
     const fd = new FormData(e.currentTarget);

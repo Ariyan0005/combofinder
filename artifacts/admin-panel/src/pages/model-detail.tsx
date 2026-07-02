@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
 import { 
@@ -42,7 +42,7 @@ export default function ModelDetail() {
   const updateCombo = useUpdateCombo();
   const deleteCombo = useDeleteCombo();
 
-  const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleCreate = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     createCombo.mutate(
@@ -69,7 +69,7 @@ export default function ModelDetail() {
     toast({ title: `${success} of ${names.length} combos added` });
   };
 
-  const handleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdate = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingCombo) return;
     const fd = new FormData(e.currentTarget);

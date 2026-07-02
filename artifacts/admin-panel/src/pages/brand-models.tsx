@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
 import { 
@@ -36,7 +36,7 @@ export default function BrandModels() {
   const updateModel = useUpdateModel();
   const deleteModel = useDeleteModel();
 
-  const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleCreate = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     createModel.mutate(
@@ -67,7 +67,7 @@ export default function BrandModels() {
     toast({ title: `${success} of ${names.length} models added` });
   };
 
-  const handleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdate = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingModel) return;
     const fd = new FormData(e.currentTarget);
