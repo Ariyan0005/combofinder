@@ -8,20 +8,21 @@ const PART_TYPES = ["All", "Display", "Battery", "IC", "Connector", "Camera", "S
 
 type Item = {
   id: number;
-  name: string;
+  partName: string;  // DB column name
+  name?: string;     // legacy alias (mobile mock)
   partType?: string;
   quality?: string;
   quantity?: number;
   qty?: number;
   minStock?: number;
-  sellingPrice?: number;
-  purchasePrice?: number;
+  sellingPrice?: number | string;
+  purchasePrice?: number | string;
 };
 
 function ItemForm({ onClose, existing }: { onClose: () => void; existing?: Item }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
-    name: existing?.name ?? "",
+    name: existing?.partName ?? existing?.name ?? "",
     partType: existing?.partType ?? "Display",
     quality: existing?.quality ?? "Original",
     quantity: String(existing?.quantity ?? existing?.qty ?? ""),
@@ -38,7 +39,14 @@ function ItemForm({ onClose, existing }: { onClose: () => void; existing?: Item 
         method: existing ? "PUT" : "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, quantity: Number(data.quantity), minStock: Number(data.minStock) }),
+        body: JSON.stringify({
+          ...data,
+          partName: data.name,  // map "name" form field → "partName" DB column
+          quantity: Number(data.quantity),
+          minStock: Number(data.minStock),
+          purchasePrice: data.purchasePrice ? String(data.purchasePrice) : undefined,
+          sellingPrice: data.sellingPrice ? String(data.sellingPrice) : undefined,
+        }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Failed"); }
       return res.json();
@@ -138,7 +146,8 @@ export default function Inventory() {
   const filtered = list.filter(item => {
     const matchType = activeType === "All" || item.partType === activeType;
     const q = searchQ.toLowerCase();
-    const matchSearch = !q || item.name.toLowerCase().includes(q);
+    const displayName = (item.partName ?? item.name ?? "").toLowerCase();
+    const matchSearch = !q || displayName.includes(q);
     return matchType && matchSearch;
   });
 
@@ -211,7 +220,7 @@ export default function Inventory() {
                     <Package className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
                   </div>
                   <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setEditItem(item); setShowForm(true); }}>
-                    <p className="text-sm font-semibold truncate">{item.name}</p>
+                    <p className="text-sm font-semibold truncate">{item.partName ?? item.name}</p>
                     <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
                       {item.quality ?? "–"} · {item.partType ?? "–"}
                     </p>
