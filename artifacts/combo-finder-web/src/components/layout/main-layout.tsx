@@ -1,76 +1,167 @@
-import { ReactNode, useState } from "react";
-import { Sidebar } from "./sidebar";
-import { Search, Bell, Menu, LogOut } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Link, useLocation } from "wouter";
+import {
+  LayoutDashboard, Search, Plus, Package, Menu, X,
+  Users, BookOpen, BarChart2, Unlock, Receipt,
+  Settings, LogOut, CreditCard, Smartphone,
+} from "lucide-react";
 import { useAuth } from "@/context/auth-context";
+import Sidebar from "./sidebar";
+
+const BOTTOM_NAV = [
+  { label: "Home", icon: LayoutDashboard, href: "/" },
+  { label: "Search", icon: Search, href: "/compatibility" },
+  { label: "fab", icon: Plus, href: "/repairs" },        // FAB slot
+  { label: "Inventory", icon: Package, href: "/inventory" },
+  { label: "More", icon: Menu, href: "__more__" },
+];
+
+const MORE_ITEMS = [
+  { label: "Customers", icon: Users, href: "/customers" },
+  { label: "Knowledge Base", icon: BookOpen, href: "/knowledge-base" },
+  { label: "Reports", icon: BarChart2, href: "/reports" },
+  { label: "Unlock Services", icon: Unlock, href: "/unlock-services" },
+  { label: "Expenses", icon: Receipt, href: "/expenses" },
+  { label: "Subscription", icon: CreditCard, href: "/subscription" },
+  { label: "Settings", icon: Settings, href: "/settings" },
+];
 
 export default function MainLayout({ children }: { children: ReactNode }) {
-  const { user, logout } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [location, navigate] = useLocation();
+  const { user, isGuest, logout } = useAuth();
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const isActive = (href: string) =>
+    href === "/" ? location === "/" : location.startsWith(href);
+
+  async function handleLogout() {
+    setMoreOpen(false);
+    await logout();
+  }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar — hidden on mobile unless open */}
-      <div className={`
-        fixed md:static inset-y-0 left-0 z-40 md:z-auto
-        transition-transform duration-300 ease-in-out
-        ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
-      `}>
-        <Sidebar onClose={() => setSidebarOpen(false)} />
+    <div className="flex min-h-screen w-full" style={{ background: "hsl(var(--background))" }}>
+      {/* Desktop sidebar */}
+      <div className="hidden md:flex flex-shrink-0">
+        <Sidebar onClose={() => {}} />
       </div>
 
+      {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top header */}
-        <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 md:px-6 sticky top-0 z-20">
-          <div className="flex items-center gap-3">
-            <button
-              className="md:hidden text-muted-foreground hover:text-foreground p-1"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-            <div className="relative hidden md:block w-80">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search anything... ⌘K"
-                className="w-full bg-muted/50 border border-border rounded-lg pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
+        {/* Mobile top bar */}
+        <header className="md:hidden flex items-center justify-between px-4 py-3 bg-card border-b border-border sticky top-0 z-30">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ background: "hsl(var(--primary))" }}>
+              <Smartphone className="w-4 h-4 text-white" />
             </div>
+            <span className="font-bold text-base">ComboFinder</span>
           </div>
-
-          <div className="flex items-center gap-3">
-            <button className="relative text-muted-foreground hover:text-foreground">
-              <Bell className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-card" />
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs border border-primary/20">
-                {user?.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "CF"}
-              </div>
-              <span className="hidden md:block text-sm font-medium text-foreground">{user?.name}</span>
+          {user && (
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
+              style={{ background: "hsl(var(--primary))" }}>
+              {user.name.charAt(0).toUpperCase()}
             </div>
-            <button
-              onClick={logout}
-              className="text-muted-foreground hover:text-destructive transition-colors"
-              title="Logout"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
+          )}
+          {isGuest && (
+            <Link href="/login">
+              <button className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                style={{ background: "hsl(var(--primary))", color: "#fff" }}>
+                Login
+              </button>
+            </Link>
+          )}
         </header>
 
-        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-          {children}
+        {/* Page content */}
+        <main className="flex-1 overflow-auto p-4 pb-24 md:pb-6">
+          <div className="mx-auto max-w-4xl w-full">
+            {children}
+          </div>
         </main>
+
+        {/* Mobile bottom nav */}
+        <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-card border-t border-border">
+          <div className="flex items-end">
+            {BOTTOM_NAV.map((item) => {
+              if (item.href === "__more__") {
+                return (
+                  <button key="more"
+                    onClick={() => setMoreOpen(true)}
+                    className="flex-1 flex flex-col items-center justify-center py-2 gap-1 transition-colors"
+                    style={{ color: "hsl(var(--muted-foreground))" }}>
+                    <item.icon className="w-5 h-5" />
+                    <span className="text-[9px] font-semibold">{item.label}</span>
+                  </button>
+                );
+              }
+              if (item.label === "fab") {
+                return (
+                  <button key="fab"
+                    onClick={() => navigate("/repairs")}
+                    className="flex-1 flex flex-col items-center justify-center -mt-4">
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg"
+                      style={{ background: "hsl(var(--primary))" }}>
+                      <Plus className="w-6 h-6 text-white" />
+                    </div>
+                  </button>
+                );
+              }
+              const active = isActive(item.href);
+              return (
+                <Link key={item.href} href={item.href} className="flex-1">
+                  <div className="flex flex-col items-center justify-center py-2 gap-1 transition-colors"
+                    style={{ color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
+                    {active && (
+                      <div className="absolute top-0 w-6 h-0.5 rounded-full"
+                        style={{ background: "hsl(var(--primary))" }} />
+                    )}
+                    <item.icon className={`w-5 h-5 ${active ? "scale-110" : ""} transition-transform`} />
+                    <span className="text-[9px] font-semibold">{item.label}</span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
       </div>
+
+      {/* "More" bottom sheet */}
+      {moreOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMoreOpen(false)} />
+          <div className="relative bg-card rounded-t-2xl p-5 pt-4 shadow-xl">
+            <div className="w-10 h-1 rounded-full mx-auto mb-4"
+              style={{ background: "hsl(var(--border))" }} />
+            <div className="flex items-center justify-between mb-4">
+              <span className="font-bold text-base">More</span>
+              <button onClick={() => setMoreOpen(false)}>
+                <X className="w-5 h-5" style={{ color: "hsl(var(--muted-foreground))" }} />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {MORE_ITEMS.map((item) => (
+                <Link key={item.href} href={item.href}>
+                  <button onClick={() => setMoreOpen(false)}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-border text-left text-sm font-medium hover:border-primary transition-colors"
+                    style={{ background: "hsl(var(--background))" }}>
+                    <item.icon className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
+                    {item.label}
+                  </button>
+                </Link>
+              ))}
+            </div>
+            {(user || isGuest) && (
+              <button onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm"
+                style={{ color: "hsl(var(--destructive))", background: "hsl(var(--destructive) / 0.08)" }}>
+                <LogOut className="w-4 h-4" />
+                {isGuest ? "Exit Guest Mode" : "Logout"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,85 +1,116 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { Link, useLocation } from "wouter";
+import { Eye, EyeOff, Smartphone } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
-import { Wrench, Eye, EyeOff } from "lucide-react";
 
 export default function Login() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPw, setShowPw] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const { login } = useAuth();
+  const [, navigate] = useLocation();
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
+    if (!identifier || !password) { setError("All fields are required"); return; }
     setLoading(true);
     try {
-      await login(username, password);
+      await login(identifier, password);
+      navigate("/");
     } catch (err: any) {
-      setError(err.message || "Login failed");
+      setError(err.message ?? "Login failed");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
-        <div className="bg-sidebar p-8 text-center border-b border-white/5">
-          <div className="w-14 h-14 rounded-2xl bg-primary mx-auto flex items-center justify-center mb-4 shadow-lg shadow-primary/30">
-            <Wrench className="w-7 h-7 text-white" />
+    <div className="min-h-screen flex flex-col items-center justify-center p-5"
+      style={{ background: "hsl(var(--background))" }}>
+
+      <div className="w-full max-w-sm">
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
+            style={{ background: "hsl(var(--primary))" }}>
+            <Smartphone className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">ComboFinder</h1>
-          <p className="text-white/50 text-sm mt-1">Sign in to your technician dashboard</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-5">
-          {error && (
-            <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg text-center font-medium">
-              {error}
-            </div>
-          )}
+        <div className="mb-6 text-center">
+          <h1 className="text-2xl font-extrabold">Welcome Back!</h1>
+          <p className="text-sm mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>Login to your account</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Username</label>
+            <label className="text-sm font-semibold block mb-1.5">Email or Username</label>
             <input
               type="text"
-              required
-              autoFocus
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-              placeholder="admin"
+              placeholder="Enter your email or username"
+              value={identifier}
+              onChange={e => setIdentifier(e.target.value)}
+              className="w-full px-4 py-3.5 rounded-xl border text-sm outline-none transition-all"
+              style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}
+              onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+              onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }}
             />
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Password</label>
+            <label className="text-sm font-semibold block mb-1.5">Password</label>
             <div className="relative">
               <input
-                type={showPw ? "text" : "password"}
-                required
+                type={showPass ? "text" : "password"}
+                placeholder="Enter your password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full bg-background border border-border rounded-lg px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-                placeholder="••••••••"
+                className="w-full px-4 py-3.5 pr-12 rounded-xl border text-sm outline-none transition-all"
+                style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}
+                onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+                onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }}
               />
-              <button
-                type="button"
-                onClick={() => setShowPw(!showPw)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              <button type="button" onClick={() => setShowPass(p => !p)}
+                className="absolute right-4 top-1/2 -translate-y-1/2"
+                style={{ color: "hsl(var(--muted-foreground))" }}>
+                {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
           </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-primary hover:bg-primary/90 disabled:opacity-60 text-white font-semibold rounded-lg px-4 py-3 transition-colors"
-          >
-            {loading ? "Signing in..." : "Sign In"}
+
+          <div className="flex items-center justify-between text-sm">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" className="rounded" />
+              <span style={{ color: "hsl(var(--muted-foreground))" }}>Remember me</span>
+            </label>
+            <span className="font-semibold cursor-pointer" style={{ color: "hsl(var(--primary))" }}>
+              Forgot Password?
+            </span>
+          </div>
+
+          {error && (
+            <p className="text-sm text-center px-3 py-2.5 rounded-xl font-medium"
+              style={{ color: "hsl(var(--destructive))", background: "hsl(var(--destructive) / 0.08)" }}>
+              {error}
+            </p>
+          )}
+
+          <button type="submit" disabled={loading}
+            className="w-full py-4 rounded-xl font-bold text-white text-sm transition-opacity disabled:opacity-60"
+            style={{ background: "hsl(var(--primary))" }}>
+            {loading ? "Logging in…" : "Login"}
           </button>
         </form>
+
+        <p className="text-sm text-center mt-6" style={{ color: "hsl(var(--muted-foreground))" }}>
+          Don't have an account?{" "}
+          <Link href="/register">
+            <span className="font-bold cursor-pointer" style={{ color: "hsl(var(--primary))" }}>Sign Up</span>
+          </Link>
+        </p>
       </div>
     </div>
   );

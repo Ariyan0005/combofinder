@@ -1,27 +1,28 @@
-import { useState } from "react";
+import { useState, type ElementType } from "react";
 import { useParams, useLocation } from "wouter";
 import { useGetModel } from "@workspace/api-client-react";
-import { ArrowLeft, CheckCircle, XCircle, Star, BadgeCheck, Repeat2, Copy, Check, Share2 } from "lucide-react";
+import { ArrowLeft, CheckCircle, BadgeCheck, Repeat2, Copy, Check } from "lucide-react";
 
 type ComboType = "OEM" | "Compatible" | "Refurbished";
 
-const comboTypeConfig: Record<ComboType, { label: string; color: string; icon: React.ElementType }> = {
-  OEM: { label: "OEM", color: "bg-blue-100 text-blue-700", icon: BadgeCheck },
-  Compatible: { label: "Compatible", color: "bg-green-100 text-green-700", icon: CheckCircle },
-  Refurbished: { label: "Refurbished", color: "bg-amber-100 text-amber-700", icon: Repeat2 },
+const comboTypeConfig: Record<ComboType, { label: string; color: string; bg: string; icon: ElementType }> = {
+  OEM:          { label: "OEM",          color: "#1D4ED8", bg: "#EFF6FF", icon: BadgeCheck },
+  Compatible:   { label: "Compatible",   color: "#047857", bg: "#ECFDF5", icon: CheckCircle },
+  Refurbished:  { label: "Refurbished",  color: "#B45309", bg: "#FFFBEB", icon: Repeat2 },
 };
-
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
-  const handleCopy = async () => {
+  async function handleCopy() {
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
+  }
   return (
-    <button onClick={handleCopy} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors" title="Copy">
-      {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+    <button onClick={handleCopy}
+      className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors"
+      style={{ color: "hsl(var(--muted-foreground))" }}>
+      {copied ? <Check className="w-3.5 h-3.5" style={{ color: "#10B981" }} /> : <Copy className="w-3.5 h-3.5" />}
       {copied ? "Copied!" : "Copy"}
     </button>
   );
@@ -31,121 +32,96 @@ export default function ModelDetail() {
   const { id } = useParams<{ id: string }>();
   const modelId = Number(id);
   const [, navigate] = useLocation();
-
-  const handleShare = (modelName: string, brandName: string) => {
-    const url = window.location.href;
-    if (navigator.share) { navigator.share({ title: `${brandName} ${modelName} — Display Combos`, url }); }
-    else { navigator.clipboard.writeText(url); }
-  };
+  const [activeTab, setActiveTab] = useState<ComboType>("OEM");
 
   const { data: model, isLoading } = useGetModel(modelId);
 
-  const oemCount = model?.combos.filter((c) => c.comboType === "OEM").length ?? 0;
-  const compatibleCount = model?.combos.filter((c) => c.comboType === "Compatible").length ?? 0;
-  const refurbishedCount = model?.combos.filter((c) => c.comboType === "Refurbished").length ?? 0;
-  const inStockCount = model?.combos.filter((c) => c.inStock).length ?? 0;
+  const combos = model?.combos ?? [];
+  const filtered = combos.filter(c => c.comboType === activeTab);
 
   return (
     <div className="space-y-4">
-      <button
-        onClick={() => history.back()}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
+      <button onClick={() => navigate("/compatibility")}
+        className="flex items-center gap-1.5 text-sm font-medium"
+        style={{ color: "hsl(var(--muted-foreground))" }}>
         <ArrowLeft className="w-4 h-4" />
         Back
       </button>
 
       {isLoading ? (
-        <div className="flex justify-center py-10">
-          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="flex justify-center py-12">
+          <div className="w-7 h-7 border-3 border-t-transparent rounded-full animate-spin"
+            style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
         </div>
-      ) : model ? (
+      ) : !model ? (
+        <div className="text-center py-12" style={{ color: "hsl(var(--muted-foreground))" }}>Model not found.</div>
+      ) : (
         <>
-          <div className="bg-white rounded-xl border border-border p-4">
-            <button
-              onClick={() => navigate(`/brands/${model.brandId}`)}
-              className="text-xs text-primary font-medium hover:underline"
-            >
-              {model.brandName}
-            </button>
-            <div className="flex items-center justify-between gap-2">
-              <h1 className="text-2xl font-bold mt-0.5">{model.name}</h1>
-              <button onClick={() => handleShare(model.name, model.brandName)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors shrink-0">
-                <Share2 className="w-3.5 h-3.5" />Share
-              </button>
+          {/* Model info card */}
+          <div className="bg-card rounded-2xl border border-border p-4">
+            <h1 className="text-xl font-extrabold">{model.name}</h1>
+            <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+              {model.brand?.name ?? ""}
+              {model.releaseYear ? ` · Released ${model.releaseYear}` : ""}
+            </p>
+            <div className="flex gap-3 mt-3 flex-wrap">
+              {(["OEM", "Compatible", "Refurbished"] as ComboType[]).map(t => {
+                const count = combos.filter(c => c.comboType === t).length;
+                const cfg = comboTypeConfig[t];
+                return (
+                  <span key={t} className="text-xs font-bold px-2.5 py-1 rounded-full"
+                    style={{ background: cfg.bg, color: cfg.color }}>
+                    {cfg.label}: {count}
+                  </span>
+                );
+              })}
             </div>
-            {model.releaseYear && (
-              <p className="text-sm text-muted-foreground mt-1">Released {model.releaseYear}</p>
-            )}
           </div>
 
-          {model.combos.length > 0 && (
-            <div className="grid grid-cols-4 gap-2">
-              {[
-                { label: "OEM", count: oemCount, color: "text-blue-600" },
-                { label: "Compatible", count: compatibleCount, color: "text-green-600" },
-                { label: "Refurbished", count: refurbishedCount, color: "text-amber-600" },
-                { label: "In Stock", count: inStockCount, color: "text-primary" },
-              ].map(({ label, count, color }) => (
-                <div key={label} className="bg-white rounded-xl border border-border p-3 text-center">
-                  <p className={`text-xl font-bold ${color}`}>{count}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
-                </div>
-              ))}
+          {/* Tabs */}
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar">
+            {(["OEM", "Compatible", "Refurbished"] as ComboType[]).map(t => (
+              <button key={t} onClick={() => setActiveTab(t)}
+                className="flex-shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all"
+                style={t === activeTab
+                  ? { background: "hsl(var(--primary))", color: "#fff" }
+                  : { background: "hsl(var(--card))", color: "hsl(var(--muted-foreground))", border: "1px solid hsl(var(--border))" }}>
+                {comboTypeConfig[t].label} ({combos.filter(c => c.comboType === t).length})
+              </button>
+            ))}
+          </div>
+
+          {/* Combos list */}
+          {filtered.length === 0 ? (
+            <div className="text-center py-10 text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
+              No {comboTypeConfig[activeTab].label} combos available.
             </div>
-          )}
-
-          <div className="space-y-3">
-            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
-              Display Combos ({model.combos.length})
-            </h2>
-            {model.combos.length === 0 ? (
-              <div className="bg-white rounded-xl border border-border p-6 text-center text-sm text-muted-foreground">
-                No combos available for this model yet
-              </div>
-            ) : (
-              model.combos.map((combo) => {
-                const config = comboTypeConfig[combo.comboType as ComboType];
-                const Icon = config?.icon ?? Star;
+          ) : (
+            <div className="bg-card rounded-2xl border border-border divide-y divide-border overflow-hidden">
+              {filtered.map(combo => {
+                const cfg = comboTypeConfig[activeTab];
                 return (
-                  <div key={combo.id} className="bg-white rounded-xl border border-border p-4 space-y-2.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-sm">{combo.name}</p>
-                        <CopyButton text={`${model.brandName} ${model.name} — ${combo.name} (${combo.comboType})`} />
+                  <div key={combo.id} className="p-4 flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold">{combo.comboCode}</p>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                          style={{ background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
+                        {combo.inStock
+                          ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#ECFDF5", color: "#059669" }}>In Stock</span>
+                          : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#FEF2F2", color: "#DC2626" }}>Out of Stock</span>}
                       </div>
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${config?.color ?? "bg-gray-100 text-gray-600"}`}>
-                        <Icon className="w-3 h-3" />
-                        {combo.comboType}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                      {combo.qualityGrade && (
-                        <span className="flex items-center gap-1">
-                          <Star className="w-3 h-3" /> Grade: {combo.qualityGrade}
-                        </span>
+                      {combo.notes && (
+                        <p className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>{combo.notes}</p>
                       )}
-                      {combo.priceRange && (
-                        <span className="font-medium text-foreground">{combo.priceRange}</span>
-                      )}
-                      <span className={`flex items-center gap-1 font-medium ${combo.inStock ? "text-green-600" : "text-red-500"}`}>
-                        {combo.inStock ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                        {combo.inStock ? "In Stock" : "Out of Stock"}
-                      </span>
                     </div>
-
-                    {combo.notes && (
-                      <p className="text-xs text-muted-foreground border-t border-border pt-2">{combo.notes}</p>
-                    )}
+                    <CopyButton text={combo.comboCode} />
                   </div>
                 );
-              })
-            )}
-          </div>
+              })}
+            </div>
+          )}
         </>
-      ) : (
-        <div className="text-center py-10 text-muted-foreground">Model not found</div>
       )}
     </div>
   );

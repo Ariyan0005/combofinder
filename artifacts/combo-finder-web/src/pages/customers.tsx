@@ -1,101 +1,188 @@
-import { useState } from "react";
-import { Search, Plus, Phone, MessageSquare, ChevronRight } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Search, Plus, ChevronRight, X, Users } from "lucide-react";
 import { Link } from "wouter";
+import { ProtectedPage } from "@/components/protected-page";
 
-const customersData = [
-  { id: 1, name: "Sarah Jenkins", phone: "+1 555-0123", whatsapp: true, repairs: 4, spent: "$450.00", date: "Jan 12, 2023" },
-  { id: 2, name: "Mike Ross", phone: "+1 555-0124", whatsapp: true, repairs: 1, spent: "$80.00", date: "Oct 24, 2023" },
-  { id: 3, name: "Emily Chen", phone: "+1 555-0125", whatsapp: false, repairs: 2, spent: "$190.00", date: "Mar 05, 2023" },
-  { id: 4, name: "Tom Hardy", phone: "+1 555-0126", whatsapp: true, repairs: 5, spent: "$820.00", date: "Nov 18, 2022" },
-];
+const BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
 
-export default function Customers() {
-  const [search, setSearch] = useState("");
+type Customer = {
+  id: number;
+  name: string;
+  phone?: string;
+  whatsapp?: string;
+  notes?: string;
+  totalRepairs?: number;
+  createdAt: string;
+};
+
+function CustomerForm({ onClose, existing }: { onClose: () => void; existing?: Customer }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({
+    name: existing?.name ?? "",
+    phone: existing?.phone ?? "",
+    whatsapp: existing?.whatsapp ?? "",
+    notes: existing?.notes ?? "",
+  });
+  const [error, setError] = useState("");
+
+  const mut = useMutation({
+    mutationFn: async (data: Record<string, string>) => {
+      const url = existing ? `${BASE()}/api/customers/${existing.id}` : `${BASE()}/api/customers`;
+      const res = await fetch(url, {
+        method: existing ? "PUT" : "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Failed"); }
+      return res.json();
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["customers"] }); onClose(); },
+    onError: (err: any) => setError(err.message),
+  });
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!form.name) { setError("Name is required"); return; }
+    mut.mutate(form);
+  }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Customers</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage client profiles and repair history.</p>
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-card w-full max-w-md rounded-t-3xl md:rounded-3xl p-5 shadow-2xl">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-bold text-base">{existing ? "Edit Customer" : "New Customer"}</h2>
+          <button onClick={onClose}><X className="w-5 h-5" style={{ color: "hsl(var(--muted-foreground))" }} /></button>
         </div>
-        <button className="bg-primary text-white font-medium px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm">
-          <Plus className="w-4 h-4" /> Add Customer
-        </button>
-      </div>
-
-      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
-        {/* Toolbar */}
-        <div className="p-4 border-b border-border bg-muted/20">
-          <div className="relative max-w-md">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search by name or phone..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-background border border-border rounded-lg pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-muted/50 border-b border-border">
-              <tr>
-                <th className="px-6 py-3 font-medium text-muted-foreground">Customer</th>
-                <th className="px-6 py-3 font-medium text-muted-foreground">Contact</th>
-                <th className="px-6 py-3 font-medium text-muted-foreground">Stats</th>
-                <th className="px-6 py-3 font-medium text-muted-foreground text-right">Profile</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {customersData.map((customer) => (
-                <tr key={customer.id} className="hover:bg-muted/30 group">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
-                        {customer.name.split(' ').map(n => n[0]).join('')}
-                      </div>
-                      <div>
-                        <p className="font-bold text-foreground">{customer.name}</p>
-                        <p className="text-xs text-muted-foreground">Joined {customer.date}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <span className="font-medium">{customer.phone}</span>
-                      <div className="flex gap-1">
-                        <button className="w-7 h-7 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors">
-                          <Phone className="w-3.5 h-3.5" />
-                        </button>
-                        {customer.whatsapp && (
-                          <button className="w-7 h-7 rounded-full bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100 transition-colors">
-                            <MessageSquare className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="font-semibold text-foreground">{customer.repairs} Repairs</p>
-                    <p className="text-xs text-muted-foreground">Spent {customer.spent}</p>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <Link href={`/customers/${customer.id}`}>
-                      <button className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg transition-colors">
-                        <ChevronRight className="w-5 h-5" />
-                      </button>
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
+          {[
+            { label: "Full Name", key: "name", type: "text", placeholder: "Customer name" },
+            { label: "Phone", key: "phone", type: "tel", placeholder: "Phone number" },
+            { label: "WhatsApp", key: "whatsapp", type: "tel", placeholder: "WhatsApp number (optional)" },
+            { label: "Notes", key: "notes", type: "text", placeholder: "Additional notes" },
+          ].map(({ label, key, type, placeholder }) => (
+            <div key={key}>
+              <label className="text-xs font-semibold block mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>{label}</label>
+              <input type={type} value={(form as any)[key]}
+                onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
+                placeholder={placeholder}
+                className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none"
+                style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--background))" }}
+                onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+                onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }}
+              />
+            </div>
+          ))}
+          {error && <p className="text-xs text-center" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
+          <button type="submit" disabled={mut.isPending}
+            className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-60 mt-1"
+            style={{ background: "hsl(var(--primary))" }}>
+            {mut.isPending ? "Saving…" : existing ? "Save Changes" : "Add Customer"}
+          </button>
+        </form>
       </div>
     </div>
+  );
+}
+
+function initials(name: string) {
+  return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+}
+
+const AVATAR_COLORS = ["#6248FF", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4"];
+
+export default function Customers() {
+  const [searchQ, setSearchQ] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [editCustomer, setEditCustomer] = useState<Customer | undefined>();
+  const qc = useQueryClient();
+
+  const { data: customers, isLoading } = useQuery<Customer[]>({
+    queryKey: ["customers", searchQ],
+    queryFn: () => {
+      const url = searchQ.trim()
+        ? `${BASE()}/api/customers?q=${encodeURIComponent(searchQ.trim())}`
+        : `${BASE()}/api/customers`;
+      return fetch(url, { credentials: "include" }).then(r => r.json());
+    },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`${BASE()}/api/customers/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["customers"] }),
+  });
+
+  const list = Array.isArray(customers) ? customers : [];
+
+  return (
+    <ProtectedPage>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between pt-1">
+          <h1 className="text-xl font-extrabold">Customers</h1>
+          <button onClick={() => { setEditCustomer(undefined); setShowForm(true); }}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white"
+            style={{ background: "hsl(var(--primary))" }}>
+            <Plus className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "hsl(var(--muted-foreground))" }} />
+          <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
+            placeholder="Search customers…"
+            className="w-full pl-10 pr-4 py-3 rounded-2xl border text-sm outline-none"
+            style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }} />
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map(i => <div key={i} className="h-20 rounded-2xl animate-pulse" style={{ background: "hsl(var(--muted))" }} />)}
+          </div>
+        ) : list.length === 0 ? (
+          <div className="text-center py-16">
+            <Users className="w-10 h-10 mx-auto mb-3" style={{ color: "hsl(var(--muted-foreground))" }} />
+            <p className="font-semibold">No customers yet</p>
+            <p className="text-sm mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+              {searchQ ? "No results for your search" : "Add your first customer"}
+            </p>
+          </div>
+        ) : (
+          <div className="bg-card rounded-2xl border border-border divide-y divide-border overflow-hidden">
+            {list.map((c, i) => (
+              <div key={c.id} className="flex items-center gap-3 px-4 py-3.5">
+                <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-white"
+                  style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length] }}>
+                  {initials(c.name)}
+                </div>
+                <Link href={`/customers/${c.id}`} className="flex-1 min-w-0">
+                  <div className="cursor-pointer">
+                    <p className="text-sm font-semibold truncate">{c.name}</p>
+                    {c.phone && <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{c.phone}</p>}
+                    <p className="text-xs mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      Total Repairs: {c.totalRepairs ?? 0}
+                    </p>
+                  </div>
+                </Link>
+                <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                  <button onClick={() => { setEditCustomer(c); setShowForm(true); }}
+                    className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                    style={{ background: "hsl(var(--accent))", color: "hsl(var(--primary))" }}>
+                    Edit
+                  </button>
+                  <button onClick={() => { if (confirm("Delete this customer?")) deleteMut.mutate(c.id); }}
+                    className="text-[10px] font-medium" style={{ color: "hsl(var(--destructive))" }}>
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {showForm && <CustomerForm onClose={() => setShowForm(false)} existing={editCustomer} />}
+    </ProtectedPage>
   );
 }

@@ -1,257 +1,143 @@
-import { useAuth } from "@/context/auth-context";
 import { useQuery } from "@tanstack/react-query";
+import { Wrench, Users, Package, CheckCircle, Bell, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
-import {
-  Wrench, Package, Users, AlertTriangle, DollarSign,
-  Plus, Search, ShieldCheck, RefreshCw
-} from "lucide-react";
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
-} from "recharts";
+import { useAuth } from "@/context/auth-context";
+import { ProtectedPage } from "@/components/protected-page";
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+const BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
 
-function greeting(name?: string) {
+function greeting() {
   const h = new Date().getHours();
-  const t = h < 12 ? "Good Morning" : h < 17 ? "Good Afternoon" : "Good Evening";
-  return `${t}, ${name?.split(" ")[0] ?? "Technician"} 👋`;
+  if (h < 12) return "Good Morning";
+  if (h < 18) return "Good Afternoon";
+  return "Good Evening";
 }
 
-const STATUS_STYLE: Record<string, string> = {
-  Repairing: "bg-blue-100 text-blue-700",
-  Waiting:   "bg-amber-100 text-amber-700",
-  Ready:     "bg-emerald-100 text-emerald-700",
-  Delivered: "bg-slate-100 text-slate-600",
+const STATUS_COLOR: Record<string, string> = {
+  Waiting: "#F59E0B",
+  Repairing: "hsl(var(--primary))",
+  Ready: "#10B981",
+  Delivered: "#6B7280",
 };
 
 export default function Dashboard() {
   const { user } = useAuth();
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats } = useQuery<{
+    totalCustomers?: number;
+    activeRepairs?: number;
+    lowStock?: number;
+  }>({
     queryKey: ["stats"],
-    queryFn: () => fetch(`${BASE}/api/stats`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`${BASE()}/api/stats`, { credentials: "include" }).then(r => r.json()),
   });
 
-  const { data: repairs, isLoading: repairsLoading } = useQuery({
-    queryKey: ["repairs-recent"],
-    queryFn: () => fetch(`${BASE}/api/repairs`, { credentials: "include" }).then(r => r.json()),
+  const { data: repairs } = useQuery<any[]>({
+    queryKey: ["repairs", "recent"],
+    queryFn: () => fetch(`${BASE()}/api/repairs`, { credentials: "include" }).then(r => r.json()),
   });
 
-  const { data: lowStock, isLoading: stockLoading } = useQuery({
-    queryKey: ["low-stock"],
-    queryFn: () => fetch(`${BASE}/api/inventory/low-stock`, { credentials: "include" }).then(r => r.json()),
-  });
-
-  const { data: monthly } = useQuery({
-    queryKey: ["monthly-stats"],
-    queryFn: () => fetch(`${BASE}/api/monthly-stats`, { credentials: "include" }).then(r => r.json()),
-  });
-
-  const recentRepairs: any[] = Array.isArray(repairs) ? repairs.slice(0, 5) : [];
-  const lowStockItems: any[] = Array.isArray(lowStock) ? lowStock.slice(0, 5) : [];
-  const chartData: any[] = Array.isArray(monthly) ? monthly : [];
-
-  // Count repairs by status
-  const readyCount = Array.isArray(repairs)
-    ? repairs.filter((r: any) => r.status === "Ready").length
+  const recentRepairs = Array.isArray(repairs) ? repairs.slice(0, 5) : [];
+  const totalRepairs = Array.isArray(repairs) ? repairs.length : 0;
+  const deliveredToday = Array.isArray(repairs)
+    ? repairs.filter(r => r.status === "Delivered" &&
+        new Date(r.updatedAt ?? r.createdAt).toDateString() === new Date().toDateString()).length
     : 0;
 
   return (
-    <div className="space-y-6">
-      {/* Greeting */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">{greeting(user?.name)}</h1>
-        <p className="text-muted-foreground mt-0.5 text-sm">Here's what's happening in your shop today.</p>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {[
-          {
-            label: "Active Repairs",
-            value: statsLoading ? "—" : (stats?.activeRepairs ?? 0),
-            sub: "Waiting + in progress",
-            icon: Wrench, color: "text-blue-600", bg: "bg-blue-50",
-          },
-          {
-            label: "Pending Delivery",
-            value: repairsLoading ? "—" : readyCount,
-            sub: "Ready to pick up",
-            icon: Package, color: "text-amber-600", bg: "bg-amber-50",
-          },
-          {
-            label: "Customers",
-            value: statsLoading ? "—" : (stats?.totalCustomers ?? 0),
-            sub: "Total registered",
-            icon: Users, color: "text-emerald-600", bg: "bg-emerald-50",
-          },
-          {
-            label: "Low Stock",
-            value: statsLoading ? "—" : (stats?.lowStock ?? 0),
-            sub: "Items need reorder",
-            icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50",
-          },
-          {
-            label: "Compatibility DB",
-            value: statsLoading ? "—" : (stats?.totalCombos ?? 0),
-            sub: "Compatible parts",
-            icon: DollarSign, color: "text-indigo-600", bg: "bg-indigo-50",
-          },
-        ].map((s, i) => (
-          <div key={i} className="bg-card border border-border rounded-xl p-4 flex flex-col gap-2">
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${s.bg}`}>
-              <s.icon className={`w-4 h-4 ${s.color}`} />
-            </div>
-            <p className="text-2xl font-bold text-foreground">{s.value}</p>
-            <div>
-              <p className="text-xs font-semibold text-foreground">{s.label}</p>
-              <p className="text-xs text-muted-foreground">{s.sub}</p>
-            </div>
+    <ProtectedPage>
+      <div className="space-y-5">
+        {/* Header */}
+        <div className="flex items-center justify-between pt-1">
+          <div>
+            <p className="text-xs font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>{greeting()},</p>
+            <h1 className="text-xl font-extrabold mt-0.5">{user?.name ?? "Technician"} 👋</h1>
+            <p className="text-xs mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Here's what's happening today.</p>
           </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Left */}
-        <div className="lg:col-span-2 space-y-5">
-          {/* Recent Repairs */}
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-              <h2 className="font-semibold text-foreground">Recent Repairs</h2>
-              <Link href="/repairs" className="text-xs text-primary font-medium hover:underline">View All →</Link>
-            </div>
-
-            {repairsLoading ? (
-              <div className="flex items-center justify-center py-10 gap-2 text-muted-foreground text-sm">
-                <RefreshCw className="w-4 h-4 animate-spin" /> Loading...
-              </div>
-            ) : recentRepairs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-                <Wrench className="w-8 h-8 mb-2 opacity-30" />
-                <p className="text-sm">No repairs yet. <Link href="/repairs" className="text-primary">Add one →</Link></p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/40 text-left">
-                    <tr>
-                      <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">ID</th>
-                      <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Customer</th>
-                      <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground hidden sm:table-cell">Device</th>
-                      <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {recentRepairs.map((r: any) => (
-                      <tr key={r.id} className="hover:bg-muted/20">
-                        <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">#{r.id}</td>
-                        <td className="px-4 py-2.5 font-medium">{r.customerName ?? r.customerPhone ?? "—"}</td>
-                        <td className="px-4 py-2.5 text-muted-foreground hidden sm:table-cell">{r.phoneBrand} {r.phoneModel}</td>
-                        <td className="px-4 py-2.5">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLE[r.status] ?? "bg-muted text-muted-foreground"}`}>
-                            {r.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Monthly chart */}
-          <div className="bg-card border border-border rounded-xl p-4">
-            <h2 className="font-semibold text-foreground mb-4">Monthly Overview</h2>
-            {chartData.length === 0 ? (
-              <div className="h-48 flex flex-col items-center justify-center text-muted-foreground">
-                <BarIcon />
-                <p className="text-sm mt-2">No monthly data yet</p>
-              </div>
-            ) : (
-              <div className="h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "#9CA3AF", fontSize: 11 }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: "#9CA3AF", fontSize: 11 }} />
-                    <Tooltip formatter={(v: any) => [`$${v}`, undefined]} />
-                    <Legend />
-                    <Line type="monotone" dataKey="income" stroke="#10B981" strokeWidth={2.5} dot={false} name="Income" />
-                    <Line type="monotone" dataKey="expense" stroke="#EF4444" strokeWidth={2.5} dot={false} name="Expense" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
+          <button className="w-9 h-9 rounded-full border flex items-center justify-center"
+            style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
+            <Bell className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
+          </button>
         </div>
 
-        {/* Right */}
-        <div className="space-y-5">
-          {/* Quick Actions */}
-          <div className="bg-card border border-border rounded-xl p-4">
-            <h2 className="font-semibold text-foreground mb-3">Quick Actions</h2>
-            <div className="grid grid-cols-2 gap-2.5">
-              {[
-                { label: "New Repair", icon: Plus, color: "bg-blue-50 text-blue-600", href: "/repairs" },
-                { label: "Find Compatibility", icon: Search, color: "bg-emerald-50 text-emerald-600", href: "/compatibility" },
-                { label: "Add Inventory", icon: Package, color: "bg-purple-50 text-purple-600", href: "/inventory" },
-                { label: "Add Customer", icon: Users, color: "bg-orange-50 text-orange-600", href: "/customers" },
-                { label: "Knowledge Base", icon: ShieldCheck, color: "bg-yellow-50 text-yellow-600", href: "/knowledge-base" },
-                { label: "Unlock Services", icon: ShieldCheck, color: "bg-red-50 text-red-600", href: "/unlock-services" },
-              ].map((a, i) => (
-                <Link key={i} href={a.href}>
-                  <div className="p-3 border border-border rounded-lg hover:border-primary/30 hover:bg-primary/3 cursor-pointer transition-all flex flex-col gap-2">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${a.color}`}>
-                      <a.icon className="w-4 h-4" />
+        {/* Stat cards grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label: "Total Repairs", value: totalRepairs, icon: Wrench, color: "hsl(var(--primary))", bg: "hsl(var(--primary) / 0.1)" },
+            { label: "Active Repairs", value: stats?.activeRepairs ?? 0, icon: Wrench, color: "#F59E0B", bg: "#FFF7E6" },
+            { label: "Delivered Today", value: deliveredToday, icon: CheckCircle, color: "#10B981", bg: "#ECFDF5" },
+            { label: "Customers", value: stats?.totalCustomers ?? 0, icon: Users, color: "#8B5CF6", bg: "#F5F3FF" },
+          ].map(({ label, value, icon: Icon, color, bg }) => (
+            <div key={label} className="bg-card rounded-2xl p-4 border border-border flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: bg }}>
+                <Icon className="w-5 h-5" style={{ color }} />
+              </div>
+              <div>
+                <p className="text-xs font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>{label}</p>
+                <p className="text-2xl font-extrabold mt-0.5">{value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Low stock alert */}
+        {(stats?.lowStock ?? 0) > 0 && (
+          <Link href="/inventory">
+            <div className="flex items-center gap-3 p-4 rounded-2xl cursor-pointer"
+              style={{ background: "hsl(0 84% 60% / 0.08)", border: "1px solid hsl(0 84% 60% / 0.2)" }}>
+              <Package className="w-5 h-5 flex-shrink-0" style={{ color: "hsl(var(--destructive))" }} />
+              <p className="text-sm font-semibold flex-1" style={{ color: "hsl(var(--destructive))" }}>
+                {stats?.lowStock} item{(stats?.lowStock ?? 0) > 1 ? "s" : ""} running low on stock
+              </p>
+              <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--destructive))" }} />
+            </div>
+          </Link>
+        )}
+
+        {/* Recent repairs */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-base">Recent Repairs</h2>
+            <Link href="/repairs">
+              <span className="text-sm font-semibold" style={{ color: "hsl(var(--primary))" }}>View All</span>
+            </Link>
+          </div>
+
+          {recentRepairs.length === 0 ? (
+            <div className="bg-card rounded-2xl border border-border p-8 text-center">
+              <Wrench className="w-8 h-8 mx-auto mb-2" style={{ color: "hsl(var(--muted-foreground))" }} />
+              <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>No repairs yet</p>
+            </div>
+          ) : (
+            <div className="bg-card rounded-2xl border border-border divide-y divide-border overflow-hidden">
+              {recentRepairs.map((r) => (
+                <Link key={r.id} href="/repairs">
+                  <div className="flex items-center gap-3 p-4 hover:bg-muted/30 transition-colors cursor-pointer">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: "hsl(var(--muted))" }}>
+                      <Wrench className="w-5 h-5" style={{ color: "hsl(var(--muted-foreground))" }} />
                     </div>
-                    <span className="text-xs font-semibold text-foreground leading-tight">{a.label}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{[r.phoneBrand, r.phoneModel].filter(Boolean).join(" ") || "Device"}</p>
+                      <p className="text-xs truncate" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        {r.problem ?? "–"}
+                      </p>
+                    </div>
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0"
+                      style={{
+                        background: `${STATUS_COLOR[r.status] ?? "#9CA3AF"}20`,
+                        color: STATUS_COLOR[r.status] ?? "#9CA3AF",
+                      }}>
+                      {r.status}
+                    </span>
                   </div>
                 </Link>
               ))}
             </div>
-          </div>
-
-          {/* Low Stock Alert */}
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-              <h2 className="font-semibold text-foreground">Low Stock Alert</h2>
-              <Link href="/inventory" className="text-xs text-primary font-medium hover:underline">View All →</Link>
-            </div>
-            {stockLoading ? (
-              <div className="px-4 py-6 text-center text-sm text-muted-foreground">Loading...</div>
-            ) : lowStockItems.length === 0 ? (
-              <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                ✅ All items are well stocked
-              </div>
-            ) : (
-              <div>
-                {lowStockItems.map((item: any) => (
-                  <div key={item.id} className="px-4 py-3 border-b border-border last:border-0 flex items-center justify-between hover:bg-muted/20">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{item.partName}</p>
-                      <p className="text-xs text-muted-foreground">Min: {item.minStock}</p>
-                    </div>
-                    <span className="ml-2 text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full shrink-0">
-                      {item.quantity} left
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function BarIcon() {
-  return (
-    <svg className="w-8 h-8 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <rect x="3" y="12" width="4" height="8" rx="1" fill="currentColor" />
-      <rect x="10" y="7" width="4" height="13" rx="1" fill="currentColor" />
-      <rect x="17" y="4" width="4" height="16" rx="1" fill="currentColor" />
-    </svg>
+    </ProtectedPage>
   );
 }

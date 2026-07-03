@@ -1,96 +1,100 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { DollarSign, Wrench, AlertTriangle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
+import { TrendingUp, Wrench, Users, Package } from "lucide-react";
+import { ProtectedPage } from "@/components/protected-page";
 
-const monthlyData = [
-  { name: 'Week 1', income: 1200, expense: 400 },
-  { name: 'Week 2', income: 1900, expense: 600 },
-  { name: 'Week 3', income: 1500, expense: 450 },
-  { name: 'Week 4', income: 2200, expense: 800 },
-];
-
-const pieData = [
-  { name: 'Delivered', value: 400 },
-  { name: 'Repairing', value: 300 },
-  { name: 'Waiting', value: 300 },
-  { name: 'Ready', value: 200 },
-];
-const COLORS = ['#64748b', '#3b82f6', '#f59e0b', '#10b981'];
+const BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
 
 export default function Reports() {
+  const { data: stats } = useQuery<any>({
+    queryKey: ["stats"],
+    queryFn: () => fetch(`${BASE()}/api/stats`, { credentials: "include" }).then(r => r.json()),
+  });
+
+  const { data: monthlyData } = useQuery<any[]>({
+    queryKey: ["monthly-stats"],
+    queryFn: () => fetch(`${BASE()}/api/monthly-stats`, { credentials: "include" }).then(r => r.json()),
+  });
+
+  const { data: repairs } = useQuery<any[]>({
+    queryKey: ["repairs"],
+    queryFn: () => fetch(`${BASE()}/api/repairs`, { credentials: "include" }).then(r => r.json()),
+  });
+
+  const chartData = Array.isArray(monthlyData) ? monthlyData : [];
+  const repairList = Array.isArray(repairs) ? repairs : [];
+
+  const statusBreakdown = ["Waiting", "Repairing", "Ready", "Delivered"].map(s => ({
+    name: s,
+    count: repairList.filter(r => r.status === s).length,
+  }));
+
+  const STATUS_COLOR_MAP: Record<string, string> = {
+    Waiting: "#F59E0B", Repairing: "hsl(252,100%,64%)", Ready: "#10B981", Delivered: "#6B7280",
+  };
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
-        <p className="text-sm text-muted-foreground mt-1">Overview of shop performance and financials.</p>
-      </div>
+    <ProtectedPage>
+      <div className="space-y-5">
+        <h1 className="text-xl font-extrabold pt-1">Reports</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[
-          { label: "Total Revenue (Oct)", value: "$6,800.00", icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Total Repairs", value: "142", icon: Wrench, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Total Expenses", value: "$2,250.00", icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50" },
-        ].map((stat, i) => (
-          <div key={i} className="bg-card border border-border rounded-xl p-5 flex items-center gap-4 shadow-sm">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${stat.bg}`}>
-              <stat.icon className={`w-6 h-6 ${stat.color}`} />
+        {/* Summary cards */}
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Total Repairs", value: repairList.length, icon: Wrench, color: "hsl(var(--primary))", bg: "hsl(var(--primary) / 0.1)" },
+            { label: "Customers", value: stats?.totalCustomers ?? 0, icon: Users, color: "#8B5CF6", bg: "#F5F3FF" },
+            { label: "Low Stock", value: stats?.lowStock ?? 0, icon: Package, color: "#EF4444", bg: "#FEF2F2" },
+          ].map(({ label, value, icon: Icon, color, bg }) => (
+            <div key={label} className="bg-card rounded-2xl border border-border p-3 text-center">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center mx-auto mb-2" style={{ background: bg }}>
+                <Icon className="w-4 h-4" style={{ color }} />
+              </div>
+              <p className="text-xl font-extrabold">{value}</p>
+              <p className="text-[10px] font-medium mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>{label}</p>
             </div>
-            <div>
-              <p className="text-sm font-semibold text-muted-foreground">{stat.label}</p>
-              <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-card border border-border rounded-xl p-6 shadow-sm">
-          <h2 className="font-bold text-foreground mb-6">Income vs Expenses</h2>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} />
-                <Tooltip />
-                <Line type="monotone" dataKey="income" stroke="#10B981" strokeWidth={3} dot={true} name="Income" />
-                <Line type="monotone" dataKey="expense" stroke="#EF4444" strokeWidth={3} dot={true} name="Expense" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          ))}
         </div>
 
-        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-          <h2 className="font-bold text-foreground mb-6">Repairs by Status</h2>
-          <div className="h-64 flex flex-col items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-4 w-full">
-              {pieData.map((entry, index) => (
-                <div key={index} className="flex items-center gap-2 text-xs">
-                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index] }} />
-                  <span className="font-medium">{entry.name}</span>
+        {/* Status breakdown */}
+        <div className="bg-card rounded-2xl border border-border p-4">
+          <h2 className="font-bold text-sm mb-4" style={{ color: "hsl(var(--muted-foreground))" }}>REPAIRS BY STATUS</h2>
+          {repairList.length === 0 ? (
+            <p className="text-center text-sm py-6" style={{ color: "hsl(var(--muted-foreground))" }}>No repair data yet</p>
+          ) : (
+            <div className="space-y-3">
+              {statusBreakdown.map(({ name, count }) => (
+                <div key={name} className="flex items-center gap-3">
+                  <p className="text-xs font-semibold w-20 flex-shrink-0">{name}</p>
+                  <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "hsl(var(--muted))" }}>
+                    <div className="h-full rounded-full transition-all"
+                      style={{
+                        width: repairList.length ? `${(count / repairList.length) * 100}%` : "0%",
+                        background: STATUS_COLOR_MAP[name] ?? "#9CA3AF",
+                      }} />
+                  </div>
+                  <span className="text-xs font-bold w-6 text-right">{count}</span>
                 </div>
               ))}
             </div>
-          </div>
+          )}
         </div>
+
+        {/* Monthly chart */}
+        {chartData.length > 0 && (
+          <div className="bg-card rounded-2xl border border-border p-4">
+            <h2 className="font-bold text-sm mb-4" style={{ color: "hsl(var(--muted-foreground))" }}>MONTHLY OVERVIEW</h2>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip />
+                <Bar dataKey="repairs" fill="hsl(252,100%,64%)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
-    </div>
+    </ProtectedPage>
   );
 }

@@ -1,127 +1,213 @@
-import { useState } from "react";
-import { Search, ChevronRight, Smartphone, Battery, Cpu, Layers, Wrench } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Search, ChevronRight, Monitor, Battery, Cpu, Plug, MoreHorizontal, Clock, X } from "lucide-react";
+import { Link } from "wouter";
+
+const BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
+const LS_KEY = "cf_recent_searches";
+
+const CATEGORIES = [
+  { label: "Display", icon: Monitor, color: "#6248FF", bg: "#EEF2FF" },
+  { label: "Battery", icon: Battery, color: "#10B981", bg: "#ECFDF5" },
+  { label: "IC", icon: Cpu, color: "#F59E0B", bg: "#FFF7E6" },
+  { label: "Connector", icon: Plug, color: "#06B6D4", bg: "#F0FDFF" },
+  { label: "More", icon: MoreHorizontal, color: "#8B5CF6", bg: "#F5F3FF" },
+];
+
+function getRecentSearches(): string[] {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) ?? "[]"); } catch { return []; }
+}
+function addRecentSearch(q: string) {
+  const arr = getRecentSearches().filter(s => s !== q).slice(0, 9);
+  arr.unshift(q);
+  localStorage.setItem(LS_KEY, JSON.stringify(arr));
+}
 
 export default function Compatibility() {
   const [query, setQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("Displays");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [recentSearches, setRecentSearches] = useState<string[]>(getRecentSearches);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setDebouncedQuery(query.trim()), 350);
+    return () => clearTimeout(timerRef.current);
+  }, [query]);
+
+  const { data: searchResults, isLoading: searching } = useQuery<{ brands?: any[]; models?: any[] }>({
+    queryKey: ["search", debouncedQuery],
+    queryFn: () =>
+      fetch(`${BASE()}/api/search?q=${encodeURIComponent(debouncedQuery)}`, { credentials: "include" }).then(r => r.json()),
+    enabled: debouncedQuery.length >= 2,
+  });
+
+  const { data: brands } = useQuery<any[]>({
+    queryKey: ["brands"],
+    queryFn: () => fetch(`${BASE()}/api/brands`, { credentials: "include" }).then(r => r.json()),
+    enabled: debouncedQuery.length < 2,
+  });
+
+  function handleSearchSelect(q: string) {
+    addRecentSearch(q);
+    setRecentSearches(getRecentSearches());
+  }
+
+  function removeRecent(q: string) {
+    const arr = getRecentSearches().filter(s => s !== q);
+    localStorage.setItem(LS_KEY, JSON.stringify(arr));
+    setRecentSearches(arr);
+  }
+
+  const allModels = Array.isArray(searchResults?.models) ? searchResults.models : [];
+  const allBrands = Array.isArray(searchResults?.brands) ? searchResults.brands : [];
+  const brandList = Array.isArray(brands) ? brands.slice(0, 8) : [];
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Compatibility Finder</h1>
-        <p className="text-muted-foreground mt-1 text-sm">Find compatible parts, schematics, and repair solutions instantly.</p>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between pt-1">
+        <h1 className="text-xl font-extrabold">Compatibility Finder</h1>
       </div>
 
-      <div className="bg-card border border-border rounded-xl p-4 md:p-6 shadow-sm">
-        <div className="relative max-w-2xl mx-auto">
-          <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search model or part (e.g. iPhone 13, Samsung A51 LCD)..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-background border border-border rounded-xl pl-12 pr-4 py-4 text-base focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-          />
-        </div>
+      {/* Search bar */}
+      <div className="relative">
+        <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2"
+          style={{ color: "hsl(var(--muted-foreground))" }} />
+        <input
+          type="text"
+          placeholder="Search model or part…"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          className="w-full pl-11 pr-4 py-3.5 rounded-2xl border text-sm outline-none transition-all"
+          style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}
+          onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+          onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }}
+        />
+        {query && (
+          <button onClick={() => setQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2"
+            style={{ color: "hsl(var(--muted-foreground))" }}>
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
-      {query ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-1 space-y-4">
-            <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
-              <div className="p-6 text-center border-b border-border bg-gradient-to-b from-primary/5 to-transparent">
-                <Smartphone className="w-16 h-16 mx-auto text-primary mb-3" />
-                <h2 className="text-xl font-bold">iPhone 13</h2>
-                <p className="text-sm text-muted-foreground">Apple • Released 2021</p>
-              </div>
-              <div className="p-4 grid grid-cols-2 gap-2 text-sm">
-                <div className="bg-muted p-2 rounded text-center">
-                  <p className="text-xs text-muted-foreground">Model IDs</p>
-                  <p className="font-semibold mt-0.5">A2633, A2482</p>
-                </div>
-                <div className="bg-muted p-2 rounded text-center">
-                  <p className="text-xs text-muted-foreground">Repairs</p>
-                  <p className="font-semibold mt-0.5">142 total</p>
-                </div>
-              </div>
+      {/* Category icons */}
+      <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1">
+        {CATEGORIES.map(({ label, icon: Icon, color, bg }) => (
+          <button key={label}
+            onClick={() => setQuery(label === "More" ? "" : label)}
+            className="flex flex-col items-center gap-1.5 flex-shrink-0 min-w-[60px]">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
+              style={{ background: bg }}>
+              <Icon className="w-5 h-5" style={{ color }} />
             </div>
+            <span className="text-[10px] font-semibold" style={{ color: "hsl(var(--muted-foreground))" }}>{label}</span>
+          </button>
+        ))}
+      </div>
 
-            <div className="bg-card border border-border rounded-xl shadow-sm p-4 space-y-3">
-              <h3 className="font-bold mb-2">Quick Resources</h3>
-              {[
-                { label: "Repair Notes", icon: Layers },
-                { label: "Known Issues", icon: Cpu },
-                { label: "Schematics & Boardview", icon: Cpu },
-              ].map((res, i) => (
-                <button key={i} className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary hover:text-primary transition-colors text-left text-sm font-medium">
-                  <div className="flex items-center gap-3">
-                    <res.icon className="w-4 h-4" /> {res.label}
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                </button>
+      {/* Search results */}
+      {debouncedQuery.length >= 2 ? (
+        <div className="space-y-4">
+          {searching ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-14 rounded-2xl animate-pulse" style={{ background: "hsl(var(--muted))" }} />
               ))}
             </div>
-          </div>
-
-          <div className="md:col-span-2 bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
-            <div className="flex border-b border-border overflow-x-auto hide-scrollbar">
-              {["Displays", "Batteries", "Charging Ports", "ICs", "More"].map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-6 py-3.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-            
-            <div className="p-4 flex-1 overflow-y-auto">
-              {activeTab === "Displays" && (
-                <div className="space-y-4">
-                  {[
-                    { name: "iPhone 13 Original Pull", type: "OLED", match: 100 },
-                    { name: "iPhone 13 Aftermarket (Hard OLED)", type: "OLED", match: 100 },
-                    { name: "iPhone 13 Aftermarket (Incell)", type: "LCD", match: 100, warn: "TrueTone may not work without copy" },
-                  ].map((part, i) => (
-                    <div key={i} className="p-4 border border-border rounded-lg hover:border-primary/50 transition-colors">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h4 className="font-bold text-foreground">{part.name}</h4>
-                          <p className="text-sm text-muted-foreground">{part.type}</p>
+          ) : (
+            <>
+              {allBrands.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide mb-2"
+                    style={{ color: "hsl(var(--muted-foreground))" }}>Brands</p>
+                  <div className="bg-card rounded-2xl border border-border divide-y divide-border overflow-hidden">
+                    {allBrands.map((b: any) => (
+                      <Link key={b.id} href={`/brands/${b.id}`}>
+                        <div onClick={() => handleSearchSelect(b.name)}
+                          className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-muted/30">
+                          <span className="text-sm font-semibold">{b.name}</span>
+                          <ChevronRight className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
                         </div>
-                        <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-1 rounded">
-                          {part.match}% Match
-                        </span>
-                      </div>
-                      {part.warn && (
-                        <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded mt-2 border border-amber-200">
-                          Note: {part.warn}
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               )}
-              {activeTab !== "Displays" && (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Wrench className="w-12 h-12 text-muted-foreground/30 mb-3" />
-                  <p className="text-muted-foreground font-medium">Select parts to view compatibility</p>
+              {allModels.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide mb-2"
+                    style={{ color: "hsl(var(--muted-foreground))" }}>Models</p>
+                  <div className="bg-card rounded-2xl border border-border divide-y divide-border overflow-hidden">
+                    {allModels.map((m: any) => (
+                      <Link key={m.id} href={`/models/${m.id}`}>
+                        <div onClick={() => handleSearchSelect(m.name)}
+                          className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-muted/30">
+                          <div>
+                            <p className="text-sm font-semibold">{m.name}</p>
+                            {m.brandName && (
+                              <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{m.brandName}</p>
+                            )}
+                          </div>
+                          <ChevronRight className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               )}
-            </div>
-          </div>
+              {allBrands.length === 0 && allModels.length === 0 && (
+                <div className="text-center py-10 text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
+                  No results for "{debouncedQuery}"
+                </div>
+              )}
+            </>
+          )}
         </div>
       ) : (
-        <div className="py-20 text-center">
-          <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-            <Search className="w-8 h-8 text-muted-foreground" />
-          </div>
-          <h3 className="text-xl font-bold text-foreground">Start Typing to Search</h3>
-          <p className="text-muted-foreground mt-2">Find parts, models, and schematics across thousands of devices.</p>
-        </div>
+        <>
+          {/* Popular brands/models */}
+          {brandList.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-bold text-base">Popular Brands</h2>
+                <span className="text-xs font-semibold" style={{ color: "hsl(var(--primary))" }}>View All</span>
+              </div>
+              <div className="bg-card rounded-2xl border border-border divide-y divide-border overflow-hidden">
+                {brandList.map((b: any) => (
+                  <Link key={b.id} href={`/brands/${b.id}`}>
+                    <div className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-muted/30">
+                      <span className="text-sm font-semibold">{b.name}</span>
+                      <ChevronRight className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recent searches */}
+          {recentSearches.length > 0 && (
+            <div>
+              <h2 className="font-bold text-base mb-3">Recent Searches</h2>
+              <div className="bg-card rounded-2xl border border-border divide-y divide-border overflow-hidden">
+                {recentSearches.slice(0, 5).map(q => (
+                  <div key={q} className="flex items-center justify-between px-4 py-3.5">
+                    <button className="flex items-center gap-3 flex-1 text-left"
+                      onClick={() => setQuery(q)}>
+                      <Clock className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--muted-foreground))" }} />
+                      <span className="text-sm font-medium">{q}</span>
+                    </button>
+                    <button onClick={() => removeRecent(q)}>
+                      <X className="w-3.5 h-3.5" style={{ color: "hsl(var(--muted-foreground))" }} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 }
-

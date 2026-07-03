@@ -1,125 +1,174 @@
 import { useState } from "react";
 import { useParams, Link } from "wouter";
-import { ArrowLeft, Phone, MessageSquare, Wrench, DollarSign, Calendar, MapPin } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft, Phone, MessageSquare, Wrench, DollarSign } from "lucide-react";
+import { ProtectedPage } from "@/components/protected-page";
+
+const BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function initials(name: string) {
+  return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+}
+
+const STATUS_COLOR: Record<string, { text: string; bg: string }> = {
+  Waiting:   { text: "#F59E0B", bg: "#FFF7E6" },
+  Repairing: { text: "hsl(var(--primary))", bg: "hsl(var(--primary) / 0.1)" },
+  Ready:     { text: "#10B981", bg: "#ECFDF5" },
+  Delivered: { text: "#6B7280", bg: "#F3F4F6" },
+};
 
 export default function CustomerProfile() {
-  const { id } = useParams();
-  const [activeTab, setActiveTab] = useState("Repair History");
+  const { id } = useParams<{ id: string }>();
+  const customerId = Number(id);
+
+  const { data: customer, isLoading } = useQuery<any>({
+    queryKey: ["customer", customerId],
+    queryFn: () => fetch(`${BASE()}/api/customers/${customerId}`, { credentials: "include" }).then(r => r.json()),
+    enabled: !!customerId,
+  });
+
+  const { data: repairs } = useQuery<any[]>({
+    queryKey: ["repairs", "customer", customerId],
+    queryFn: () =>
+      fetch(`${BASE()}/api/repairs?customerId=${customerId}`, { credentials: "include" }).then(r => r.json()),
+    enabled: !!customerId,
+  });
+
+  const repairList = Array.isArray(repairs) ? repairs : [];
+  const totalSpent = repairList.reduce((sum, r) => sum + (r.totalCost ?? 0), 0);
+
+  if (isLoading) {
+    return (
+      <ProtectedPage>
+        <div className="flex justify-center py-16">
+          <div className="w-8 h-8 border-4 rounded-full animate-spin"
+            style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
+        </div>
+      </ProtectedPage>
+    );
+  }
+
+  if (!customer || customer.error) {
+    return (
+      <ProtectedPage>
+        <div className="text-center py-16">
+          <p style={{ color: "hsl(var(--muted-foreground))" }}>Customer not found.</p>
+          <Link href="/customers">
+            <button className="mt-4 text-sm font-semibold" style={{ color: "hsl(var(--primary))" }}>← Back to Customers</button>
+          </Link>
+        </div>
+      </ProtectedPage>
+    );
+  }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <div>
-        <Link href="/customers" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
-          <ArrowLeft className="w-4 h-4" /> Back to Customers
+    <ProtectedPage>
+      <div className="space-y-4">
+        <Link href="/customers">
+          <button className="flex items-center gap-1.5 text-sm font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>
+            <ArrowLeft className="w-4 h-4" /> Back to Customers
+          </button>
         </Link>
-      </div>
 
-      {/* Profile Header Card */}
-      <div className="bg-card border border-border rounded-xl shadow-sm p-6">
-        <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
-          <div className="flex items-center gap-5">
-            <div className="w-20 h-20 rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl font-bold border-4 border-background shadow-sm">
-              SJ
+        {/* Profile header */}
+        <div className="bg-card rounded-2xl border border-border p-5">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-extrabold text-white flex-shrink-0"
+              style={{ background: "hsl(var(--primary))" }}>
+              {initials(customer.name ?? "?")}
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Sarah Jenkins</h1>
-              <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1"><Phone className="w-4 h-4" /> +1 555-0123</span>
-                <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> New York, NY</span>
-                <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> Joined Jan 2023</span>
-              </div>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg font-extrabold truncate">{customer.name}</h1>
+              {customer.phone && (
+                <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>{customer.phone}</p>
+              )}
+              {customer.notes && (
+                <p className="text-xs mt-1 truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{customer.notes}</p>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 font-medium rounded-lg hover:bg-blue-100 transition-colors">
-              <Phone className="w-4 h-4" /> Call
-            </button>
-            <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-green-50 text-green-700 font-medium rounded-lg hover:bg-green-100 transition-colors">
-              <MessageSquare className="w-4 h-4" /> WhatsApp
-            </button>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-6 border-t border-border">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-muted-foreground uppercase">Total Repairs</span>
-            <span className="text-xl font-bold flex items-center gap-2"><Wrench className="w-5 h-5 text-primary" /> 4</span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-muted-foreground uppercase">Total Spent</span>
-            <span className="text-xl font-bold flex items-center gap-2"><DollarSign className="w-5 h-5 text-emerald-600" /> $450.00</span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-muted-foreground uppercase">Active Repairs</span>
-            <span className="text-xl font-bold text-amber-600">1</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs & Content */}
-      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
-        <div className="flex border-b border-border overflow-x-auto hide-scrollbar">
-          {["Repair History", "Devices", "Payments", "Notes"].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-6 py-4 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-        
-        <div className="p-0">
-          {activeTab === "Repair History" && (
-            <table className="w-full text-sm text-left">
-              <thead className="bg-muted/50 border-b border-border">
-                <tr>
-                  <th className="px-6 py-3 font-medium text-muted-foreground">ID / Date</th>
-                  <th className="px-6 py-3 font-medium text-muted-foreground">Device & Problem</th>
-                  <th className="px-6 py-3 font-medium text-muted-foreground">Status</th>
-                  <th className="px-6 py-3 font-medium text-muted-foreground">Cost</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                <tr className="hover:bg-muted/30">
-                  <td className="px-6 py-4">
-                    <p className="font-bold text-foreground">RP-1042</p>
-                    <p className="text-xs text-muted-foreground">Oct 24, 2023</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="font-semibold text-foreground">iPhone 13 Pro</p>
-                    <p className="text-xs text-muted-foreground">Broken Screen</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">Repairing</span>
-                  </td>
-                  <td className="px-6 py-4 font-semibold">$150.00</td>
-                </tr>
-                <tr className="hover:bg-muted/30">
-                  <td className="px-6 py-4">
-                    <p className="font-bold text-foreground">RP-902</p>
-                    <p className="text-xs text-muted-foreground">Aug 12, 2023</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="font-semibold text-foreground">MacBook Air M1</p>
-                    <p className="text-xs text-muted-foreground">Battery Replacement</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">Delivered</span>
-                  </td>
-                  <td className="px-6 py-4 font-semibold">$200.00</td>
-                </tr>
-              </tbody>
-            </table>
+          {/* Contact buttons */}
+          {(customer.phone || customer.whatsapp) && (
+            <div className="flex gap-3 mt-4">
+              {customer.phone && (
+                <a href={`tel:${customer.phone}`} className="flex-1">
+                  <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold"
+                    style={{ background: "hsl(var(--primary) / 0.1)", color: "hsl(var(--primary))" }}>
+                    <Phone className="w-4 h-4" /> Call
+                  </button>
+                </a>
+              )}
+              {(customer.whatsapp || customer.phone) && (
+                <a href={`https://wa.me/${(customer.whatsapp ?? customer.phone).replace(/\D/g, "")}`}
+                  target="_blank" rel="noreferrer" className="flex-1">
+                  <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold"
+                    style={{ background: "#DCFCE7", color: "#16A34A" }}>
+                    <MessageSquare className="w-4 h-4" /> WhatsApp
+                  </button>
+                </a>
+              )}
+            </div>
           )}
-          {activeTab !== "Repair History" && (
-            <div className="p-12 text-center text-muted-foreground">
-              Content for {activeTab} will appear here.
+
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-border">
+            <div className="text-center">
+              <p className="text-xs font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>Total Repairs</p>
+              <p className="text-xl font-extrabold mt-0.5">{repairList.length}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>Total Spent</p>
+              <p className="text-xl font-extrabold mt-0.5">{totalSpent.toLocaleString()}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>Active</p>
+              <p className="text-xl font-extrabold mt-0.5">
+                {repairList.filter(r => r.status === "Repairing" || r.status === "Waiting").length}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Repair history */}
+        <div>
+          <h2 className="font-bold text-base mb-3">Repair History</h2>
+          {repairList.length === 0 ? (
+            <div className="text-center py-10 bg-card rounded-2xl border border-border">
+              <Wrench className="w-8 h-8 mx-auto mb-2" style={{ color: "hsl(var(--muted-foreground))" }} />
+              <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>No repairs for this customer yet.</p>
+            </div>
+          ) : (
+            <div className="bg-card rounded-2xl border border-border divide-y divide-border overflow-hidden">
+              {repairList.map(r => {
+                const sc = STATUS_COLOR[r.status] ?? { text: "#9CA3AF", bg: "#F3F4F6" };
+                return (
+                  <div key={r.id} className="flex items-center gap-3 px-4 py-3.5">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{[r.phoneBrand, r.phoneModel].filter(Boolean).join(" ") || "Device"}</p>
+                      <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        {r.problem ?? "–"}
+                      </p>
+                      <p className="text-[10px] mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        {new Date(r.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+                        style={{ background: sc.bg, color: sc.text }}>{r.status}</span>
+                      {r.totalCost ? (
+                        <span className="text-xs font-semibold" style={{ color: "hsl(var(--muted-foreground))" }}>
+                          {Number(r.totalCost).toLocaleString()}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
       </div>
-    </div>
+    </ProtectedPage>
   );
 }
