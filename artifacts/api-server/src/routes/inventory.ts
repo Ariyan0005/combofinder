@@ -14,7 +14,7 @@ router.get("/", async (req, res) => {
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to fetch inventory" }); }
 });
 
-router.get("/low-stock", async (_req, res) => {
+router.get("/low-stock", async (req, res) => {
   try {
     const rows = await db.select().from(inventoryTable).where(lte(inventoryTable.quantity, inventoryTable.minStock)).orderBy(inventoryTable.quantity);
     res.json(rows);
@@ -29,42 +29,50 @@ router.get("/:id", async (req, res) => {
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed" }); }
 });
 
+function toInt(v: any, field: string): number {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) throw new Error(`${field} must be a non-negative integer`);
+  return n;
+}
+
 function bodyToRow(b: Record<string, any>) {
   // Frontend sends "name"; DB column is "partName". Accept both.
-  const partName = b.partName ?? b.name;
-  if (!partName) throw new Error("partName is required");
+  const partName = (b.partName ?? b.name ?? "").toString().trim();
+  if (!partName) throw new Error("Item name is required");
   return {
     partName,
     partType: b.partType ?? "Other",
-    brand: b.brand ?? null,
-    model: b.model ?? null,
-    quality: b.quality ?? null,
-    quantity: b.quantity !== undefined ? Number(b.quantity) : undefined,
-    minStock: b.minStock !== undefined ? Number(b.minStock) : undefined,
-    purchasePrice: b.purchasePrice !== undefined ? String(b.purchasePrice) : null,
-    sellingPrice: b.sellingPrice !== undefined ? String(b.sellingPrice) : null,
-    supplier: b.supplier ?? null,
-    shelfLocation: b.shelfLocation ?? null,
-    notes: b.notes ?? null,
+    brand: b.brand ? String(b.brand) : null,
+    model: b.model ? String(b.model) : null,
+    quality: b.quality ? String(b.quality) : null,
+    quantity: b.quantity !== undefined ? toInt(b.quantity, "quantity") : undefined,
+    minStock: b.minStock !== undefined ? toInt(b.minStock, "minStock") : undefined,
+    purchasePrice: b.purchasePrice !== undefined && b.purchasePrice !== "" ? String(b.purchasePrice) : null,
+    sellingPrice: b.sellingPrice !== undefined && b.sellingPrice !== "" ? String(b.sellingPrice) : null,
+    supplier: b.supplier ? String(b.supplier) : null,
+    shelfLocation: b.shelfLocation ? String(b.shelfLocation) : null,
+    notes: b.notes ? String(b.notes) : null,
     updatedAt: new Date(),
   };
 }
 
 router.post("/", async (req, res) => {
+  let values: ReturnType<typeof bodyToRow>;
+  try { values = bodyToRow(req.body); } catch (err: any) { return res.status(400).json({ error: err.message }); }
   try {
-    const values = bodyToRow(req.body);
     const [row] = await db.insert(inventoryTable).values(values as any).returning();
     res.status(201).json(row);
-  } catch (err: any) { req.log.error(err); res.status(500).json({ error: err.message ?? "Failed to create item" }); }
+  } catch (err: any) { req.log.error(err); res.status(500).json({ error: "Failed to create item" }); }
 });
 
 router.put("/:id", async (req, res) => {
+  let values: ReturnType<typeof bodyToRow>;
+  try { values = bodyToRow(req.body); } catch (err: any) { return res.status(400).json({ error: err.message }); }
   try {
-    const values = bodyToRow(req.body);
     const [row] = await db.update(inventoryTable).set(values as any).where(eq(inventoryTable.id, Number(req.params.id))).returning();
     if (!row) return res.status(404).json({ error: "Not found" });
     res.json(row);
-  } catch (err: any) { req.log.error(err); res.status(500).json({ error: err.message ?? "Failed to update item" }); }
+  } catch (err: any) { req.log.error(err); res.status(500).json({ error: "Failed to update item" }); }
 });
 
 router.delete("/:id", async (req, res) => {
