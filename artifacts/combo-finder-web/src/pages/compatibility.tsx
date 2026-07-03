@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Search, ChevronRight, Monitor, Battery, Cpu, Plug, MoreHorizontal, Clock, X } from "lucide-react";
 import { Link } from "wouter";
 
-const BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
 const LS_KEY = "cf_recent_searches";
 
 const CATEGORIES = [
@@ -38,13 +37,13 @@ export default function Compatibility() {
   const { data: searchResults, isLoading: searching } = useQuery<{ brands?: any[]; models?: any[] }>({
     queryKey: ["search", debouncedQuery],
     queryFn: () =>
-      fetch(`${BASE()}/api/search?q=${encodeURIComponent(debouncedQuery)}`, { credentials: "include" }).then(r => r.json()),
+      fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}`, { credentials: "include" }).then(r => r.json()),
     enabled: debouncedQuery.length >= 2,
   });
 
   const { data: brands } = useQuery<any[]>({
     queryKey: ["brands"],
-    queryFn: () => fetch(`${BASE()}/api/brands`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/brands`, { credentials: "include" }).then(r => r.json()),
     enabled: debouncedQuery.length < 2,
   });
 

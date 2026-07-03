@@ -4,7 +4,6 @@ import { Search, Plus, ChevronRight, X, Users } from "lucide-react";
 import { Link } from "wouter";
 import { ProtectedPage } from "@/components/protected-page";
 
-const BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
 
 type Customer = {
   id: number;
@@ -28,7 +27,7 @@ function CustomerForm({ onClose, existing }: { onClose: () => void; existing?: C
 
   const mut = useMutation({
     mutationFn: async (data: Record<string, string>) => {
-      const url = existing ? `${BASE()}/api/customers/${existing.id}` : `${BASE()}/api/customers`;
+      const url = existing ? `/api/customers/${existing.id}` : `/api/customers`;
       const res = await fetch(url, {
         method: existing ? "PUT" : "POST",
         credentials: "include",
@@ -103,15 +102,15 @@ export default function Customers() {
     queryKey: ["customers", searchQ],
     queryFn: () => {
       const url = searchQ.trim()
-        ? `${BASE()}/api/customers?q=${encodeURIComponent(searchQ.trim())}`
-        : `${BASE()}/api/customers`;
+        ? `/api/customers?q=${encodeURIComponent(searchQ.trim())}`
+        : `/api/customers`;
       return fetch(url, { credentials: "include" }).then(r => r.json());
     },
   });
 
   const deleteMut = useMutation({
     mutationFn: (id: number) =>
-      fetch(`${BASE()}/api/customers/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
+      fetch(`/api/customers/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["customers"] }),
   });
 

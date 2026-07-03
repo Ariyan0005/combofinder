@@ -3,22 +3,21 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { TrendingUp, Wrench, Users, Package } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 
-const BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
 
 export default function Reports() {
   const { data: stats } = useQuery<any>({
     queryKey: ["stats"],
-    queryFn: () => fetch(`${BASE()}/api/stats`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/stats`, { credentials: "include" }).then(r => r.json()),
   });
 
   const { data: monthlyData } = useQuery<any[]>({
     queryKey: ["monthly-stats"],
-    queryFn: () => fetch(`${BASE()}/api/monthly-stats`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/monthly-stats`, { credentials: "include" }).then(r => r.json()),
   });
 
   const { data: repairs } = useQuery<any[]>({
     queryKey: ["repairs"],
-    queryFn: () => fetch(`${BASE()}/api/repairs`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/repairs`, { credentials: "include" }).then(r => r.json()),
   });
 
   const chartData = Array.isArray(monthlyData) ? monthlyData : [];

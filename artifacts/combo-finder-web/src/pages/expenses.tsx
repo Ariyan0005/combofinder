@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Receipt, X } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 
-const BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
 
 type Expense = {
   id: number;
@@ -28,7 +27,7 @@ function ExpenseForm({ onClose, existing }: { onClose: () => void; existing?: Ex
 
   const mut = useMutation({
     mutationFn: async (data: Record<string, string>) => {
-      const url = existing ? `${BASE()}/api/expenses/${existing.id}` : `${BASE()}/api/expenses`;
+      const url = existing ? `/api/expenses/${existing.id}` : `/api/expenses`;
       const res = await fetch(url, {
         method: existing ? "PUT" : "POST",
         credentials: "include",
@@ -106,12 +105,12 @@ export default function Expenses() {
 
   const { data: expenses, isLoading } = useQuery<Expense[]>({
     queryKey: ["expenses"],
-    queryFn: () => fetch(`${BASE()}/api/expenses`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/expenses`, { credentials: "include" }).then(r => r.json()),
   });
 
   const deleteMut = useMutation({
     mutationFn: (id: number) =>
-      fetch(`${BASE()}/api/expenses/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
+      fetch(`/api/expenses/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["expenses"] }),
   });
 

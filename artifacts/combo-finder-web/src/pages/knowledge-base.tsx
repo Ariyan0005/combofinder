@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Search, FileText, Video, Cpu, Wrench, BookOpen, ChevronRight } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 
-const BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const TYPE_ICONS: Record<string, any> = {
   "Repair Tips": Wrench,
@@ -26,7 +25,7 @@ export default function KnowledgeBase() {
 
   const { data: items, isLoading } = useQuery<any[]>({
     queryKey: ["knowledge-base"],
-    queryFn: () => fetch(`${BASE()}/api/knowledge-base`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/knowledge-base`, { credentials: "include" }).then(r => r.json()),
   });
 
   const list = Array.isArray(items) ? items : [];

@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Phone, MessageSquare, Wrench, DollarSign } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 
-const BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function initials(name: string) {
   return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
@@ -23,14 +22,14 @@ export default function CustomerProfile() {
 
   const { data: customer, isLoading } = useQuery<any>({
     queryKey: ["customer", customerId],
-    queryFn: () => fetch(`${BASE()}/api/customers/${customerId}`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/customers/${customerId}`, { credentials: "include" }).then(r => r.json()),
     enabled: !!customerId,
   });
 
   const { data: repairs } = useQuery<any[]>({
     queryKey: ["repairs", "customer", customerId],
     queryFn: () =>
-      fetch(`${BASE()}/api/repairs?customerId=${customerId}`, { credentials: "include" }).then(r => r.json()),
+      fetch(`/api/repairs?customerId=${customerId}`, { credentials: "include" }).then(r => r.json()),
     enabled: !!customerId,
   });
 

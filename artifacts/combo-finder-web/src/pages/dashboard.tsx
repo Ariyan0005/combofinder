@@ -4,7 +4,6 @@ import { Link } from "wouter";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
 
-const BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function greeting() {
   const h = new Date().getHours();
@@ -29,12 +28,12 @@ export default function Dashboard() {
     lowStock?: number;
   }>({
     queryKey: ["stats"],
-    queryFn: () => fetch(`${BASE()}/api/stats`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/stats`, { credentials: "include" }).then(r => r.json()),
   });
 
   const { data: repairs } = useQuery<any[]>({
     queryKey: ["repairs", "recent"],
-    queryFn: () => fetch(`${BASE()}/api/repairs`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/repairs`, { credentials: "include" }).then(r => r.json()),
   });
 
   const recentRepairs = Array.isArray(repairs) ? repairs.slice(0, 5) : [];

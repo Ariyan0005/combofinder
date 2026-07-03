@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Package, X, AlertCircle } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 
-const BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const PART_TYPES = ["All", "Display", "Battery", "IC", "Connector", "Camera", "Speaker", "Other"];
 
@@ -34,7 +33,7 @@ function ItemForm({ onClose, existing }: { onClose: () => void; existing?: Item 
 
   const mut = useMutation({
     mutationFn: async (data: Record<string, string>) => {
-      const url = existing ? `${BASE()}/api/inventory/${existing.id}` : `${BASE()}/api/inventory`;
+      const url = existing ? `/api/inventory/${existing.id}` : `/api/inventory`;
       const res = await fetch(url, {
         method: existing ? "PUT" : "POST",
         credentials: "include",
@@ -126,12 +125,12 @@ export default function Inventory() {
 
   const { data: items, isLoading } = useQuery<Item[]>({
     queryKey: ["inventory"],
-    queryFn: () => fetch(`${BASE()}/api/inventory`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/inventory`, { credentials: "include" }).then(r => r.json()),
   });
 
   const deleteMut = useMutation({
     mutationFn: (id: number) =>
-      fetch(`${BASE()}/api/inventory/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
+      fetch(`/api/inventory/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["inventory"] }),
   });
 

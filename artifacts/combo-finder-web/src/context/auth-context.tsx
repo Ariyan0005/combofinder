@@ -20,7 +20,6 @@ type AuthContextType = {
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -34,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       return;
     }
-    fetch(`${BASE()}/api/auth/me`, { credentials: "include" })
+    fetch(`/api/auth/me`, { credentials: "include" })
       .then(r => r.json())
       .then((data: { authenticated: boolean; user?: UserInfo }) => {
         if (data.authenticated && data.user) {
@@ -48,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function login(identifier: string, password: string) {
-    const res = await fetch(`${BASE()}/api/auth/login`, {
+    const res = await fetch(`/api/auth/login`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -62,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function register(form: { name: string; email: string; phone?: string; password: string }) {
-    const res = await fetch(`${BASE()}/api/auth/register`, {
+    const res = await fetch(`/api/auth/register`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -76,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout() {
-    await fetch(`${BASE()}/api/auth/logout`, { method: "POST", credentials: "include" });
+    await fetch(`/api/auth/logout`, { method: "POST", credentials: "include" });
     setUser(null);
     setIsGuest(false);
     sessionStorage.removeItem("cf_guest");

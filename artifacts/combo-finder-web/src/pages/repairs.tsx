@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, ChevronRight, X, Wrench, AlertCircle } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 
-const BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const STATUSES = ["All", "Repairing", "Waiting", "Ready", "Delivered"];
 const STATUS_COLOR: Record<string, { text: string; bg: string }> = {
@@ -40,7 +39,7 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
 
   const mut = useMutation({
     mutationFn: async (data: Record<string, string>) => {
-      const url = existing ? `${BASE()}/api/repairs/${existing.id}` : `${BASE()}/api/repairs`;
+      const url = existing ? `/api/repairs/${existing.id}` : `/api/repairs`;
       const res = await fetch(url, {
         method: existing ? "PUT" : "POST",
         credentials: "include",
@@ -125,12 +124,12 @@ export default function Repairs() {
 
   const { data: repairs, isLoading } = useQuery<Repair[]>({
     queryKey: ["repairs"],
-    queryFn: () => fetch(`${BASE()}/api/repairs`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/repairs`, { credentials: "include" }).then(r => r.json()),
   });
 
   const deleteMut = useMutation({
     mutationFn: (id: number) =>
-      fetch(`${BASE()}/api/repairs/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
+      fetch(`/api/repairs/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["repairs"] }),
   });
 
