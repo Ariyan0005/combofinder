@@ -32,6 +32,10 @@ router.use(healthRouter);
 router.use(authRouter);
 
 function requireAuth(req: any, res: any, next: any) {
+  // NOTE: GET requests are intentionally open to allow the web and mobile
+  // clients to read data without a session cookie during development.
+  // Before going to production, tighten this to an explicit allowlist of
+  // public GET endpoints (e.g. /api/brands, /api/models, /api/search).
   if (req.method === "GET") {
     return next();
   }

@@ -33,7 +33,7 @@ const navigationGroups = [
     label: "Database",
     items: [
       { name: "Brands", href: "/brands", icon: Layers },
-      { name: "Models", href: "/models", icon: Smartphone },
+      { name: "Models", href: "/brands", icon: Smartphone },
       { name: "Parts Management", href: "/parts", icon: Cpu, hasSub: true },
       { name: "Compatibility Database", href: "/combos", icon: Database },
       { name: "Issues & Fixes", href: "/issues-fixes", icon: WrenchIcon },
@@ -80,7 +80,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isActive = (href: string) => {
-    if (href === "/models" && location.startsWith("/brands/")) return true; // Keep models somewhat active if needed, or just handle exactly
     return href === "/" ? location === "/" : location.startsWith(href);
   };
 

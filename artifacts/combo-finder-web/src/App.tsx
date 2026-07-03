@@ -16,44 +16,47 @@ import UnlockServices from "@/pages/unlock-services";
 import Expenses from "@/pages/expenses";
 import Settings from "@/pages/settings";
 
-const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } });
-
-function ProtectedRoute({ component: Component }: { component: any }) {
-  const { user, isLoading } = useAuth();
-  
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
-  
-  if (!user) {
-    // Redirect logic happens inside component normally, but in render we can just render Login
-    return <Login />;
-  }
-
-  return (
-    <MainLayout>
-      <Component />
-    </MainLayout>
-  );
-}
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+});
 
 function Router() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // When not authenticated, always show login
+  if (!user) return <Login />;
+
+  // All protected routes wrapped in MainLayout
   return (
-    <Switch>
-      <Route path="/login" component={Login} />
-      
-      <Route path="/" render={() => <ProtectedRoute component={Dashboard} />} />
-      <Route path="/compatibility" render={() => <ProtectedRoute component={Compatibility} />} />
-      <Route path="/repairs" render={() => <ProtectedRoute component={Repairs} />} />
-      <Route path="/inventory" render={() => <ProtectedRoute component={Inventory} />} />
-      <Route path="/customers" render={() => <ProtectedRoute component={Customers} />} />
-      <Route path="/customers/:id" render={() => <ProtectedRoute component={CustomerProfile} />} />
-      <Route path="/knowledge-base" render={() => <ProtectedRoute component={KnowledgeBase} />} />
-      <Route path="/reports" render={() => <ProtectedRoute component={Reports} />} />
-      <Route path="/unlock-services" render={() => <ProtectedRoute component={UnlockServices} />} />
-      <Route path="/expenses" render={() => <ProtectedRoute component={Expenses} />} />
-      <Route path="/settings" render={() => <ProtectedRoute component={Settings} />} />
-      
-      <Route render={() => <div className="p-12 text-center text-xl font-bold">404 - Not Found</div>} />
-    </Switch>
+    <MainLayout>
+      <Switch>
+        <Route path="/" component={Dashboard} />
+        <Route path="/compatibility" component={Compatibility} />
+        <Route path="/repairs" component={Repairs} />
+        <Route path="/inventory" component={Inventory} />
+        <Route path="/customers" component={Customers} />
+        <Route path="/customers/:id" component={CustomerProfile} />
+        <Route path="/knowledge-base" component={KnowledgeBase} />
+        <Route path="/reports" component={Reports} />
+        <Route path="/unlock-services" component={UnlockServices} />
+        <Route path="/expenses" component={Expenses} />
+        <Route path="/settings" component={Settings} />
+        <Route>
+          <div className="flex items-center justify-center h-[60vh] flex-col gap-4">
+            <p className="text-4xl font-bold text-foreground">404</p>
+            <p className="text-muted-foreground">Page not found.</p>
+          </div>
+        </Route>
+      </Switch>
+    </MainLayout>
   );
 }
 
