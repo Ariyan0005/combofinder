@@ -13,7 +13,6 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from "recharts";
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const PLAN_COLORS: Record<string, string> = {
   Free: "#94a3b8",
@@ -47,39 +46,39 @@ export default function Dashboard() {
   // Real API calls
   const { data: globalStats, isLoading: statsLoading } = useQuery({
     queryKey: ["admin-global-stats"],
-    queryFn: () => fetch(`${BASE}/api/stats`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/stats`, { credentials: "include" }).then(r => r.json()),
   });
 
   const { data: userStats, isLoading: userStatsLoading } = useQuery({
     queryKey: ["admin-user-stats"],
-    queryFn: () => fetch(`${BASE}/api/users/stats`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/users/stats`, { credentials: "include" }).then(r => r.json()),
     // returns: { total, active, pending, byPlan: { Free, Pro, Business, Lifetime } }
   });
 
   const { data: revenue, isLoading: revenueLoading } = useQuery({
     queryKey: ["admin-revenue"],
-    queryFn: () => fetch(`${BASE}/api/subscriptions/revenue`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/subscriptions/revenue`, { credentials: "include" }).then(r => r.json()),
     // returns: { total, byPlan }
   });
 
   const { data: recentUsers, isLoading: usersLoading } = useQuery({
     queryKey: ["admin-recent-users"],
-    queryFn: () => fetch(`${BASE}/api/users`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/users`, { credentials: "include" }).then(r => r.json()),
   });
 
   const { data: recentSubs, isLoading: subsLoading } = useQuery({
     queryKey: ["admin-recent-subs"],
-    queryFn: () => fetch(`${BASE}/api/subscriptions`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/subscriptions`, { credentials: "include" }).then(r => r.json()),
   });
 
   const { data: activityLogs, isLoading: logsLoading } = useQuery({
     queryKey: ["admin-activity-logs"],
-    queryFn: () => fetch(`${BASE}/api/activity-logs`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/activity-logs`, { credentials: "include" }).then(r => r.json()),
   });
 
   const { data: monthlyTx } = useQuery({
     queryKey: ["admin-monthly-tx"],
-    queryFn: () => fetch(`${BASE}/api/transactions/monthly`, { credentials: "include" }).then(r => r.json()),
+    queryFn: () => fetch(`/api/transactions/monthly`, { credentials: "include" }).then(r => r.json()),
   });
 
   // Build donut chart data from real byPlan
