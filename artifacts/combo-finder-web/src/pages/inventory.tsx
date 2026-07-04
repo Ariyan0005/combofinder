@@ -31,7 +31,7 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto"
         style={{ background: CARD }}>
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 sticky top-0 z-10" style={{ background: CARD }}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 sticky top-0 z-10 border-b" style={{ background: CARD, borderColor: BORDER }}>
           <h2 className="font-bold text-base">{title}</h2>
           <button onClick={onClose} className="p-1 rounded-full" style={{ color: MUTED }}><X className="w-5 h-5" /></button>
         </div>
@@ -174,7 +174,7 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
 
   const mut = useMutation({
     mutationFn: async () => {
-      const isEdit = existing && existing.id > 0;
+          const isEdit = !!(existing && existing.id > 0);
       const url = isEdit ? `/api/inventory/${existing!.id}` : `/api/inventory`;
       const res = await fetch(url, {
         method: isEdit ? "PUT" : "POST",
