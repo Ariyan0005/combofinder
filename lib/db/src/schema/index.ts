@@ -19,3 +19,4 @@ export * from "./inventory-categories";
 export * from "./suppliers";
 export * from "./transactions";
 export * from "./activity-logs";
+export * from "./stock-movements";
