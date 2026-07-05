@@ -5,12 +5,11 @@
 set -e
 cd /var/www/combofinder
 
-echo "=== [1/6] Git pull ==="
-# pnpm install regenerates pnpm-lock.yaml locally, which then blocks the next
-# pull as a conflicting local change. Since it gets rewritten by pnpm install
-# right after anyway, it's always safe to discard the local copy before pulling.
-git checkout -- pnpm-lock.yaml 2>/dev/null || true
-git pull origin main
+echo "=== [1/6] Git sync (force) ==="
+# Always sync exactly with GitHub, discarding any local changes.
+# This prevents "Your local changes would be overwritten" errors permanently.
+git fetch origin main
+git reset --hard origin/main
 
 echo "=== [2/6] Install dependencies ==="
 pnpm install
