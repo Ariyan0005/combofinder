@@ -7,9 +7,14 @@ cd /var/www/combofinder
 
 echo "=== [1/6] Git sync (force) ==="
 # Always sync exactly with GitHub, discarding any local changes.
-# This prevents "Your local changes would be overwritten" errors permanently.
 git fetch origin main
 git reset --hard origin/main
+
+# Re-exec this script with the freshly updated version so any changes
+# to update.sh itself take effect immediately (not on the next run).
+if [[ "${_COMBOFINDER_REXEC:-}" != "1" ]]; then
+  _COMBOFINDER_REXEC=1 exec bash "$0"
+fi
 
 echo "=== [2/6] Install dependencies ==="
 pnpm install
