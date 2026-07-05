@@ -243,8 +243,8 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
         <div className="grid grid-cols-2 gap-3">
           <Field label="Quantity"><Input type="number" min="0" value={form.quantity} onChange={e => set("quantity", e.target.value)} placeholder="0" /></Field>
           <Field label="Min Stock Alert"><Input type="number" min="0" value={form.minStock} onChange={e => set("minStock", e.target.value)} placeholder="2" /></Field>
-          <Field label="Purchase Price (৳)"><Input type="number" min="0" value={form.purchasePrice} onChange={e => set("purchasePrice", e.target.value)} placeholder="0" /></Field>
-          <Field label="Selling Price (৳)"><Input type="number" min="0" value={form.sellingPrice} onChange={e => set("sellingPrice", e.target.value)} placeholder="0" /></Field>
+          <Field label="Purchase Price"><Input type="text" inputMode="decimal" value={form.purchasePrice} onChange={e => set("purchasePrice", e.target.value)} placeholder="0.00" /></Field>
+          <Field label="Selling Price"><Input type="text" inputMode="decimal" value={form.sellingPrice} onChange={e => set("sellingPrice", e.target.value)} placeholder="0.00" /></Field>
         </div>
         <Field label="Barcode / QR Code">
           <div className="flex gap-2">
@@ -432,7 +432,7 @@ function StockInModal({ onClose, item: initialItem, suppliers, allItems }: {
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Quantity *"><Input type="number" min="1" value={qty} onChange={e => setQty(e.target.value)} required /></Field>
-            <Field label="Unit Price (৳)"><Input type="number" min="0" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} placeholder="0" /></Field>
+            <Field label="Unit Price"><Input type="text" inputMode="decimal" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} placeholder="0.00" /></Field>
           </div>
           {qty && unitPrice && (
             <p className="text-xs font-semibold" style={{ color: PRIMARY }}>
@@ -536,8 +536,8 @@ function SellModal({ onClose, item: initialItem, allItems }: { onClose: () => vo
             <Field label="Qty to Sell *">
               <Input type="number" min="1" max={item?.quantity} value={qty} onChange={e => setQty(e.target.value)} required />
             </Field>
-            <Field label="Sale Price (৳)">
-              <Input type="number" min="0" value={salePrice} onChange={e => setSalePrice(e.target.value)} />
+            <Field label="Sale Price">
+              <Input type="text" inputMode="decimal" value={salePrice} onChange={e => setSalePrice(e.target.value)} />
             </Field>
           </div>
           {qty && salePrice && (

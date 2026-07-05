@@ -93,10 +93,10 @@ router.get("/accounts/:id/entries", async (req, res) => {
 router.post("/entries", async (req, res) => {
   try {
     const userId: number = (req as any).userId;
-    const { accountId, type, amount, description, reference, date } = req.body;
+    const { accountId, type, amount, itemName, description, reference, date } = req.body;
     if (!accountId || !type || !amount || !date) return res.status(400).json({ error: "accountId, type, amount, date are required" });
     if (!["credit", "debit"].includes(type)) return res.status(400).json({ error: "type must be credit or debit" });
-    const [row] = await db.insert(ledgerEntriesTable).values({ userId, accountId: Number(accountId), type, amount: String(amount), description, reference, date }).returning();
+    const [row] = await db.insert(ledgerEntriesTable).values({ userId, accountId: Number(accountId), type, amount: String(amount), itemName: itemName || null, description, reference, date }).returning();
     res.status(201).json(row);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to create entry" }); }
 });

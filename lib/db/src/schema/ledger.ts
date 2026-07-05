@@ -18,6 +18,7 @@ export const ledgerEntriesTable = pgTable("ledger_entries", {
   accountId: integer("account_id").notNull(),
   type: text("type").notNull(), // credit | debit
   amount: text("amount").notNull(),
+  itemName: text("item_name"),
   description: text("description"),
   reference: text("reference"),
   date: text("date").notNull(),

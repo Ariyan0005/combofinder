@@ -67,6 +67,7 @@ export default function Ledger() {
   const [entryOpen, setEntryOpen] = useState(false);
   const [entryType, setEntryType] = useState<"credit" | "debit">("debit");
   const [entryAmount, setEntryAmount] = useState("");
+  const [entryItemName, setEntryItemName] = useState("");
   const [entryDesc, setEntryDesc] = useState("");
   const [entryRef, setEntryRef] = useState("");
   const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 10));
@@ -136,7 +137,7 @@ export default function Ledger() {
 
   function openAddEntry(type: "credit" | "debit" = "debit") {
     setEntryType(type);
-    setEntryAmount(""); setEntryDesc(""); setEntryRef(""); setEntryOk(false);
+    setEntryAmount(""); setEntryItemName(""); setEntryDesc(""); setEntryRef(""); setEntryOk(false);
     setEntryDate(new Date().toISOString().slice(0, 10));
     setEntryError("");
     setEntryOpen(true);
@@ -146,7 +147,7 @@ export default function Ledger() {
     e.preventDefault();
     if (!selectedAccount) return;
     setEntrySaving(true); setEntryError("");
-    const body = { accountId: selectedAccount.id, type: entryType, amount: entryAmount, description: entryDesc, reference: entryRef, date: entryDate };
+    const body = { accountId: selectedAccount.id, type: entryType, amount: entryAmount, itemName: entryItemName || undefined, description: entryDesc, reference: entryRef, date: entryDate };
     try {
       const r = await apiFetch(`${BASE}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await r.json();
@@ -182,9 +183,10 @@ export default function Ledger() {
     ${acc.phone ? `<p>📞 ${acc.phone}</p>` : ""}
     ${acc.email ? `<p>✉ ${acc.email}</p>` : ""}
     ${acc.address ? `<p>📍 ${acc.address}</p>` : ""}
-    <table><thead><tr><th>Date</th><th>Description</th><th>Ref</th><th>Credit</th><th>Debit</th></tr></thead>
+    <table><thead><tr><th>Date</th><th>Product/Item</th><th>Description</th><th>Ref</th><th>Credit</th><th>Debit</th></tr></thead>
     <tbody>${entries.map(e => `<tr>
       <td>${fmtDate(e.date)}</td>
+      <td>${(e as any).itemName ?? ""}</td>
       <td>${e.description ?? ""}</td>
       <td>${e.reference ?? ""}</td>
       <td class="credit">${e.type === "credit" ? sym + Number(e.amount).toLocaleString() : ""}</td>
@@ -203,8 +205,8 @@ export default function Ledger() {
 
   function exportCSV() {
     if (!selectedAccount) return;
-    const rows = [["Date", "Type", "Amount", "Description", "Reference"]];
-    entries.forEach(e => rows.push([fmtDate(e.date), e.type, e.amount, e.description ?? "", e.reference ?? ""]));
+    const rows = [["Date", "Type", "Amount", "Product/Item", "Description", "Reference"]];
+    entries.forEach(e => rows.push([fmtDate(e.date), e.type, e.amount, (e as any).itemName ?? "", e.description ?? "", e.reference ?? ""]));
     rows.push(["", "", "", "", ""]);
     rows.push(["Total Credit", String(selectedAccount.creditSum ?? 0), "", "", ""]);
     rows.push(["Total Debit", String(selectedAccount.debitSum ?? 0), "", "", ""]);
@@ -318,7 +320,14 @@ export default function Ledger() {
                         : <ArrowDownCircle className="w-4 h-4" style={{ color: "#dc2626" }} />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold">{entry.description || (entry.type === "credit" ? "Payment Received" : "Sale / Debit")}</p>
+                      <p className="text-sm font-semibold">
+                        {(entry as any).itemName
+                          ? (entry as any).itemName
+                          : entry.description || (entry.type === "credit" ? "Payment Received" : "Sale / Debit")}
+                      </p>
+                      {(entry as any).itemName && entry.description && (
+                        <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{entry.description}</p>
+                      )}
                       <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
                         {fmtDate(entry.date)}{entry.reference ? ` · Ref: ${entry.reference}` : ""}
                       </p>
@@ -372,26 +381,42 @@ export default function Ledger() {
                     </button>
                   ))}
                 </div>
-                <div>
-                  <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>Amount ({sym}) *</label>
-                  <input value={entryAmount} onChange={e => setEntryAmount(e.target.value)} required
-                    type="number" min="0.01" step="0.01" placeholder="0.00"
-                    className={INPUT_CLS} style={INPUT_STYLE}
-                    onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
-                    onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }} />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>Amount ({sym}) *</label>
+                    <input value={entryAmount} onChange={e => setEntryAmount(e.target.value)} required
+                      type="text" inputMode="decimal" placeholder="0.00"
+                      className={INPUT_CLS} style={INPUT_STYLE}
+                      onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+                      onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>Date *</label>
+                    <input value={entryDate} onChange={e => setEntryDate(e.target.value)} required
+                      type="date"
+                      className={INPUT_CLS} style={INPUT_STYLE}
+                      onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+                      onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }} />
+                  </div>
                 </div>
+                {entryType === "debit" && (
+                  <div>
+                    <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      Product / Item Name
+                    </label>
+                    <input value={entryItemName} onChange={e => setEntryItemName(e.target.value)}
+                      placeholder="e.g. iPhone 14 Screen, Samsung Battery…"
+                      className={INPUT_CLS} style={INPUT_STYLE}
+                      onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+                      onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }} />
+                  </div>
+                )}
                 <div>
-                  <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>Date *</label>
-                  <input value={entryDate} onChange={e => setEntryDate(e.target.value)} required
-                    type="date"
-                    className={INPUT_CLS} style={INPUT_STYLE}
-                    onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
-                    onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }} />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>Description</label>
+                  <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    {entryType === "debit" ? "Notes / Description" : "Notes (e.g. Cash payment)"}
+                  </label>
                   <input value={entryDesc} onChange={e => setEntryDesc(e.target.value)}
-                    placeholder={entryType === "debit" ? "e.g. Screen replacement" : "e.g. Cash payment"}
+                    placeholder={entryType === "debit" ? "Optional notes" : "e.g. Paid via bKash"}
                     className={INPUT_CLS} style={INPUT_STYLE}
                     onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
                     onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }} />
