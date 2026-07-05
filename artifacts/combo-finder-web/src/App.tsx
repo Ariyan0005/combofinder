@@ -12,6 +12,8 @@ import BrandDetail from "@/pages/brand-detail";
 import ModelDetail from "@/pages/model-detail";
 import Repairs from "@/pages/repairs";
 import Inventory from "@/pages/inventory";
+import Pos from "@/pages/pos";
+import Invoices from "@/pages/invoices";
 import Customers from "@/pages/customers";
 import CustomerProfile from "@/pages/customer-profile";
 import KnowledgeBase from "@/pages/knowledge-base";
@@ -62,6 +64,8 @@ function Router() {
         <Route path="/models/:id" component={ModelDetail} />
         <Route path="/repairs" component={Repairs} />
         <Route path="/inventory" component={Inventory} />
+        <Route path="/pos" component={Pos} />
+        <Route path="/invoices" component={Invoices} />
         <Route path="/customers" component={Customers} />
         <Route path="/customers/:id" component={CustomerProfile} />
         <Route path="/knowledge-base" component={KnowledgeBase} />

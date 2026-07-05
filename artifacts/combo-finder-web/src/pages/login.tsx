@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
-import { Eye, EyeOff, Smartphone } from "lucide-react";
+import { Eye, EyeOff, Smartphone, Home } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 
 export default function Login() {
@@ -38,6 +38,15 @@ export default function Login() {
             style={{ background: "hsl(var(--primary))" }}>
             <Smartphone className="w-6 h-6 text-white" />
           </div>
+        </div>
+
+        <div className="flex justify-end mb-2">
+          <Link href="/">
+            <button className="flex items-center gap-1.5 text-sm font-medium"
+              style={{ color: "hsl(var(--muted-foreground))" }}>
+              <Home className="w-4 h-4" /> Home
+            </button>
+          </Link>
         </div>
 
         <div className="mb-6 text-center">

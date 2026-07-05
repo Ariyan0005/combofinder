@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, Search, Plus, Package, Menu, X,
   Users, BookOpen, BarChart2, Unlock, Receipt,
-  Settings, LogOut, CreditCard, Smartphone,
+  Settings, LogOut, CreditCard, Smartphone, ShoppingCart, FileText,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import Sidebar from "./sidebar";
@@ -17,6 +17,8 @@ const BOTTOM_NAV = [
 ];
 
 const MORE_ITEMS = [
+  { label: "Point of Sale", icon: ShoppingCart, href: "/pos" },
+  { label: "Invoices", icon: FileText, href: "/invoices" },
   { label: "Customers", icon: Users, href: "/customers" },
   { label: "Knowledge Base", icon: BookOpen, href: "/knowledge-base" },
   { label: "Reports", icon: BarChart2, href: "/reports" },

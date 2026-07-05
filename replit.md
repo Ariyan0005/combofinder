@@ -41,6 +41,11 @@ Phone display combo compatibility app — search brands, models, and find compat
 
 - **Admin Panel** (`/`): Manage brands, models, and display combos. Full CRUD with search and stats dashboard.
 - **Mobile App** (`/mobile/`): Search brands/models by name, browse all brands, drill into model detail to see compatible display combos with type (OEM/Compatible/Refurbished), quality grade, stock status, and price range.
+- **ComboFinder Web** (`/combo-finder-web/`): Repair shop management — repairs, inventory, customers, and now a full POS system:
+  - `/inventory`: stock management, has a switch to jump to POS
+  - `/pos`: cart-based checkout — add products, adjust qty/price, discount, payment method, customer info, checkout creates an invoice and decrements stock atomically
+  - `/invoices`: date-range filterable invoice list, invoice detail, return/refund per line item (restocks inventory + logs a Refund transaction), CSV export and PDF export (single invoice or full date-range report) via `src/lib/invoice-pdf.ts`
+  - Backend: `sales` / `sale_items` / `sale_returns` tables (`lib/db/src/schema/sales.ts`), routes in `artifacts/api-server/src/routes/sales.ts`
 
 ## User preferences
 

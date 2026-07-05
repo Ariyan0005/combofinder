@@ -1,1 +1,2 @@
 - [ComboFinder architecture](combofinder-arch.md) — contract-first API with shared hooks consumed by both web admin and Expo mobile
+- [combo-finder-web & POS conventions](combofinder-pos.md) — that app uses raw fetch not codegen hooks; stock-affecting writes must use atomic tx

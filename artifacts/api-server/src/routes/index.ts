@@ -26,6 +26,7 @@ import suppliersRouter from "./suppliers";
 import transactionsRouter from "./transactions";
 import activityLogsRouter from "./activity-logs";
 import stockMovementsRouter from "./stock-movements";
+import salesRouter from "./sales";
 
 const router: IRouter = Router();
 
@@ -73,5 +74,6 @@ router.use("/suppliers", suppliersRouter);
 router.use("/transactions", transactionsRouter);
 router.use("/activity-logs", activityLogsRouter);
 router.use("/stock-movements", stockMovementsRouter);
+router.use("/sales", salesRouter);
 
 export default router;

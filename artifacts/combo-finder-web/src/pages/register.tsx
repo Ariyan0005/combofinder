@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
-import { Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, Home } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 
 export default function Register() {
@@ -41,12 +41,20 @@ export default function Register() {
       style={{ background: "hsl(var(--background))" }}>
 
       <div className="w-full max-w-sm">
-        <Link href="/login">
-          <button className="mb-6 flex items-center gap-1.5 text-sm font-medium"
-            style={{ color: "hsl(var(--muted-foreground))" }}>
-            <ArrowLeft className="w-4 h-4" /> Back
-          </button>
-        </Link>
+        <div className="mb-6 flex items-center justify-between">
+          <Link href="/login">
+            <button className="flex items-center gap-1.5 text-sm font-medium"
+              style={{ color: "hsl(var(--muted-foreground))" }}>
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+          </Link>
+          <Link href="/">
+            <button className="flex items-center gap-1.5 text-sm font-medium"
+              style={{ color: "hsl(var(--muted-foreground))" }}>
+              <Home className="w-4 h-4" /> Home
+            </button>
+          </Link>
+        </div>
 
         <div className="mb-6">
           <h1 className="text-2xl font-extrabold">Create Account</h1>

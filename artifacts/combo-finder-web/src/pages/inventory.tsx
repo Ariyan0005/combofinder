@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "wouter";
 import {
   Plus, Search, Package, X, AlertCircle, Camera, ChevronRight,
   Tag, Truck, ArrowDownToLine, ShoppingCart, Edit3, Trash2,
-  QrCode, CheckCircle, ArrowUpFromLine, MoreVertical,
+  QrCode, CheckCircle, ArrowUpFromLine, MoreVertical, Boxes,
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 
@@ -650,26 +651,25 @@ const FAB_ITEMS: { action: FabAction; label: string; icon: React.ReactNode; colo
 function FABMenu({ onAction }: { onAction: (a: FabAction) => void }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="relative">
-      {open && <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />}
-      {open && (
-        <div className="absolute bottom-12 right-0 z-30 flex flex-col items-end gap-2 mb-1">
-          {FAB_ITEMS.map(({ action, label, icon, color }) => (
-            <button key={action}
-              onClick={() => { setOpen(false); onAction(action); }}
-              className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl shadow-lg text-white text-sm font-semibold whitespace-nowrap"
-              style={{ background: color }}>
-              {icon} {label}
-            </button>
-          ))}
-        </div>
-      )}
-      <button onClick={() => setOpen(o => !o)}
-        className="w-11 h-11 rounded-full flex items-center justify-center text-white shadow-lg transition-transform"
-        style={{ background: PRIMARY, transform: open ? "rotate(45deg)" : "none" }}>
-        <Plus className="w-5 h-5" />
-      </button>
-    </div>
+    <>
+      {open && <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />}
+      <div className="fixed right-5 z-50 flex flex-col items-end gap-2"
+        style={{ bottom: "calc(6.25rem + env(safe-area-inset-bottom))" }}>
+        {open && FAB_ITEMS.map(({ action, label, icon, color }) => (
+          <button key={action}
+            onClick={() => { setOpen(false); onAction(action); }}
+            className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl shadow-lg text-white text-sm font-semibold whitespace-nowrap"
+            style={{ background: color }}>
+            {icon} {label}
+          </button>
+        ))}
+        <button onClick={() => setOpen(o => !o)}
+          className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-transform"
+          style={{ background: PRIMARY, transform: open ? "rotate(45deg)" : "none" }}>
+          <Plus className="w-5 h-5" />
+        </button>
+      </div>
+    </>
   );
 }
 
@@ -753,6 +753,16 @@ export default function Inventory() {
           <div>
             <h1 className="text-xl font-extrabold">Inventory</h1>
             <p className="text-xs" style={{ color: MUTED }}>{list.length} products</p>
+          </div>
+          <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: "hsl(var(--muted))" }}>
+            <button className="px-3 py-1.5 rounded-full text-xs font-bold text-white flex items-center gap-1.5" style={{ background: PRIMARY }}>
+              <Boxes className="w-3.5 h-3.5" /> Inventory
+            </button>
+            <Link href="/pos">
+              <button className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5" style={{ color: MUTED }}>
+                <ShoppingCart className="w-3.5 h-3.5" /> POS
+              </button>
+            </Link>
           </div>
           <FABMenu onAction={handleFAB} />
         </div>
