@@ -4,6 +4,14 @@ import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 
 const router = Router();
 
+// Sales/invoice data contains customer PII and financial records — require an
+// authenticated session for every method here, unlike the app-wide default
+// which leaves GET open for public read-only resources (brands/models/etc).
+router.use((req: any, res, next) => {
+  if (req.session?.authenticated) return next();
+  res.status(401).json({ error: "Unauthorized" });
+});
+
 function requireInt(v: unknown, name: string, min = 1): number {
   const n = Number(v);
   if (!Number.isFinite(n) || !Number.isInteger(n) || n < min)
@@ -11,14 +19,20 @@ function requireInt(v: unknown, name: string, min = 1): number {
   return n;
 }
 
+function round2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-async function nextInvoiceNumber(tx: typeof db): Promise<string> {
-  const [row] = await tx.select({ id: salesTable.id }).from(salesTable).orderBy(desc(salesTable.id)).limit(1);
-  const next = (row?.id ?? 0) + 1;
-  return `INV-${String(next).padStart(6, "0")}`;
+function csvField(v: unknown): string {
+  let s = String(v ?? "");
+  // Neutralize CSV formula injection (Excel/Sheets execute leading =, +, -, @)
+  if (/^[=+\-@]/.test(s)) s = `'${s}`;
+  if (/[",\n\r]/.test(s)) s = `"${s.replace(/"/g, '""')}"`;
+  return s;
 }
 
 // GET /api/sales?from=YYYY-MM-DD&to=YYYY-MM-DD&q=search
@@ -58,16 +72,16 @@ router.get("/export", async (req, res) => {
       : await db.select().from(salesTable).orderBy(salesTable.date, salesTable.id);
 
     const header = ["Invoice", "Date", "Customer", "Phone", "Subtotal", "Discount", "Total", "Payment Method", "Status"];
-    const lines = [header.join(",")];
+    const lines = [header.map(csvField).join(",")];
     for (const s of sales) {
       lines.push([
-        s.invoiceNumber, s.date, (s.customerName ?? "").replace(/,/g, " "), s.customerPhone ?? "",
+        s.invoiceNumber, s.date, s.customerName ?? "", s.customerPhone ?? "",
         s.subtotal, s.discount, s.total, s.paymentMethod, s.status,
-      ].join(","));
+      ].map(csvField).join(","));
     }
-    const totalSum = sales.reduce((sum, s) => sum + Number(s.total), 0);
+    const totalSum = round2(sales.reduce((sum, s) => sum + Number(s.total), 0));
     lines.push("");
-    lines.push(`,,,,,,Total,${totalSum.toFixed(2)},`);
+    lines.push(["", "", "", "", "", "", "Total", totalSum.toFixed(2), ""].map(csvField).join(","));
 
     res.setHeader("Content-Type", "text/csv");
     res.setHeader("Content-Disposition", `attachment; filename="sales_${from ?? "all"}_${to ?? "all"}.csv"`);
@@ -136,8 +150,8 @@ router.post("/", async (req, res) => {
           );
         }
 
-        const lineTotal = it.unitPrice * it.quantity;
-        subtotal += lineTotal;
+        const lineTotal = round2(it.unitPrice * it.quantity);
+        subtotal = round2(subtotal + lineTotal);
         lineItems.push({ inventoryId: it.inventoryId, partName: updated.partName, quantity: it.quantity, unitPrice: it.unitPrice, total: lineTotal });
 
         await tx.insert(stockMovementsTable).values({
@@ -147,15 +161,24 @@ router.post("/", async (req, res) => {
         });
       }
 
-      const total = Math.max(0, subtotal - discount);
-      const invoiceNumber = await nextInvoiceNumber(tx as any);
+      const total = round2(Math.max(0, subtotal - discount));
       const date = todayStr();
 
-      const [sale] = await tx.insert(salesTable).values({
-        invoiceNumber, customerId, customerName, customerPhone,
-        subtotal: String(subtotal), discount: String(discount), total: String(total),
+      // Insert with a temporary unique placeholder, then derive the invoice
+      // number from the DB-assigned serial id so concurrent checkouts can
+      // never collide (invoice_number has a unique constraint as a backstop).
+      const [inserted] = await tx.insert(salesTable).values({
+        invoiceNumber: `PENDING-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        customerId, customerName, customerPhone,
+        subtotal: String(round2(subtotal)), discount: String(round2(discount)), total: String(total),
         paymentMethod, status: "Completed", notes, date,
       }).returning();
+
+      const invoiceNumber = `INV-${String(inserted.id).padStart(6, "0")}`;
+      const [sale] = await tx.update(salesTable)
+        .set({ invoiceNumber })
+        .where(eq(salesTable.id, inserted.id))
+        .returning();
 
       const insertedItems = await Promise.all(lineItems.map(li =>
         tx.insert(saleItemsTable).values({
@@ -205,16 +228,21 @@ router.post("/:id/return", async (req, res) => {
         const [saleItem] = await tx.select().from(saleItemsTable).where(eq(saleItemsTable.id, saleItemId));
         if (!saleItem || saleItem.saleId !== saleId) throw Object.assign(new Error("Sale item not found"), { status: 404 });
 
-        const remaining = saleItem.quantity - saleItem.returnedQuantity;
-        if (quantity > remaining)
+        // Atomic, guarded update: only succeeds if the item still has enough
+        // un-returned quantity at commit time, preventing double-refunds from
+        // concurrent return requests on the same line item.
+        const [updatedItem] = await tx.update(saleItemsTable)
+          .set({ returnedQuantity: sql`${saleItemsTable.returnedQuantity} + ${quantity}` })
+          .where(sql`${saleItemsTable.id} = ${saleItemId} AND ${saleItemsTable.returnedQuantity} + ${quantity} <= ${saleItemsTable.quantity}`)
+          .returning();
+
+        if (!updatedItem) {
+          const remaining = saleItem.quantity - saleItem.returnedQuantity;
           throw Object.assign(new Error(`Cannot return ${quantity} of "${saleItem.partName}" (only ${remaining} eligible)`), { status: 400 });
+        }
 
-        const refundAmount = Number(saleItem.unitPrice) * quantity;
+        const refundAmount = round2(Number(saleItem.unitPrice) * quantity);
         refundTotal += refundAmount;
-
-        await tx.update(saleItemsTable)
-          .set({ returnedQuantity: saleItem.returnedQuantity + quantity })
-          .where(eq(saleItemsTable.id, saleItemId));
 
         if (saleItem.inventoryId) {
           await tx.update(inventoryTable)
@@ -232,6 +260,7 @@ router.post("/:id/return", async (req, res) => {
           saleId, saleItemId, quantity, refundAmount: String(refundAmount), reason, date,
         });
       }
+      refundTotal = round2(refundTotal);
 
       const allItems = await tx.select().from(saleItemsTable).where(eq(saleItemsTable.saleId, saleId));
       const fullyReturned = allItems.every(li => li.returnedQuantity >= li.quantity);
