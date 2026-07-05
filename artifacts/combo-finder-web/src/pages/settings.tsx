@@ -1,24 +1,143 @@
 import { useState, type FormEvent } from "react";
-import { Store, User, Lock, Bell, ChevronRight, Check } from "lucide-react";
+import { Store, User, Lock, Bell, ChevronRight, Check, X, Globe, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
 
-export default function Settings() {
-  const { user } = useAuth();
-  const [shopName, setShopName] = useState("");
-  const [saved, setSaved] = useState(false);
+const CURRENCIES = [
+  { code: "USD", symbol: "$", name: "US Dollar" },
+  { code: "EUR", symbol: "€", name: "Euro" },
+  { code: "GBP", symbol: "£", name: "British Pound" },
+  { code: "BDT", symbol: "৳", name: "Bangladeshi Taka" },
+  { code: "INR", symbol: "₹", name: "Indian Rupee" },
+  { code: "PKR", symbol: "₨", name: "Pakistani Rupee" },
+  { code: "NPR", symbol: "रू", name: "Nepalese Rupee" },
+  { code: "LKR", symbol: "Rs", name: "Sri Lankan Rupee" },
+  { code: "AED", symbol: "د.إ", name: "UAE Dirham" },
+  { code: "SAR", symbol: "﷼", name: "Saudi Riyal" },
+  { code: "MYR", symbol: "RM", name: "Malaysian Ringgit" },
+  { code: "SGD", symbol: "S$", name: "Singapore Dollar" },
+  { code: "THB", symbol: "฿", name: "Thai Baht" },
+  { code: "IDR", symbol: "Rp", name: "Indonesian Rupiah" },
+  { code: "PHP", symbol: "₱", name: "Philippine Peso" },
+  { code: "NGN", symbol: "₦", name: "Nigerian Naira" },
+  { code: "KES", symbol: "KSh", name: "Kenyan Shilling" },
+  { code: "GHS", symbol: "₵", name: "Ghanaian Cedi" },
+  { code: "ZAR", symbol: "R", name: "South African Rand" },
+  { code: "TRY", symbol: "₺", name: "Turkish Lira" },
+  { code: "CAD", symbol: "C$", name: "Canadian Dollar" },
+  { code: "AUD", symbol: "A$", name: "Australian Dollar" },
+  { code: "JPY", symbol: "¥", name: "Japanese Yen" },
+  { code: "CNY", symbol: "¥", name: "Chinese Yuan" },
+];
 
-  function handleSave(e: FormEvent) {
+const INPUT_CLS = "w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all";
+const INPUT_STYLE = { borderColor: "hsl(var(--border))", background: "hsl(var(--background))" };
+
+export default function Settings() {
+  const { user, refreshUser } = useAuth();
+
+  // Profile modal
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [pName, setPName] = useState("");
+  const [pPhone, setPPhone] = useState("");
+  const [pShop, setPShop] = useState("");
+  const [pSaving, setPSaving] = useState(false);
+  const [pError, setPError] = useState("");
+  const [pOk, setPOk] = useState(false);
+
+  // Password modal
+  const [passOpen, setPassOpen] = useState(false);
+  const [passOld, setPassOld] = useState("");
+  const [passNew, setPassNew] = useState("");
+  const [passConfirm, setPassConfirm] = useState("");
+  const [passShowOld, setPassShowOld] = useState(false);
+  const [passShowNew, setPassShowNew] = useState(false);
+  const [passSaving, setPassSaving] = useState(false);
+  const [passError, setPassError] = useState("");
+  const [passOk, setPassOk] = useState(false);
+
+  // Settings (currency + shop)
+  const [currency, setCurrency] = useState(user?.currency ?? "USD");
+  const [shopName, setShopName] = useState(user?.shopName ?? "");
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsOk, setSettingsOk] = useState(false);
+  const [settingsError, setSettingsError] = useState("");
+
+  function openProfile() {
+    setPName(user?.name ?? "");
+    setPPhone("");
+    setPShop(user?.shopName ?? "");
+    setPError("");
+    setPOk(false);
+    setProfileOpen(true);
+  }
+
+  async function handleProfile(e: FormEvent) {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setPSaving(true); setPError("");
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "PUT", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: pName, phone: pPhone, shopName: pShop }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      setPOk(true);
+      await refreshUser();
+      setTimeout(() => { setProfileOpen(false); setPOk(false); }, 1200);
+    } catch (err: any) { setPError(err.message); }
+    finally { setPSaving(false); }
+  }
+
+  function openPassword() {
+    setPassOld(""); setPassNew(""); setPassConfirm(""); setPassError(""); setPassOk(false);
+    setPassOpen(true);
+  }
+
+  async function handlePassword(e: FormEvent) {
+    e.preventDefault();
+    if (passNew !== passConfirm) { setPassError("Passwords do not match"); return; }
+    setPassSaving(true); setPassError("");
+    try {
+      const res = await fetch("/api/auth/password", {
+        method: "PUT", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: passOld, newPassword: passNew }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      setPassOk(true);
+      setTimeout(() => { setPassOpen(false); setPassOk(false); }, 1200);
+    } catch (err: any) { setPassError(err.message); }
+    finally { setPassSaving(false); }
+  }
+
+  async function handleSettings(e: FormEvent) {
+    e.preventDefault();
+    setSettingsSaving(true); setSettingsError(""); setSettingsOk(false);
+    try {
+      const res = await fetch("/api/auth/settings", {
+        method: "PUT", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currency, shopName }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      setSettingsOk(true);
+      await refreshUser();
+      setTimeout(() => setSettingsOk(false), 2000);
+    } catch (err: any) { setSettingsError(err.message); }
+    finally { setSettingsSaving(false); }
   }
 
   const MENU_ITEMS = [
-    { label: "Profile Settings", icon: User, description: "Update your name and contact" },
-    { label: "Notifications", icon: Bell, description: "Manage notification preferences" },
-    { label: "Change Password", icon: Lock, description: "Update your account password" },
+    { label: "Profile Settings", icon: User, description: "Update your name and contact", action: openProfile },
+    { label: "Notifications", icon: Bell, description: "Manage notification preferences", action: () => {} },
+    { label: "Change Password", icon: Lock, description: "Update your account password", action: openPassword },
   ];
+
+  const selectedCurr = CURRENCIES.find(c => c.code === currency);
 
   return (
     <ProtectedPage>
@@ -37,13 +156,15 @@ export default function Settings() {
             <div>
               <p className="font-bold">{user?.name ?? "User"}</p>
               <p className="text-xs mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+                {user?.email && <span>{user.email} · </span>}
                 {user?.role ?? "Technician"} · {user?.plan ?? "Free"} Plan
               </p>
             </div>
           </div>
           <div className="divide-y divide-border">
-            {MENU_ITEMS.map(({ label, icon: Icon, description }) => (
-              <div key={label} className="flex items-center gap-3 py-3 cursor-pointer">
+            {MENU_ITEMS.map(({ label, icon: Icon, description, action }) => (
+              <div key={label} className="flex items-center gap-3 py-3 cursor-pointer rounded-xl hover:bg-muted/40 px-1 transition-colors"
+                onClick={action}>
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ background: "hsl(var(--muted))" }}>
                   <Icon className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
@@ -58,30 +179,54 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Shop settings */}
+        {/* Shop & Currency settings */}
         <div className="bg-card rounded-2xl border border-border p-4">
           <p className="text-xs font-bold uppercase tracking-wide mb-3"
-            style={{ color: "hsl(var(--muted-foreground))" }}>Shop Profile</p>
-          <form onSubmit={handleSave} className="flex flex-col gap-3.5">
+            style={{ color: "hsl(var(--muted-foreground))" }}>Shop & Currency</p>
+          <form onSubmit={handleSettings} className="flex flex-col gap-3.5">
             <div>
-              <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>
-                Shop Name
-              </label>
+              <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>Shop Name</label>
               <div className="relative">
                 <Store className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2"
                   style={{ color: "hsl(var(--muted-foreground))" }} />
                 <input value={shopName} onChange={e => setShopName(e.target.value)}
                   placeholder="Enter your shop name"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border text-sm outline-none"
-                  style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--background))" }}
+                  className={INPUT_CLS + " pl-10"}
+                  style={INPUT_STYLE}
                   onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
                   onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }} />
               </div>
             </div>
-            <button type="submit"
-              className="flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all"
+            <div>
+              <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+                Currency
+              </label>
+              <div className="relative">
+                <Globe className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2"
+                  style={{ color: "hsl(var(--muted-foreground))" }} />
+                <select value={currency} onChange={e => setCurrency(e.target.value)}
+                  className={INPUT_CLS + " pl-10 pr-4 appearance-none"}
+                  style={INPUT_STYLE}
+                  onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }}>
+                  {CURRENCIES.map(c => (
+                    <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>
+                  ))}
+                </select>
+              </div>
+              {selectedCurr && (
+                <p className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+                  Prices will display as: <strong>{selectedCurr.symbol}1,000</strong>
+                </p>
+              )}
+            </div>
+            {settingsError && (
+              <p className="text-xs font-semibold" style={{ color: "hsl(var(--destructive))" }}>{settingsError}</p>
+            )}
+            <button type="submit" disabled={settingsSaving}
+              className="flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-60"
               style={{ background: "hsl(var(--primary))" }}>
-              {saved ? <><Check className="w-4 h-4" /> Saved!</> : "Save Changes"}
+              {settingsOk ? <><Check className="w-4 h-4" /> Saved!</> : settingsSaving ? "Saving…" : "Save Changes"}
             </button>
           </form>
         </div>
@@ -91,6 +236,124 @@ export default function Settings() {
           ComboFinder v1.0 · All-in-One for Technicians
         </p>
       </div>
+
+      {/* Profile Modal */}
+      {profileOpen && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setProfileOpen(false)} />
+          <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl"
+            style={{ background: "hsl(var(--card))" }}>
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b"
+              style={{ borderColor: "hsl(var(--border))" }}>
+              <div>
+                <h3 className="font-bold text-base">Profile Settings</h3>
+                <p className="text-xs mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Update your name and contact</p>
+              </div>
+              <button onClick={() => setProfileOpen(false)} className="w-8 h-8 rounded-full flex items-center justify-center"
+                style={{ background: "hsl(var(--muted))" }}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleProfile} className="p-5 flex flex-col gap-3.5">
+              <div>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>Full Name *</label>
+                <input value={pName} onChange={e => setPName(e.target.value)} required
+                  placeholder="Your name"
+                  className={INPUT_CLS} style={INPUT_STYLE}
+                  onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>Phone</label>
+                <input value={pPhone} onChange={e => setPPhone(e.target.value)}
+                  placeholder="Phone number"
+                  className={INPUT_CLS} style={INPUT_STYLE}
+                  onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>Shop Name</label>
+                <input value={pShop} onChange={e => setPShop(e.target.value)}
+                  placeholder="Your shop name"
+                  className={INPUT_CLS} style={INPUT_STYLE}
+                  onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }} />
+              </div>
+              {pError && <p className="text-xs font-semibold" style={{ color: "hsl(var(--destructive))" }}>{pError}</p>}
+              <button type="submit" disabled={pSaving}
+                className="py-3 rounded-xl font-bold text-sm text-white disabled:opacity-60"
+                style={{ background: "hsl(var(--primary))" }}>
+                {pOk ? "✓ Saved!" : pSaving ? "Saving…" : "Save Profile"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Password Modal */}
+      {passOpen && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setPassOpen(false)} />
+          <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl"
+            style={{ background: "hsl(var(--card))" }}>
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b"
+              style={{ borderColor: "hsl(var(--border))" }}>
+              <div>
+                <h3 className="font-bold text-base">Change Password</h3>
+                <p className="text-xs mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Keep your account secure</p>
+              </div>
+              <button onClick={() => setPassOpen(false)} className="w-8 h-8 rounded-full flex items-center justify-center"
+                style={{ background: "hsl(var(--muted))" }}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handlePassword} className="p-5 flex flex-col gap-3.5">
+              <div>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>Current Password *</label>
+                <div className="relative">
+                  <input value={passOld} onChange={e => setPassOld(e.target.value)} required
+                    type={passShowOld ? "text" : "password"} placeholder="Current password"
+                    className={INPUT_CLS + " pr-10"} style={INPUT_STYLE}
+                    onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+                    onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }} />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2"
+                    onClick={() => setPassShowOld(v => !v)}>
+                    {passShowOld ? <EyeOff className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} /> : <Eye className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>New Password *</label>
+                <div className="relative">
+                  <input value={passNew} onChange={e => setPassNew(e.target.value)} required
+                    type={passShowNew ? "text" : "password"} placeholder="New password (min 6 chars)"
+                    className={INPUT_CLS + " pr-10"} style={INPUT_STYLE}
+                    onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+                    onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }} />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2"
+                    onClick={() => setPassShowNew(v => !v)}>
+                    {passShowNew ? <EyeOff className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} /> : <Eye className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>Confirm New Password *</label>
+                <input value={passConfirm} onChange={e => setPassConfirm(e.target.value)} required
+                  type="password" placeholder="Repeat new password"
+                  className={INPUT_CLS} style={INPUT_STYLE}
+                  onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }} />
+              </div>
+              {passError && <p className="text-xs font-semibold" style={{ color: "hsl(var(--destructive))" }}>{passError}</p>}
+              <button type="submit" disabled={passSaving}
+                className="py-3 rounded-xl font-bold text-sm text-white disabled:opacity-60"
+                style={{ background: "hsl(var(--primary))" }}>
+                {passOk ? "✓ Password Changed!" : passSaving ? "Saving…" : "Change Password"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </ProtectedPage>
   );
 }

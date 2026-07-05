@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Search, Plus, Package, Menu, X,
   Users, BookOpen, BarChart2, Unlock, Receipt,
   Settings, LogOut, CreditCard, Smartphone, ShoppingCart, FileText,
+  BookMarked,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import Sidebar from "./sidebar";
@@ -11,7 +12,7 @@ import Sidebar from "./sidebar";
 const BOTTOM_NAV = [
   { label: "Home", icon: LayoutDashboard, href: "/" },
   { label: "Search", icon: Search, href: "/compatibility" },
-  { label: "fab", icon: Plus, href: "/repairs" },        // FAB slot
+  { label: "fab", icon: Plus, href: "/repairs" },
   { label: "Inventory", icon: Package, href: "/inventory" },
   { label: "More", icon: Menu, href: "__more__" },
 ];
@@ -20,6 +21,7 @@ const MORE_ITEMS = [
   { label: "Point of Sale", icon: ShoppingCart, href: "/pos" },
   { label: "Invoices", icon: FileText, href: "/invoices" },
   { label: "Customers", icon: Users, href: "/customers" },
+  { label: "Ledger / Credit", icon: BookMarked, href: "/ledger" },
   { label: "Knowledge Base", icon: BookOpen, href: "/knowledge-base" },
   { label: "Reports", icon: BarChart2, href: "/reports" },
   { label: "Unlock Services", icon: Unlock, href: "/unlock-services" },
@@ -60,10 +62,12 @@ export default function MainLayout({ children }: { children: ReactNode }) {
             <span className="font-bold text-base">ComboFinder</span>
           </div>
           {user && (
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
-              style={{ background: "hsl(var(--primary))" }}>
-              {user.name.charAt(0).toUpperCase()}
-            </div>
+            <Link href="/settings">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white cursor-pointer"
+                style={{ background: "hsl(var(--primary))" }}>
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+            </Link>
           )}
           {isGuest && (
             <Link href="/login">
@@ -91,7 +95,7 @@ export default function MainLayout({ children }: { children: ReactNode }) {
                   <button key="more"
                     onClick={() => setMoreOpen(true)}
                     className="flex-1 flex flex-col items-center justify-center py-2 gap-1 transition-colors"
-                    style={{ color: "hsl(var(--muted-foreground))" }}>
+                    style={{ color: moreOpen ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
                     <item.icon className="w-5 h-5" />
                     <span className="text-[9px] font-semibold">{item.label}</span>
                   </button>
@@ -132,12 +136,13 @@ export default function MainLayout({ children }: { children: ReactNode }) {
       {moreOpen && (
         <div className="fixed inset-0 z-50 md:hidden flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/40" onClick={() => setMoreOpen(false)} />
-          <div className="relative bg-card rounded-t-2xl p-5 pt-4 shadow-xl">
+          <div className="relative bg-card rounded-t-2xl p-5 pt-4 shadow-xl max-h-[80vh] overflow-y-auto">
             <div className="w-10 h-1 rounded-full mx-auto mb-4"
               style={{ background: "hsl(var(--border))" }} />
             <div className="flex items-center justify-between mb-4">
               <span className="font-bold text-base">More</span>
-              <button onClick={() => setMoreOpen(false)}>
+              <button onClick={() => setMoreOpen(false)} className="p-1 rounded-lg"
+                style={{ background: "hsl(var(--muted))" }}>
                 <X className="w-5 h-5" style={{ color: "hsl(var(--muted-foreground))" }} />
               </button>
             </div>

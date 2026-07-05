@@ -27,21 +27,28 @@ import transactionsRouter from "./transactions";
 import activityLogsRouter from "./activity-logs";
 import stockMovementsRouter from "./stock-movements";
 import salesRouter from "./sales";
+import ledgerRouter from "./ledger";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
 
+// Requires auth for write operations (mutations)
 function requireAuth(req: any, res: any, next: any) {
-  // NOTE: GET requests are intentionally open to allow the web and mobile
-  // clients to read data without a session cookie during development.
-  // Before going to production, tighten this to an explicit allowlist of
-  // public GET endpoints (e.g. /api/brands, /api/models, /api/search).
-  if (req.method === "GET") {
-    return next();
-  }
+  if (req.method === "GET") return next();
   if (req.session?.authenticated) {
+    req.userId = req.session.userId;
+    next();
+  } else {
+    res.status(401).json({ error: "Unauthorized" });
+  }
+}
+
+// Requires auth for ALL methods — used for user-scoped data
+function requireUserAuth(req: any, res: any, next: any) {
+  if (req.session?.authenticated) {
+    req.userId = req.session.userId;
     next();
   } else {
     res.status(401).json({ error: "Unauthorized" });
@@ -49,6 +56,8 @@ function requireAuth(req: any, res: any, next: any) {
 }
 
 router.use(requireAuth);
+
+// Public / shared data routes (no user scope needed)
 router.use(brandsRouter);
 router.use(modelsRouter);
 router.use(combosRouter);
@@ -56,24 +65,28 @@ router.use(statsRouter);
 router.use(monthlyStatsRouter);
 router.use(searchRouter);
 router.use("/parts", partsRouter);
-router.use("/customers", customersRouter);
-router.use("/repairs", repairsRouter);
-router.use("/inventory", inventoryRouter);
 router.use("/knowledge-base", knowledgeBaseRouter);
-router.use("/expenses", expensesRouter);
-router.use("/users", usersRouter);
-router.use("/subscriptions", subscriptionsRouter);
 router.use("/issues-fixes", issuesFixesRouter);
 router.use("/schematics", schematicsRouter);
-router.use("/documents", documentsRouter);
 router.use("/videos", videosRouter);
 router.use("/announcements", announcementsRouter);
-router.use("/repair-categories", repairCategoriesRouter);
-router.use("/inventory-categories", inventoryCategoriesRouter);
-router.use("/suppliers", suppliersRouter);
-router.use("/transactions", transactionsRouter);
-router.use("/activity-logs", activityLogsRouter);
-router.use("/stock-movements", stockMovementsRouter);
-router.use("/sales", salesRouter);
+
+// User-scoped routes — ALL methods require auth + userId injection
+router.use("/customers", requireUserAuth, customersRouter);
+router.use("/repairs", requireUserAuth, repairsRouter);
+router.use("/inventory", requireUserAuth, inventoryRouter);
+router.use("/expenses", requireUserAuth, expensesRouter);
+router.use("/suppliers", requireUserAuth, suppliersRouter);
+router.use("/inventory-categories", requireUserAuth, inventoryCategoriesRouter);
+router.use("/repair-categories", requireUserAuth, repairCategoriesRouter);
+router.use("/transactions", requireUserAuth, transactionsRouter);
+router.use("/activity-logs", requireUserAuth, activityLogsRouter);
+router.use("/stock-movements", requireUserAuth, stockMovementsRouter);
+router.use("/sales", requireUserAuth, salesRouter);
+router.use("/ledger", requireUserAuth, ledgerRouter);
+
+router.use("/users", usersRouter);
+router.use("/subscriptions", subscriptionsRouter);
+router.use("/documents", documentsRouter);
 
 export default router;

@@ -22,6 +22,7 @@ import UnlockServices from "@/pages/unlock-services";
 import Expenses from "@/pages/expenses";
 import Settings from "@/pages/settings";
 import Subscription from "@/pages/subscription";
+import Ledger from "@/pages/ledger";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -41,7 +42,6 @@ function Router() {
 
   if (isLoading) return <Spinner />;
 
-  // Not authenticated and not guest → public routes only
   if (!user && !isGuest) {
     return (
       <Switch>
@@ -52,7 +52,6 @@ function Router() {
     );
   }
 
-  // Guest or authenticated → full layout, protected pages guarded
   return (
     <MainLayout>
       <Switch>
@@ -74,6 +73,7 @@ function Router() {
         <Route path="/expenses" component={Expenses} />
         <Route path="/settings" component={Settings} />
         <Route path="/subscription" component={Subscription} />
+        <Route path="/ledger" component={Ledger} />
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
         <Route>

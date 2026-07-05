@@ -6,6 +6,8 @@ export type UserInfo = {
   email?: string;
   role: string;
   plan?: string;
+  currency?: string;
+  shopName?: string;
 };
 
 type AuthContextType = {
@@ -17,6 +19,7 @@ type AuthContextType = {
   enterAsGuest: () => void;
   exitGuest: () => void;
   register: (data: { name: string; email: string; phone?: string; password: string }) => Promise<void>;
+  refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,30 +29,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isGuest, setIsGuest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  async function fetchMe() {
+    const r = await fetch(`/api/auth/me`, { credentials: "include" });
+    const data = await r.json() as { authenticated: boolean; user?: UserInfo };
+    if (data.authenticated && data.user) setUser(data.user);
+    else setUser(null);
+  }
+
   useEffect(() => {
     const guestFlag = sessionStorage.getItem("cf_guest");
-    if (guestFlag === "1") {
-      setIsGuest(true);
-      setIsLoading(false);
-      return;
-    }
-    fetch(`/api/auth/me`, { credentials: "include" })
-      .then(r => r.json())
-      .then((data: { authenticated: boolean; user?: UserInfo }) => {
-        if (data.authenticated && data.user) {
-          setUser(data.user);
-        } else {
-          setUser(null);
-        }
-      })
-      .catch(() => setUser(null))
-      .finally(() => setIsLoading(false));
+    if (guestFlag === "1") { setIsGuest(true); setIsLoading(false); return; }
+    fetchMe().catch(() => setUser(null)).finally(() => setIsLoading(false));
   }, []);
+
+  async function refreshUser() {
+    try { await fetchMe(); } catch {}
+  }
 
   async function login(identifier: string, password: string) {
     const res = await fetch(`/api/auth/login`, {
-      method: "POST",
-      credentials: "include",
+      method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: identifier, email: identifier, password }),
     });
@@ -62,8 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function register(form: { name: string; email: string; phone?: string; password: string }) {
     const res = await fetch(`/api/auth/register`, {
-      method: "POST",
-      credentials: "include",
+      method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
     });
@@ -76,24 +74,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function logout() {
     await fetch(`/api/auth/logout`, { method: "POST", credentials: "include" });
-    setUser(null);
-    setIsGuest(false);
+    setUser(null); setIsGuest(false);
     sessionStorage.removeItem("cf_guest");
   }
 
-  function enterAsGuest() {
-    sessionStorage.setItem("cf_guest", "1");
-    setIsGuest(true);
-    setUser(null);
-  }
-
-  function exitGuest() {
-    sessionStorage.removeItem("cf_guest");
-    setIsGuest(false);
-  }
+  function enterAsGuest() { sessionStorage.setItem("cf_guest", "1"); setIsGuest(true); setUser(null); }
+  function exitGuest() { sessionStorage.removeItem("cf_guest"); setIsGuest(false); }
 
   return (
-    <AuthContext.Provider value={{ user, isGuest, isLoading, login, logout, enterAsGuest, exitGuest, register }}>
+    <AuthContext.Provider value={{ user, isGuest, isLoading, login, logout, enterAsGuest, exitGuest, register, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

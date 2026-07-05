@@ -6,12 +6,13 @@ export const usersTable = pgTable("users", {
   email: text("email").notNull().unique(),
   phone: text("phone"),
   passwordHash: text("password_hash"),
-  accountType: text("account_type").notNull().default("Free Technician"), // Free Technician | Pro Technician | Shop Owner | Admin
-  subscriptionPlan: text("subscription_plan").default("Free"), // Free | Pro | Business | Lifetime
-  subscriptionStatus: text("subscription_status").default("active"), // active | expired | cancelled
+  accountType: text("account_type").notNull().default("Free Technician"),
+  subscriptionPlan: text("subscription_plan").default("Free"),
+  subscriptionStatus: text("subscription_status").default("active"),
   subscriptionExpiresAt: timestamp("subscription_expires_at"),
   country: text("country"),
   shopName: text("shop_name"),
+  currency: text("currency").default("USD"),
   isActive: boolean("is_active").default(true).notNull(),
   isApproved: boolean("is_approved").default(false).notNull(),
   lastActiveAt: timestamp("last_active_at"),

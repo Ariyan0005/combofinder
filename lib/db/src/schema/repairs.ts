@@ -2,13 +2,14 @@ import { pgTable, serial, text, timestamp, integer, boolean } from "drizzle-orm/
 
 export const repairsTable = pgTable("repairs", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id"),
   customerName: text("customer_name").notNull(),
   customerPhone: text("customer_phone").notNull(),
   phoneBrand: text("phone_brand").notNull(),
   phoneModel: text("phone_model").notNull(),
   imei: text("imei"),
   problem: text("problem").notNull(),
-  status: text("status").notNull().default("Waiting"), // Waiting | Repairing | Ready | Delivered
+  status: text("status").notNull().default("Waiting"),
   engineer: text("engineer"),
   partsUsed: text("parts_used"),
   laborCost: text("labor_cost"),

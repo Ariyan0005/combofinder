@@ -1,8 +1,9 @@
-import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
 
 export const expensesTable = pgTable("expenses", {
   id: serial("id").primaryKey(),
-  category: text("category").notNull(), // Rent | Utilities | Supplies | Salaries | Equipment | Other
+  userId: integer("user_id"),
+  category: text("category").notNull(),
   amount: text("amount").notNull(),
   description: text("description"),
   date: text("date").notNull(),

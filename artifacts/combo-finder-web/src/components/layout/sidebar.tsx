@@ -3,6 +3,7 @@ import {
   LayoutDashboard, Search, Wrench, Package, Users,
   BookOpen, BarChart2, Unlock, Receipt, Settings,
   LogOut, CreditCard, ChevronRight, Smartphone, ShoppingCart, FileText,
+  BookMarked,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 
@@ -14,6 +15,7 @@ const NAV_ITEMS = [
   { label: "Point of Sale", icon: ShoppingCart, href: "/pos" },
   { label: "Invoices", icon: FileText, href: "/invoices" },
   { label: "Customers", icon: Users, href: "/customers" },
+  { label: "Ledger / Credit", icon: BookMarked, href: "/ledger" },
   { label: "Knowledge Base", icon: BookOpen, href: "/knowledge-base" },
   { label: "Reports", icon: BarChart2, href: "/reports" },
   { label: "Unlock Services", icon: Unlock, href: "/unlock-services" },
@@ -94,19 +96,23 @@ export default function Sidebar({ onClose }: { onClose: () => void }) {
       {/* User footer */}
       <div className="p-3 border-t" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
         {user && (
-          <div className="flex items-center gap-3 px-3 py-2 mb-2 rounded-xl"
-            style={{ background: "rgba(255,255,255,0.05)" }}>
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
-              style={{ background: "hsl(var(--primary))" }}>
-              {user.name.charAt(0).toUpperCase()}
+          <Link href="/settings">
+            <div onClick={onClose}
+              className="flex items-center gap-3 px-3 py-2 mb-2 rounded-xl cursor-pointer"
+              style={{ background: "rgba(255,255,255,0.05)" }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                style={{ background: "hsl(var(--primary))" }}>
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-white truncate">{user.name}</p>
+                <p className="text-[10px] truncate" style={{ color: "rgba(255,255,255,0.4)" }}>
+                  {user.plan ?? user.role}
+                </p>
+              </div>
+              <Settings className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "rgba(255,255,255,0.3)" }} />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-white truncate">{user.name}</p>
-              <p className="text-[10px] truncate" style={{ color: "rgba(255,255,255,0.4)" }}>
-                {user.plan ?? user.role}
-              </p>
-            </div>
-          </div>
+          </Link>
         )}
         {isGuest && (
           <div className="px-3 py-2 mb-2 rounded-xl text-xs" style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.55)" }}>
