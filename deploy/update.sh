@@ -6,6 +6,10 @@ set -e
 cd /var/www/combofinder
 
 echo "=== [1/6] Git pull ==="
+# pnpm install regenerates pnpm-lock.yaml locally, which then blocks the next
+# pull as a conflicting local change. Since it gets rewritten by pnpm install
+# right after anyway, it's always safe to discard the local copy before pulling.
+git checkout -- pnpm-lock.yaml 2>/dev/null || true
 git pull origin main
 
 echo "=== [2/6] Install dependencies ==="
