@@ -24,9 +24,8 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   MOP:"P",FJD:"FJ$",PGK:"K",SBD:"SI$",VUV:"VT",WST:"WS$",TOP:"T$",XPF:"Fr",
   XOF:"Fr",XAF:"Fr",GNF:"Fr",MGA:"Ar",MZN:"MT",ZMW:"ZK",MWK:"MK",BWP:"P",
   SZL:"L",LSL:"L",NAD:"N$",ZWL:"Z$",SCR:"SR",MUR:"Rs",MVR:"Rf",BTN:"Nu",
-  LKR:"Rs",MMK:"K",NPR:"रू",KES:"KSh",UGX:"USh",TZS:"TSh",ETB:"Br",DJF:"Fdj",
-  SOS:"Sh",KMF:"Fr",MRU:"UM",SLL:"Le",GMD:"D",GNF:"Fr",SRD:"$",HTG:"G",NIO:"C$",
-  HNL:"L",GTQ:"Q",BZD:"BZ$",CRC:"₡",PYG:"₲",
+  UGX:"USh",TZS:"TSh",ETB:"Br",DJF:"Fdj",
+  SOS:"Sh",KMF:"Fr",MRU:"UM",SLL:"Le",GMD:"D",HTG:"G",NIO:"C$",
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
