@@ -382,7 +382,7 @@ function StockInModal({ onClose, item: initialItem, suppliers, allItems }: {
 }) {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const sym = CURRENCY_SYMBOLS[user?.currency ?? "BDT"] ?? "৳";
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? "৳";
   const [item, setItem] = useState<Item | undefined>(initialItem);
   const [itemSearch, setItemSearch] = useState("");
   const [qty, setQty] = useState("1");
@@ -493,7 +493,7 @@ function StockInModal({ onClose, item: initialItem, suppliers, allItems }: {
 function SellModal({ onClose, item: initialItem, allItems }: { onClose: () => void; item?: Item; allItems: Item[] }) {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const sym = CURRENCY_SYMBOLS[user?.currency ?? "BDT"] ?? "৳";
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? "৳";
   const [item, setItem] = useState<Item | undefined>(initialItem);
   const [itemSearch, setItemSearch] = useState("");
   const [qty, setQty] = useState("1");
@@ -611,7 +611,7 @@ function ItemSheet({ item, suppliers, onClose, onEdit, onStockIn, onDelete }: {
   onDelete: () => void;
 }) {
   const { user } = useAuth();
-  const sym = CURRENCY_SYMBOLS[user?.currency ?? "BDT"] ?? "৳";
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? "৳";
   const qty = item.quantity;
   const min = item.minStock;
   const isLow = min > 0 && qty <= min;
@@ -724,7 +724,7 @@ type Modal = "add-product" | "add-category" | "add-supplier" | "stock-in" | "sca
 
 export default function Inventory() {
   const { user } = useAuth();
-  const sym = CURRENCY_SYMBOLS[user?.currency ?? "BDT"] ?? "৳";
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? "৳";
   const [modal, setModal] = useState<Modal>(null);
   const [activeCategoryKey, setActiveCategoryKey] = useState("All");
   const [searchQ, setSearchQ] = useState("");

@@ -7,6 +7,12 @@ import {
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 import { generateInvoicePdf, type InvoiceData } from "@/lib/invoice-pdf";
+import { useAuth } from "@/context/auth-context";
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$", EUR: "€", GBP: "£", BDT: "৳", INR: "₹",
+  PKR: "₨", NPR: "रू", LKR: "Rs", AED: "د.إ", SAR: "﷼",
+};
 
 const PRIMARY = "hsl(var(--primary))";
 const MUTED = "hsl(var(--muted-foreground))";
@@ -22,6 +28,8 @@ type CartLine = { item: Item; quantity: number; unitPrice: number };
 
 export default function Pos() {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [discount, setDiscount] = useState("0");
@@ -120,7 +128,7 @@ export default function Pos() {
           <CheckCircle className="w-14 h-14 mx-auto" style={{ color: "#10B981" }} />
           <h1 className="text-xl font-extrabold">Sale Completed!</h1>
           <p className="text-sm" style={{ color: MUTED }}>
-            Invoice <span className="font-bold">{completedInvoice.invoiceNumber}</span> · Total ৳{Number(completedInvoice.total).toLocaleString()}
+            Invoice <span className="font-bold">{completedInvoice.invoiceNumber}</span> · Total {sym}{Number(completedInvoice.total).toLocaleString()}
           </p>
           <div className="flex flex-col gap-2 pt-2">
             <button
@@ -197,7 +205,7 @@ export default function Pos() {
                   </div>
                   <div className="flex items-center justify-between w-full">
                     <span className="text-[10px]" style={{ color: MUTED }}>Stock: {item.quantity}</span>
-                    <span className="text-xs font-bold" style={{ color: PRIMARY }}>৳{Number(item.sellingPrice ?? 0).toLocaleString()}</span>
+                    <span className="text-xs font-bold" style={{ color: PRIMARY }}>{sym}{Number(item.sellingPrice ?? 0).toLocaleString()}</span>
                   </div>
                   {inCart > 0 && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#ECFDF5", color: "#059669" }}>
@@ -232,7 +240,7 @@ export default function Pos() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold truncate">{l.item.partName}</p>
                     <div className="flex items-center gap-1 mt-1">
-                      <span className="text-[10px]" style={{ color: MUTED }}>৳</span>
+                      <span className="text-[10px]" style={{ color: MUTED }}>{sym}</span>
                       <input type="number" min="0" value={l.unitPrice}
                         onChange={e => changePrice(l.item.id, e.target.value)}
                         className="w-16 text-xs px-1.5 py-0.5 rounded border outline-none" style={{ borderColor: BORDER }} />
@@ -249,7 +257,7 @@ export default function Pos() {
                       <Plus className="w-3 h-3" />
                     </button>
                   </div>
-                  <span className="text-xs font-bold w-14 text-right">৳{(l.unitPrice * l.quantity).toLocaleString()}</span>
+                  <span className="text-xs font-bold w-14 text-right">{sym}{(l.unitPrice * l.quantity).toLocaleString()}</span>
                   <button onClick={() => removeLine(l.item.id)} style={{ color: "hsl(var(--destructive))" }}>
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -274,7 +282,7 @@ export default function Pos() {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] font-semibold block mb-1" style={{ color: MUTED }}>Discount (৳)</label>
+                  <label className="text-[10px] font-semibold block mb-1" style={{ color: MUTED }}>Discount ({sym})</label>
                   <input type="number" min="0" value={discount} onChange={e => setDiscount(e.target.value)}
                     className="w-full px-2.5 py-2 rounded-lg border text-xs outline-none" style={{ borderColor: BORDER }} />
                 </div>
@@ -289,24 +297,24 @@ export default function Pos() {
 
               <div className="flex items-center justify-between pt-2 border-t" style={{ borderColor: BORDER }}>
                 <span className="text-xs" style={{ color: MUTED }}>Subtotal</span>
-                <span className="text-xs font-semibold">৳{subtotal.toLocaleString()}</span>
+                <span className="text-xs font-semibold">{sym}{subtotal.toLocaleString()}</span>
               </div>
               {discountNum > 0 && (
                 <div className="flex items-center justify-between">
                   <span className="text-xs" style={{ color: MUTED }}>Discount</span>
-                  <span className="text-xs font-semibold" style={{ color: "hsl(var(--destructive))" }}>-৳{discountNum.toLocaleString()}</span>
+                  <span className="text-xs font-semibold" style={{ color: "hsl(var(--destructive))" }}>-{sym}{discountNum.toLocaleString()}</span>
                 </div>
               )}
               <div className="flex items-center justify-between">
                 <span className="text-sm font-bold">Total</span>
-                <span className="text-lg font-black" style={{ color: PRIMARY }}>৳{total.toLocaleString()}</span>
+                <span className="text-lg font-black" style={{ color: PRIMARY }}>{sym}{total.toLocaleString()}</span>
               </div>
 
               {paymentMethod === "Credit" && (
                 <div className="flex items-center gap-2 p-3 rounded-xl"
                   style={{ background: "#FFF7E6", border: "1px solid #F59E0B40" }}>
                   <span className="text-xs font-semibold" style={{ color: "#D97706" }}>
-                    ⚠ Credit Sale — customer will pay later. Amount due: ৳{total.toLocaleString()}
+                    ⚠ Credit Sale — customer will pay later. Amount due: {sym}{total.toLocaleString()}
                   </span>
                 </div>
               )}
@@ -315,7 +323,7 @@ export default function Pos() {
 
               <button onClick={() => checkoutMut.mutate()} disabled={checkoutMut.isPending}
                 className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-60" style={{ background: PRIMARY }}>
-                {checkoutMut.isPending ? "Processing…" : `Checkout · ৳${total.toLocaleString()}`}
+                {checkoutMut.isPending ? "Processing…" : `Checkout · ${sym}${total.toLocaleString()}`}
               </button>
             </>
           )}

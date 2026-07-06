@@ -65,13 +65,15 @@ router.post("/auth/register", async (req, res) => {
     const [user] = await db.insert(usersTable).values({
       name: name.trim(), email: email.toLowerCase().trim(), phone: phone?.trim() ?? null,
       passwordHash, accountType: "Free Technician", subscriptionPlan: "Free", isActive: true, isApproved: true,
-    }).returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, accountType: usersTable.accountType, subscriptionPlan: usersTable.subscriptionPlan });
+      currency: "USD",
+    }).returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, accountType: usersTable.accountType, subscriptionPlan: usersTable.subscriptionPlan, currency: usersTable.currency });
     (req.session as any).authenticated = true;
     (req.session as any).userId = user.id;
     (req.session as any).userName = user.name;
     (req.session as any).userRole = user.accountType;
+    (req.session as any).userCurrency = user.currency ?? "USD";
     sendWelcomeEmail(user.name, user.email);
-    res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan } });
+    res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan, currency: user.currency ?? "USD" } });
   } catch (err) {
     console.error("Register error:", err);
     res.status(500).json({ error: "Registration failed. Please try again." });
