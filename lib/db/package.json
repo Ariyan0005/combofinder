@@ -10,7 +10,7 @@
   "scripts": {
     "push": "drizzle-kit push --config ./drizzle.config.ts",
     "push-force": "drizzle-kit push --force --config ./drizzle.config.ts",
-    "migrate": "node migrate.cjs"
+    "migrate": "node --dns-result-order=ipv4first migrate.cjs"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",
