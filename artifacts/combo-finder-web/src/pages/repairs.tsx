@@ -29,6 +29,8 @@ type Repair = {
   totalCost?: string;
   laborCost?: string;
   partsCost?: string;
+  advancePaid?: string;
+  isPaid?: boolean;
   notes?: string;
   engineer?: string;
   createdAt: string;
@@ -294,6 +296,8 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
     status:        existing?.status        ?? "Waiting",
     engineer:      existing?.engineer      ?? "",
     laborCost:     String(existing?.laborCost  ?? ""),
+    advancePaid:   String(existing?.advancePaid ?? ""),
+    isPaid:        existing?.isPaid        ?? false,
     notes:         existing?.notes         ?? "",
   });
 
@@ -317,6 +321,8 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
         partsUsed: JSON.stringify(parts),
         partsCost: String(partsCost),
         totalCost: String(totalCost),
+        advancePaid: form.advancePaid || null,
+        isPaid: form.isPaid,
       };
       const res = await fetch(url, {
         method: existing ? "PUT" : "POST",
@@ -366,7 +372,7 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col"
-        style={{ background: CARD, maxHeight: "92vh" }}>
+        style={{ background: CARD, maxHeight: "85vh" }}>
         {/* Sticky header */}
         <div className="flex-shrink-0 flex items-center justify-between px-5 pt-5 pb-4 border-b"
           style={{ background: CARD, borderColor: BORDER, borderRadius: "1.5rem 1.5rem 0 0" }}>
@@ -471,6 +477,55 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
                   Total: {totalCost.toFixed(2)}
                 </p>
               )}
+            </div>
+
+            {/* Billing & Payment */}
+            <div className="rounded-2xl border p-4 space-y-3" style={{ borderColor: BORDER, background: BG }}>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: MUTED }}>Billing & Payment</p>
+
+              {/* Total summary row */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs" style={{ color: MUTED }}>Total Bill</span>
+                <span className="text-sm font-black" style={{ color: PRIMARY }}>{totalCost.toFixed(2)}</span>
+              </div>
+
+              {/* Advance paid */}
+              <div>
+                <label className="text-xs font-semibold block mb-1" style={{ color: MUTED }}>Advance Paid</label>
+                <input type="text" inputMode="decimal" value={form.advancePaid}
+                  onChange={e => set("advancePaid", e.target.value)}
+                  placeholder="0.00"
+                  className="w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none"
+                  style={{ borderColor: BORDER, background: CARD }} />
+              </div>
+
+              {/* Due amount */}
+              {totalCost > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold" style={{ color: MUTED }}>Due Amount</span>
+                  <span className="text-sm font-black"
+                    style={{ color: (totalCost - (Number(form.advancePaid) || 0)) > 0 ? "#EF4444" : "#10B981" }}>
+                    {Math.max(0, totalCost - (Number(form.advancePaid) || 0)).toFixed(2)}
+                  </span>
+                </div>
+              )}
+
+              {/* Payment status toggle */}
+              <div>
+                <p className="text-xs font-semibold mb-2" style={{ color: MUTED }}>Payment Status</p>
+                <div className="flex gap-2">
+                  {([{ val: false, label: "Due / Credit", color: "#EF4444" }, { val: true, label: "Paid", color: "#10B981" }] as const).map(({ val, label, color }) => (
+                    <button key={String(val)} type="button"
+                      onClick={() => setForm(p => ({ ...p, isPaid: val }))}
+                      className="flex-1 py-2 rounded-xl text-xs font-bold border transition-colors"
+                      style={form.isPaid === val
+                        ? { background: color, color: "#fff", borderColor: color }
+                        : { background: "transparent", color: MUTED, borderColor: BORDER }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Notes */}
@@ -609,10 +664,18 @@ export default function Repairs() {
                     <p className="text-xs truncate" style={{ color: MUTED }}>
                       {r.customerName ? `${r.customerName}${r.customerPhone ? ` · ${r.customerPhone}` : ""} · ` : ""}{r.problem}
                     </p>
-                    <p className="text-[10px] mt-0.5 flex items-center gap-2" style={{ color: MUTED }}>
+                    <p className="text-[10px] mt-0.5 flex items-center gap-2 flex-wrap" style={{ color: MUTED }}>
                       {new Date(r.createdAt).toLocaleDateString()}
                       {partsCount > 0 && <span className="flex items-center gap-0.5"><Package className="w-2.5 h-2.5" /> {partsCount} part{partsCount > 1 ? "s" : ""}</span>}
-                      {r.totalCost && Number(r.totalCost) > 0 && <span>· Total: {Number(r.totalCost).toFixed(2)}</span>}
+                      {r.totalCost && Number(r.totalCost) > 0 && <span>· Bill: {Number(r.totalCost).toFixed(2)}</span>}
+                      {r.totalCost && Number(r.totalCost) > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full font-bold text-[9px]"
+                          style={r.isPaid
+                            ? { background: "#ECFDF5", color: "#059669" }
+                            : { background: "#FEF3C7", color: "#D97706" }}>
+                          {r.isPaid ? "Paid" : "Due"}
+                        </span>
+                      )}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-2 flex-shrink-0">

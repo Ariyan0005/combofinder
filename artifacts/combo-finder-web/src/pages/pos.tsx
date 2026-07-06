@@ -282,7 +282,7 @@ export default function Pos() {
                   <label className="text-[10px] font-semibold block mb-1" style={{ color: MUTED }}>Payment Method</label>
                   <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
                     className="w-full px-2.5 py-2 rounded-lg border text-xs outline-none" style={{ borderColor: BORDER, background: CARD }}>
-                    <option>Cash</option><option>Card</option><option>Mobile Banking</option><option>Other</option>
+                    <option>Cash</option><option>Card</option><option>Mobile Banking</option><option>Credit</option><option>Other</option>
                   </select>
                 </div>
               </div>
@@ -301,6 +301,15 @@ export default function Pos() {
                 <span className="text-sm font-bold">Total</span>
                 <span className="text-lg font-black" style={{ color: PRIMARY }}>৳{total.toLocaleString()}</span>
               </div>
+
+              {paymentMethod === "Credit" && (
+                <div className="flex items-center gap-2 p-3 rounded-xl"
+                  style={{ background: "#FFF7E6", border: "1px solid #F59E0B40" }}>
+                  <span className="text-xs font-semibold" style={{ color: "#D97706" }}>
+                    ⚠ Credit Sale — customer will pay later. Amount due: ৳{total.toLocaleString()}
+                  </span>
+                </div>
+              )}
 
               {error && <p className="text-xs" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
 

@@ -51,7 +51,7 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col"
-        style={{ background: CARD, maxHeight: "92vh" }}>
+        style={{ background: CARD, maxHeight: "85vh" }}>
         {/* Header — never scrolls */}
         <div className="flex-shrink-0 flex items-center justify-between px-5 pt-5 pb-4 border-b" style={{ background: CARD, borderColor: BORDER }}>
           <h2 className="font-bold text-base">{title}</h2>
@@ -863,9 +863,9 @@ export default function Inventory() {
               </button>
               {tab.id && (
                 <button onClick={() => { const cat = categories.find(c => c.id === tab.id); setEditCategory(cat); setModal("edit-category" as any); }}
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-[9px]"
-                  style={{ color: MUTED, background: "hsl(var(--muted))" }} title="Edit category">
-                  ✎
+                  className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ color: PRIMARY, background: `${PRIMARY}18`, border: `1px solid ${PRIMARY}40` }} title="Edit category">
+                  <Edit3 className="w-3 h-3" />
                 </button>
               )}
             </div>
