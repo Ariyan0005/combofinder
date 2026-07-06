@@ -5,11 +5,18 @@ import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 const router = Router();
 
 // Sales/invoice data contains customer PII and financial records — require an
-// authenticated session for every method here, unlike the app-wide default
-// which leaves GET open for public read-only resources (brands/models/etc).
+// authenticated session AND a concrete userId for every method here.
+// Admin sessions (no userId) cannot access user-scoped sales data.
 router.use((req: any, res, next) => {
-  if (req.session?.authenticated) return next();
-  res.status(401).json({ error: "Unauthorized" });
+  if (!req.session?.authenticated) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  // req.userId is injected by requireUserAuth in routes/index.ts before this router.
+  // Guard here so any future route mis-mounting surfaces clearly.
+  if (!req.userId) {
+    return res.status(403).json({ error: "Forbidden: user identity required" });
+  }
+  next();
 });
 
 function requireInt(v: unknown, name: string, min = 1): number {
@@ -38,10 +45,9 @@ function csvField(v: unknown): string {
 // GET /api/sales?from=YYYY-MM-DD&to=YYYY-MM-DD&q=search
 router.get("/", async (req, res) => {
   try {
-    const userId: number | undefined = (req as any).userId;
+    const userId: number = (req as any).userId; // guaranteed by middleware above
     const { from, to, q } = req.query as Record<string, string | undefined>;
-    const conditions: ReturnType<typeof eq>[] = [];
-    if (userId) conditions.push(eq(salesTable.userId, userId));
+    const conditions: ReturnType<typeof eq>[] = [eq(salesTable.userId, userId)];
     if (from) conditions.push(gte(salesTable.date, from) as any);
     if (to) conditions.push(lte(salesTable.date, to) as any);
 
@@ -64,10 +70,9 @@ router.get("/", async (req, res) => {
 // GET /api/sales/export?from=&to=  — CSV, date-wise
 router.get("/export", async (req, res) => {
   try {
-    const userId: number | undefined = (req as any).userId;
+    const userId: number = (req as any).userId;
     const { from, to } = req.query as Record<string, string | undefined>;
-    const conditions: ReturnType<typeof eq>[] = [];
-    if (userId) conditions.push(eq(salesTable.userId, userId));
+    const conditions: ReturnType<typeof eq>[] = [eq(salesTable.userId, userId)];
     if (from) conditions.push(gte(salesTable.date, from) as any);
     if (to) conditions.push(lte(salesTable.date, to) as any);
 
@@ -96,11 +101,9 @@ router.get("/export", async (req, res) => {
 // GET /api/sales/:id  — invoice detail with items + returns
 router.get("/:id", async (req, res) => {
   try {
-    const userId: number | undefined = (req as any).userId;
+    const userId: number = (req as any).userId;
     const id = Number(req.params.id);
-    const whereClause = userId
-      ? and(eq(salesTable.id, id), eq(salesTable.userId, userId))
-      : eq(salesTable.id, id);
+    const whereClause = and(eq(salesTable.id, id), eq(salesTable.userId, userId));
     const [sale] = await db.select().from(salesTable).where(whereClause);
     if (!sale) return res.status(404).json({ error: "Not found" });
     const items = await db.select().from(saleItemsTable).where(eq(saleItemsTable.saleId, id));
@@ -175,9 +178,9 @@ router.post("/", async (req, res) => {
       // Insert with a temporary unique placeholder, then derive the invoice
       // number from the DB-assigned serial id so concurrent checkouts can
       // never collide (invoice_number has a unique constraint as a backstop).
-      const saleUserId: number | undefined = (req as any).userId;
+      const saleUserId: number = (req as any).userId;
       const [inserted] = await tx.insert(salesTable).values({
-        userId: saleUserId ?? null,
+        userId: saleUserId,
         invoiceNumber: `PENDING-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         customerId, customerName, customerPhone,
         subtotal: String(round2(subtotal)), discount: String(round2(discount)), total: String(total),

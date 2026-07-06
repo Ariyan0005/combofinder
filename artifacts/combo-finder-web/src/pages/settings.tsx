@@ -245,6 +245,8 @@ export default function Settings() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPassword: passOld, newPassword: passNew }),
       });
+      const ct = res.headers.get("content-type") ?? "";
+      if (!ct.includes("application/json")) throw new Error("Server error. Please try again later.");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed");
       setPassOk(true);
