@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   Search, Package, Minus, Plus, Trash2, ShoppingCart, CheckCircle,
-  ClipboardList, X, Boxes,
+  ClipboardList, X, Boxes, User, Users, ChevronDown,
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 import { generateInvoicePdf, type InvoiceData } from "@/lib/invoice-pdf";
@@ -12,6 +12,7 @@ import { useAuth } from "@/context/auth-context";
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$", EUR: "€", GBP: "£", BDT: "৳", INR: "₹",
   PKR: "₨", NPR: "रू", LKR: "Rs", AED: "د.إ", SAR: "﷼",
+  OMR: "OMR", KWD: "KD", QAR: "QR", MYR: "RM", SGD: "S$",
 };
 
 const PRIMARY = "hsl(var(--primary))";
@@ -26,18 +27,183 @@ type Item = {
 
 type CartLine = { item: Item; quantity: number; unitPrice: number };
 
+type Customer = {
+  id: number; name: string; phone?: string; whatsapp?: string;
+};
+
+// ── Customer Picker ─────────────────────────────────────────────────────────
+type CustomerMode = "cash" | "db";
+
+function CustomerPicker({
+  mode, onModeChange,
+  customerName, onCustomerName,
+  customerPhone, onCustomerPhone,
+  customers,
+}: {
+  mode: CustomerMode;
+  onModeChange: (m: CustomerMode) => void;
+  customerName: string;
+  onCustomerName: (v: string) => void;
+  customerPhone: string;
+  onCustomerPhone: (v: string) => void;
+  customers: Customer[];
+}) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen]   = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = search.length >= 1
+    ? customers.filter(c =>
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        (c.phone ?? "").includes(search)
+      ).slice(0, 7)
+    : customers.slice(0, 7);
+
+  function selectCustomer(c: Customer) {
+    onCustomerName(c.name);
+    onCustomerPhone(c.phone ?? "");
+    setSearch("");
+    setOpen(false);
+  }
+
+  return (
+    <div className="space-y-2.5">
+      {/* Mode toggle */}
+      <div className="flex gap-1.5">
+        <button
+          type="button"
+          onClick={() => { onModeChange("cash"); onCustomerName("Cash Customer"); onCustomerPhone(""); }}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold border transition-all"
+          style={mode === "cash"
+            ? { background: PRIMARY, color: "#fff", borderColor: PRIMARY }
+            : { background: CARD, color: MUTED, borderColor: BORDER }}>
+          <User className="w-3.5 h-3.5" /> Cash Customer
+        </button>
+        <button
+          type="button"
+          onClick={() => { onModeChange("db"); onCustomerName(""); onCustomerPhone(""); }}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold border transition-all"
+          style={mode === "db"
+            ? { background: PRIMARY, color: "#fff", borderColor: PRIMARY }
+            : { background: CARD, color: MUTED, borderColor: BORDER }}>
+          <Users className="w-3.5 h-3.5" /> From Database
+        </button>
+      </div>
+
+      {/* Cash Customer — just a display chip */}
+      {mode === "cash" && (
+        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+          style={{ background: "hsl(var(--muted))" }}>
+          <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+            style={{ background: PRIMARY }}>C</div>
+          <div>
+            <p className="text-xs font-bold">Cash Customer</p>
+            <p className="text-[10px]" style={{ color: MUTED }}>Walk-in / no record kept</p>
+          </div>
+        </div>
+      )}
+
+      {/* From Database — search dropdown */}
+      {mode === "db" && (
+        <div className="space-y-2">
+          <div className="relative" ref={ref}>
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: MUTED }} />
+              <input
+                value={search}
+                onChange={e => { setSearch(e.target.value); setOpen(true); }}
+                onFocus={() => setOpen(true)}
+                placeholder={customerName ? customerName : "Search customer by name or phone…"}
+                className="w-full pl-8 pr-8 py-2.5 rounded-xl border text-xs outline-none"
+                style={{ borderColor: BORDER, background: CARD }}
+              />
+              <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2" style={{ color: MUTED }} />
+            </div>
+
+            {/* Dropdown */}
+            {open && (
+              <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-xl border shadow-lg overflow-hidden"
+                style={{ background: CARD, borderColor: BORDER }}>
+                {filtered.length === 0 ? (
+                  <div className="px-3 py-3 text-xs text-center" style={{ color: MUTED }}>
+                    No customers found
+                    <Link href="/customers">
+                      <span className="block mt-1 font-bold" style={{ color: PRIMARY }}>+ Add customer</span>
+                    </Link>
+                  </div>
+                ) : (
+                  filtered.map(c => (
+                    <button key={c.id} type="button"
+                      onClick={() => selectCustomer(c)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-muted/40 border-b last:border-0 transition-colors"
+                      style={{ borderColor: BORDER }}>
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                        style={{ background: PRIMARY }}>{c.name[0].toUpperCase()}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold truncate">{c.name}</p>
+                        {c.phone && <p className="text-[10px]" style={{ color: MUTED }}>{c.phone}</p>}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Show selected customer info */}
+          {customerName && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
+              style={{ background: "hsl(var(--muted))" }}>
+              <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                style={{ background: PRIMARY }}>{customerName[0].toUpperCase()}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold">{customerName}</p>
+                {customerPhone && <p className="text-[10px]" style={{ color: MUTED }}>{customerPhone}</p>}
+              </div>
+              <button type="button" onClick={() => { onCustomerName(""); onCustomerPhone(""); setSearch(""); }}
+                style={{ color: MUTED }}><X className="w-3.5 h-3.5" /></button>
+            </div>
+          )}
+
+          {/* Phone (editable when selected) */}
+          {customerName && (
+            <input value={customerPhone}
+              onChange={e => onCustomerPhone(e.target.value)}
+              placeholder="Phone (optional)"
+              className="w-full px-2.5 py-2 rounded-xl border text-xs outline-none"
+              style={{ borderColor: BORDER, background: CARD }} />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main POS Page ────────────────────────────────────────────────────────────
 export default function Pos() {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
-  const [search, setSearch] = useState("");
-  const [cart, setCart] = useState<CartLine[]>([]);
-  const [discount, setDiscount] = useState("0");
-  const [paymentMethod, setPaymentMethod] = useState("Cash");
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [notes, setNotes] = useState("");
-  const [error, setError] = useState("");
+  const sym      = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
+  const shopName = user?.shopName ?? user?.name ?? "My Shop";
+
+  const [search,          setSearch]          = useState("");
+  const [cart,            setCart]            = useState<CartLine[]>([]);
+  const [discount,        setDiscount]        = useState("0");
+  const [paymentMethod,   setPaymentMethod]   = useState("Cash");
+  const [customerMode,    setCustomerMode]    = useState<CustomerMode>("cash");
+  const [customerName,    setCustomerName]    = useState("Cash Customer");
+  const [customerPhone,   setCustomerPhone]   = useState("");
+  const [notes,           setNotes]           = useState("");
+  const [error,           setError]           = useState("");
   const [completedInvoice, setCompletedInvoice] = useState<any | null>(null);
 
   const { data: items = [], isLoading } = useQuery<Item[]>({
@@ -45,7 +211,13 @@ export default function Pos() {
     queryFn: () => fetch("/api/inventory", { credentials: "include" }).then(r => r.json()),
   });
 
+  const { data: customers = [] } = useQuery<Customer[]>({
+    queryKey: ["customers"],
+    queryFn: () => fetch("/api/customers", { credentials: "include" }).then(r => r.json()),
+  });
+
   const list = Array.isArray(items) ? items : [];
+  const customerList = Array.isArray(customers) ? customers : [];
   const inCartQty = (id: number) => cart.find(l => l.item.id === id)?.quantity ?? 0;
 
   const filtered = useMemo(() => {
@@ -89,9 +261,13 @@ export default function Pos() {
     setCart(prev => prev.filter(l => l.item.id !== id));
   }
 
-  const subtotal = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
+  const subtotal   = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
   const discountNum = Number(discount) || 0;
-  const total = Math.max(0, subtotal - discountNum);
+  const total      = Math.max(0, subtotal - discountNum);
+
+  // Effective customer name sent to API
+  const effectiveCustomerName = customerMode === "cash" ? "Cash Customer" : (customerName || null);
+  const effectiveCustomerPhone = customerMode === "cash" ? null : (customerPhone || null);
 
   const checkoutMut = useMutation({
     mutationFn: async () => {
@@ -102,7 +278,8 @@ export default function Pos() {
         body: JSON.stringify({
           items: cart.map(l => ({ inventoryId: l.item.id, quantity: l.quantity, unitPrice: l.unitPrice })),
           discount: discountNum, paymentMethod,
-          customerName: customerName || null, customerPhone: customerPhone || null,
+          customerName: effectiveCustomerName,
+          customerPhone: effectiveCustomerPhone,
           notes: notes || null,
         }),
       });
@@ -116,7 +293,8 @@ export default function Pos() {
       qc.invalidateQueries({ queryKey: ["inventory"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
       setCompletedInvoice(sale);
-      setCart([]); setDiscount("0"); setCustomerName(""); setCustomerPhone(""); setNotes("");
+      setCart([]); setDiscount("0");
+      setCustomerMode("cash"); setCustomerName("Cash Customer"); setCustomerPhone(""); setNotes("");
     },
     onError: (e: any) => setError(e.message),
   });
@@ -132,7 +310,12 @@ export default function Pos() {
           </p>
           <div className="flex flex-col gap-2 pt-2">
             <button
-              onClick={() => generateInvoicePdf(saleToInvoiceData(completedInvoice))}
+              onClick={() => {
+                const data = saleToInvoiceData(completedInvoice);
+                data.shopName = shopName;
+                data.currencySymbol = sym;
+                generateInvoicePdf(data);
+              }}
               className="w-full py-3 rounded-xl font-bold text-white text-sm" style={{ background: PRIMARY }}>
               Download Invoice (PDF)
             </button>
@@ -154,7 +337,7 @@ export default function Pos() {
   return (
     <ProtectedPage>
       <div className="space-y-3 pb-6">
-        {/* Header with switch back to Inventory */}
+        {/* Header */}
         <div className="flex items-center justify-between pt-1">
           <div>
             <h1 className="text-xl font-extrabold">Point of Sale</h1>
@@ -194,7 +377,7 @@ export default function Pos() {
           <div className="grid grid-cols-2 gap-2">
             {filtered.map(item => {
               const inCart = inCartQty(item.id);
-              const maxed = inCart >= item.quantity;
+              const maxed  = inCart >= item.quantity;
               return (
                 <button key={item.id} disabled={maxed} onClick={() => addToCart(item)}
                   className="flex flex-col items-start gap-1 p-3 rounded-2xl border text-left disabled:opacity-40"
@@ -268,19 +451,22 @@ export default function Pos() {
 
           {cart.length > 0 && (
             <>
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <div>
-                  <label className="text-[10px] font-semibold block mb-1" style={{ color: MUTED }}>Customer Name</label>
-                  <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Optional"
-                    className="w-full px-2.5 py-2 rounded-lg border text-xs outline-none" style={{ borderColor: BORDER }} />
-                </div>
-                <div>
-                  <label className="text-[10px] font-semibold block mb-1" style={{ color: MUTED }}>Phone</label>
-                  <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="Optional"
-                    className="w-full px-2.5 py-2 rounded-lg border text-xs outline-none" style={{ borderColor: BORDER }} />
-                </div>
+              {/* Customer Picker */}
+              <div className="pt-1 border-t" style={{ borderColor: BORDER }}>
+                <p className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: MUTED }}>Customer</p>
+                <CustomerPicker
+                  mode={customerMode}
+                  onModeChange={setCustomerMode}
+                  customerName={customerName}
+                  onCustomerName={setCustomerName}
+                  customerPhone={customerPhone}
+                  onCustomerPhone={setCustomerPhone}
+                  customers={customerList}
+                />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+
+              {/* Discount + Payment */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
                 <div>
                   <label className="text-[10px] font-semibold block mb-1" style={{ color: MUTED }}>Discount ({sym})</label>
                   <input type="number" min="0" value={discount} onChange={e => setDiscount(e.target.value)}
@@ -295,6 +481,7 @@ export default function Pos() {
                 </div>
               </div>
 
+              {/* Totals */}
               <div className="flex items-center justify-between pt-2 border-t" style={{ borderColor: BORDER }}>
                 <span className="text-xs" style={{ color: MUTED }}>Subtotal</span>
                 <span className="text-xs font-semibold">{sym}{subtotal.toLocaleString()}</span>
@@ -340,10 +527,12 @@ export function saleToInvoiceData(sale: any): InvoiceData {
     customerName: sale.customerName,
     customerPhone: sale.customerPhone,
     items: (sale.items ?? []).map((it: any) => ({
-      partName: it.partName, quantity: it.quantity, unitPrice: Number(it.unitPrice), total: Number(it.total),
+      partName: it.partName, quantity: it.quantity,
+      unitPrice: Number(it.unitPrice), total: Number(it.total),
       returnedQuantity: it.returnedQuantity ?? 0,
     })),
     subtotal: Number(sale.subtotal), discount: Number(sale.discount), total: Number(sale.total),
     paymentMethod: sale.paymentMethod, status: sale.status,
+    // shopName and currencySymbol must be set by the caller from user context
   };
 }

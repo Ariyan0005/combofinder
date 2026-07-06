@@ -37,7 +37,8 @@ const STATUS_COLOR: Record<string, { bg: string; color: string }> = {
 export default function Invoices() {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
+  const sym      = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
+  const shopName = user?.shopName ?? user?.name ?? "My Shop";
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -96,7 +97,7 @@ export default function Invoices() {
       invoiceNumber: s.invoiceNumber, date: s.date, customerName: s.customerName,
       total: Number(s.total), status: s.status, paymentMethod: s.paymentMethod,
     }));
-    generateSalesReportPdf(rows, from, to);
+    generateSalesReportPdf(rows, from, to, shopName, sym);
   }
 
   // ── Invoice detail view ──────────────────────────────────────────────────
@@ -195,7 +196,11 @@ export default function Invoices() {
                 </div>
               ) : (
                 <div className="flex gap-2">
-                  <button onClick={() => generateInvoicePdf(saleToInvoiceData(detail))}
+                  <button onClick={() => {
+                    const d = saleToInvoiceData(detail);
+                    d.shopName = shopName; d.currencySymbol = sym;
+                    generateInvoicePdf(d);
+                  }}
                     className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm text-white" style={{ background: PRIMARY }}>
                     <Download className="w-4 h-4" /> Download PDF
                   </button>
