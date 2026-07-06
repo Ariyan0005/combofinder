@@ -37,12 +37,9 @@ mkdir -p /var/www/combofinder/web
 cp -r artifacts/admin-panel/dist/public/* /var/www/combofinder/admin/
 cp -r artifacts/combo-finder-web/dist/public/* /var/www/combofinder/web/
 
-echo "=== Restart API server via pm2 ==="
-# startOrRestart: already running হলে restart করবে, না থাকলে নতুন করে start করবে
-# অন্য pm2 processes এ কোনো effect নেই
-pm2 startOrRestart /var/www/combofinder/deploy/ecosystem.config.cjs --only api-server
-pm2 save
+echo "=== Restart API server via systemd ==="
+systemctl restart combofinder-api
+systemctl is-active --quiet combofinder-api && echo "combofinder-api: running ✓" || echo "⚠ combofinder-api failed to start — check: journalctl -u combofinder-api -n 50"
 
 echo ""
 echo "=== Done! ==="
-pm2 list
