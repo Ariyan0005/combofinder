@@ -7,6 +7,27 @@ import {
   QrCode, CheckCircle, ArrowUpFromLine, MoreVertical, Boxes,
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
+import { useAuth } from "@/context/auth-context";
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD:"$",EUR:"€",GBP:"£",BDT:"৳",INR:"₹",PKR:"₨",NPR:"रू",LKR:"Rs",AED:"د.إ",
+  SAR:"﷼",MYR:"RM",SGD:"S$",THB:"฿",IDR:"Rp",PHP:"₱",NGN:"₦",KES:"KSh",GHS:"₵",
+  ZAR:"R",TRY:"₺",CAD:"C$",AUD:"A$",JPY:"¥",CNY:"¥",KRW:"₩",HKD:"HK$",TWD:"NT$",
+  CHF:"Fr",SEK:"kr",NOK:"kr",DKK:"kr",PLN:"zł",CZK:"Kč",HUF:"Ft",RON:"lei",
+  BGN:"лв",HRK:"kn",RSD:"din",UAH:"₴",RUB:"₽",BRL:"R$",MXN:"$",ARS:"$",CLP:"$",
+  COP:"$",PEN:"S/",VES:"Bs",UYU:"$U",GTQ:"Q",HNL:"L",CRC:"₡",DOP:"RD$",CUP:"$",
+  JMD:"J$",TTD:"TT$",BBD:"Bds$",BSD:"B$",BZD:"BZ$",GYD:"G$",SRD:"$",PAB:"B/.",
+  BOB:"Bs",PYG:"₲",EGP:"£",MAD:"د.م.",DZD:"دج",TND:"د.ت",LYD:"ل.د",SDG:"ج.س.",
+  IQD:"ع.د",SYP:"£",JOD:"JD",LBP:"ل.ل",OMR:"ر.ع.",KWD:"د.ك",BHD:"BD",QAR:"﷼",
+  YER:"﷼",ILS:"₪",IRR:"﷼",AFN:"؋",UZS:"so'm",KZT:"₸",AZN:"₼",GEL:"₾",AMD:"֏",
+  TJS:"SM",KGS:"лв",TMT:"T",MNT:"₮",VND:"₫",KHR:"៛",LAK:"₭",MMK:"K",BND:"B$",
+  MOP:"P",FJD:"FJ$",PGK:"K",SBD:"SI$",VUV:"VT",WST:"WS$",TOP:"T$",XPF:"Fr",
+  XOF:"Fr",XAF:"Fr",GNF:"Fr",MGA:"Ar",MZN:"MT",ZMW:"ZK",MWK:"MK",BWP:"P",
+  SZL:"L",LSL:"L",NAD:"N$",ZWL:"Z$",SCR:"SR",MUR:"Rs",MVR:"Rf",BTN:"Nu",
+  LKR:"Rs",MMK:"K",NPR:"रू",KES:"KSh",UGX:"USh",TZS:"TSh",ETB:"Br",DJF:"Fdj",
+  SOS:"Sh",KMF:"Fr",MRU:"UM",SLL:"Le",GMD:"D",GNF:"Fr",SRD:"$",HTG:"G",NIO:"C$",
+  HNL:"L",GTQ:"Q",BZD:"BZ$",CRC:"₡",PYG:"₲",
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Item = {
@@ -165,7 +186,7 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
     partType: existing?.partType ?? "Display",
     quality: existing?.quality ?? "Original",
     quantity: String(existing?.quantity ?? ""),
-    minStock: String(existing?.minStock ?? "2"),
+    minStock: String(existing?.minStock ?? "0"),
     purchasePrice: String(existing?.purchasePrice ?? ""),
     sellingPrice: String(existing?.sellingPrice ?? ""),
     supplierId: String(existing?.supplierId ?? ""),
@@ -191,7 +212,7 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
           ...form,
           partName: form.partName,
           quantity: Number(form.quantity) || 0,
-          minStock: Number(form.minStock) || 2,
+          minStock: Number(form.minStock),
           supplierId: form.supplierId ? Number(form.supplierId) : null,
           categoryId: form.categoryId ? Number(form.categoryId) : null,
         }),
@@ -342,6 +363,8 @@ function StockInModal({ onClose, item: initialItem, suppliers, allItems }: {
   onClose: () => void; item?: Item; suppliers: Supplier[]; allItems: Item[];
 }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "BDT"] ?? "৳";
   const [item, setItem] = useState<Item | undefined>(initialItem);
   const [itemSearch, setItemSearch] = useState("");
   const [qty, setQty] = useState("1");
@@ -436,7 +459,7 @@ function StockInModal({ onClose, item: initialItem, suppliers, allItems }: {
           </div>
           {qty && unitPrice && (
             <p className="text-xs font-semibold" style={{ color: PRIMARY }}>
-              Total: ৳{(Number(qty) * Number(unitPrice)).toLocaleString()}
+              Total: {sym}{(Number(qty) * Number(unitPrice)).toLocaleString()}
             </p>
           )}
           <Field label="Notes"><Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Bought from Ali Parts" /></Field>
@@ -451,6 +474,8 @@ function StockInModal({ onClose, item: initialItem, suppliers, allItems }: {
 // ─── Sell / POS Modal ─────────────────────────────────────────────────────────
 function SellModal({ onClose, item: initialItem, allItems }: { onClose: () => void; item?: Item; allItems: Item[] }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "BDT"] ?? "৳";
   const [item, setItem] = useState<Item | undefined>(initialItem);
   const [itemSearch, setItemSearch] = useState("");
   const [qty, setQty] = useState("1");
@@ -516,7 +541,7 @@ function SellModal({ onClose, item: initialItem, allItems }: { onClose: () => vo
                         style={{ borderColor: BORDER }}>
                         <span className="font-semibold">{i.partName}</span>
                         <span className="text-xs ml-2" style={{ color: MUTED }}>Stock: {i.quantity}</span>
-                        {i.sellingPrice && <span className="text-xs ml-2 font-bold" style={{ color: PRIMARY }}>৳{Number(i.sellingPrice).toLocaleString()}</span>}
+                        {i.sellingPrice && <span className="text-xs ml-2 font-bold" style={{ color: PRIMARY }}>{sym}{Number(i.sellingPrice).toLocaleString()}</span>}
                       </button>
                     ))}
                   </div>
@@ -543,11 +568,11 @@ function SellModal({ onClose, item: initialItem, allItems }: { onClose: () => vo
           {qty && salePrice && (
             <div className="p-3 rounded-xl" style={{ background: "#ECFDF5" }}>
               <p className="text-sm font-bold" style={{ color: "#059669" }}>
-                Total: ৳{(Number(qty) * Number(salePrice)).toLocaleString()}
+                Total: {sym}{(Number(qty) * Number(salePrice)).toLocaleString()}
               </p>
               {item?.purchasePrice && (
                 <p className="text-xs mt-0.5" style={{ color: "#059669" }}>
-                  Profit: ৳{((Number(salePrice) - Number(item.purchasePrice)) * Number(qty)).toLocaleString()}
+                  Profit: {sym}{((Number(salePrice) - Number(item.purchasePrice)) * Number(qty)).toLocaleString()}
                 </p>
               )}
             </div>
@@ -567,9 +592,11 @@ function ItemSheet({ item, suppliers, onClose, onEdit, onStockIn, onSell, onDele
   onClose: () => void; onEdit: () => void; onStockIn: () => void;
   onSell: () => void; onDelete: () => void;
 }) {
+  const { user } = useAuth();
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "BDT"] ?? "৳";
   const qty = item.quantity;
   const min = item.minStock;
-  const isLow = qty <= min;
+  const isLow = min > 0 && qty <= min;
   const supplierName = suppliers.find(s => s.id === item.supplierId)?.name ?? item.supplier ?? "—";
 
   return (
@@ -614,8 +641,8 @@ function ItemSheet({ item, suppliers, onClose, onEdit, onStockIn, onSell, onDele
         <div className="mx-5 mb-4 rounded-2xl divide-y" style={{ border: `1px solid ${BORDER}` }}>
           {[
             { label: "Supplier", value: supplierName },
-            { label: "Purchase Price", value: item.purchasePrice ? `৳${Number(item.purchasePrice).toLocaleString()}` : "—" },
-            { label: "Selling Price", value: item.sellingPrice ? `৳${Number(item.sellingPrice).toLocaleString()}` : "—" },
+            { label: "Purchase Price", value: item.purchasePrice ? `${sym}${Number(item.purchasePrice).toLocaleString()}` : "—" },
+            { label: "Selling Price", value: item.sellingPrice ? `${sym}${Number(item.sellingPrice).toLocaleString()}` : "—" },
             { label: "Min Stock", value: String(item.minStock) },
             { label: "Barcode / SKU", value: item.barcode ?? item.sku ?? "—" },
             { label: "Model", value: item.model ?? "—" },
@@ -683,6 +710,8 @@ function FABMenu({ onAction }: { onAction: (a: FabAction) => void }) {
 type Modal = "add-product" | "add-category" | "add-supplier" | "stock-in" | "sell" | "scanner" | null;
 
 export default function Inventory() {
+  const { user } = useAuth();
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "BDT"] ?? "৳";
   const [modal, setModal] = useState<Modal>(null);
   const [activeCategory, setActiveCategory] = useState("All");
   const [searchQ, setSearchQ] = useState("");
@@ -737,7 +766,7 @@ export default function Inventory() {
     return matchCat && matchSearch;
   });
 
-  const lowCount = list.filter(i => i.quantity <= i.minStock).length;
+  const lowCount = list.filter(i => i.minStock > 0 && i.quantity <= i.minStock).length;
 
   // Category tabs: "All" + DB categories + fallback part types
   const catTabs = ["All", ...categories.map(c => c.name),
@@ -831,7 +860,7 @@ export default function Inventory() {
           <div className="rounded-2xl border divide-y overflow-hidden" style={{ borderColor: BORDER, background: CARD }}>
             {filtered.map(item => {
               const qty = item.quantity;
-              const isLow = qty <= item.minStock;
+              const isLow = item.minStock > 0 && qty <= item.minStock;
               const supplierName = suppliers.find(s => s.id === item.supplierId)?.name ?? item.supplier;
               return (
                 <button key={item.id} onClick={() => openItemSheet(item)}
@@ -855,7 +884,7 @@ export default function Inventory() {
                       {isLow ? "Low" : "OK"}
                     </span>
                     {item.sellingPrice && (
-                      <span className="text-[10px] font-semibold" style={{ color: MUTED }}>৳{Number(item.sellingPrice).toLocaleString()}</span>
+                      <span className="text-[10px] font-semibold" style={{ color: MUTED }}>{sym}{Number(item.sellingPrice).toLocaleString()}</span>
                     )}
                   </div>
                 </button>
