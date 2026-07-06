@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from "react";
-import { Store, User, Lock, Bell, ChevronRight, Check, X, Globe, Eye, EyeOff } from "lucide-react";
+import { useState, useRef, useEffect, type FormEvent } from "react";
+import { Store, User, Lock, Bell, ChevronRight, Check, X, Globe, Eye, EyeOff, Search } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
 
@@ -178,6 +178,28 @@ export default function Settings() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsOk, setSettingsOk] = useState(false);
   const [settingsError, setSettingsError] = useState("");
+  // Currency picker
+  const [currencyOpen, setCurrencyOpen] = useState(false);
+  const [currencySearch, setCurrencySearch] = useState("");
+  const currencyRef = useRef<HTMLDivElement>(null);
+
+  // Sync currency/shopName when user loads from server
+  useEffect(() => {
+    if (user?.currency) setCurrency(user.currency);
+    if (user?.shopName) setShopName(user.shopName);
+  }, [user?.currency, user?.shopName]);
+
+  // Close currency dropdown when clicking outside
+  useEffect(() => {
+    if (!currencyOpen) return;
+    function handler(e: MouseEvent) {
+      if (currencyRef.current && !currencyRef.current.contains(e.target as Node)) {
+        setCurrencyOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [currencyOpen]);
 
   function openProfile() {
     setPName(user?.name ?? "");
@@ -197,6 +219,8 @@ export default function Settings() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: pName, phone: pPhone, shopName: pShop }),
       });
+      const ct = res.headers.get("content-type") ?? "";
+      if (!ct.includes("application/json")) throw new Error("Server error. Please try again later.");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed");
       setPOk(true);
@@ -238,6 +262,8 @@ export default function Settings() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currency, shopName }),
       });
+      const ct = res.headers.get("content-type") ?? "";
+      if (!ct.includes("application/json")) throw new Error("Server error. Please try again later.");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed");
       setSettingsOk(true);
@@ -317,18 +343,78 @@ export default function Settings() {
               <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>
                 Currency
               </label>
-              <div className="relative">
-                <Globe className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2"
-                  style={{ color: "hsl(var(--muted-foreground))" }} />
-                <select value={currency} onChange={e => setCurrency(e.target.value)}
-                  className={INPUT_CLS + " pl-10 pr-4 appearance-none"}
-                  style={INPUT_STYLE}
-                  onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
-                  onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }}>
-                  {CURRENCIES.map(c => (
-                    <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>
-                  ))}
-                </select>
+              <div className="relative" ref={currencyRef}>
+                {/* Trigger button showing selected currency */}
+                <button
+                  type="button"
+                  onClick={() => { setCurrencyOpen(v => !v); setCurrencySearch(""); }}
+                  className={INPUT_CLS + " pl-10 pr-4 text-left flex items-center"}
+                  style={{ ...INPUT_STYLE, borderColor: currencyOpen ? "hsl(var(--primary))" : "hsl(var(--border))" }}
+                >
+                  <Globe className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2"
+                    style={{ color: "hsl(var(--muted-foreground))" }} />
+                  {selectedCurr
+                    ? <span className="truncate">{selectedCurr.symbol} {selectedCurr.code} — {selectedCurr.name}</span>
+                    : <span style={{ color: "hsl(var(--muted-foreground))" }}>Select currency</span>}
+                </button>
+
+                {/* Dropdown panel */}
+                {currencyOpen && (
+                  <div className="absolute z-50 left-0 right-0 top-full mt-1 rounded-xl border shadow-xl overflow-hidden"
+                    style={{ background: "hsl(var(--card))", borderColor: "hsl(var(--primary))" }}>
+                    {/* Search bar */}
+                    <div className="p-2 border-b" style={{ borderColor: "hsl(var(--border))" }}>
+                      <div className="relative">
+                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2"
+                          style={{ color: "hsl(var(--muted-foreground))" }} />
+                        <input
+                          autoFocus
+                          value={currencySearch}
+                          onChange={e => setCurrencySearch(e.target.value)}
+                          placeholder="Search currency..."
+                          className="w-full pl-9 pr-9 py-2 text-sm rounded-lg border outline-none"
+                          style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--background))" }}
+                        />
+                        {currencySearch && (
+                          <button type="button" onClick={() => setCurrencySearch("")}
+                            className="absolute right-2 top-1/2 -translate-y-1/2">
+                            <X className="w-3.5 h-3.5" style={{ color: "hsl(var(--muted-foreground))" }} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {/* Currency list */}
+                    <div className="max-h-52 overflow-y-auto">
+                      {(() => {
+                        const q = currencySearch.toLowerCase();
+                        const filtered = q
+                          ? CURRENCIES.filter(c =>
+                              c.code.toLowerCase().includes(q) ||
+                              c.name.toLowerCase().includes(q) ||
+                              c.symbol.toLowerCase().includes(q))
+                          : CURRENCIES;
+                        if (filtered.length === 0)
+                          return <p className="text-center py-4 text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>No currencies found</p>;
+                        return filtered.map(c => (
+                          <button
+                            key={c.code}
+                            type="button"
+                            onClick={() => { setCurrency(c.code); setCurrencyOpen(false); setCurrencySearch(""); }}
+                            className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors"
+                            style={currency === c.code
+                              ? { background: "hsl(var(--primary) / 0.12)", fontWeight: 600 }
+                              : {}}
+                          >
+                            <span className="w-7 text-center font-mono text-xs flex-shrink-0">{c.symbol}</span>
+                            <span className="font-semibold w-10 flex-shrink-0">{c.code}</span>
+                            <span className="text-xs truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{c.name}</span>
+                            {currency === c.code && <Check className="w-3.5 h-3.5 ml-auto flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />}
+                          </button>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                )}
               </div>
               {selectedCurr && (
                 <p className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>

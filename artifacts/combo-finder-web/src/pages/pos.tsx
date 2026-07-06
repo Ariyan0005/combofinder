@@ -98,6 +98,8 @@ export default function Pos() {
           notes: notes || null,
         }),
       });
+      const ct = res.headers.get("content-type") ?? "";
+      if (!ct.includes("application/json")) throw new Error("Server error. Please try again later.");
       const d = await res.json();
       if (!res.ok) throw new Error(d.error ?? "Checkout failed");
       return d;

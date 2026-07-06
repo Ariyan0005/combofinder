@@ -32,6 +32,12 @@ const BASE = "/api/ledger";
 const apiFetch = (url: string, opts?: RequestInit) =>
   fetch(url, { credentials: "include", ...opts });
 
+async function safeJson(r: Response) {
+  const ct = r.headers.get("content-type") ?? "";
+  if (!ct.includes("application/json")) throw new Error("Server error. Please try again later.");
+  return r.json();
+}
+
 const INPUT_CLS = "w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all";
 const INPUT_STYLE = { borderColor: "hsl(var(--border))", background: "hsl(var(--background))" };
 
@@ -81,7 +87,7 @@ export default function Ledger() {
     setLoading(true);
     try {
       const r = await apiFetch(`${BASE}/accounts`);
-      const data = await r.json();
+      const data = await safeJson(r);
       setAccounts(Array.isArray(data) ? data : []);
     } catch {}
     setLoading(false);
@@ -91,7 +97,7 @@ export default function Ledger() {
     setLoadingEntries(true);
     try {
       const r = await apiFetch(`${BASE}/accounts/${accountId}`);
-      const data = await r.json() as Account & { entries: Entry[] };
+      const data = await safeJson(r) as Account & { entries: Entry[] };
       setSelectedAccount(data);
       setEntries(data.entries ?? []);
     } catch {}
@@ -119,7 +125,7 @@ export default function Ledger() {
       const url = accEdit ? `${BASE}/accounts/${accEdit.id}` : `${BASE}/accounts`;
       const method = accEdit ? "PUT" : "POST";
       const r = await apiFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const data = await r.json();
+      const data = await safeJson(r);
       if (!r.ok) throw new Error(data.error ?? "Failed");
       setAccOpen(false);
       await loadAccounts();
@@ -150,7 +156,7 @@ export default function Ledger() {
     const body = { accountId: selectedAccount.id, type: entryType, amount: entryAmount, itemName: entryItemName || undefined, description: entryDesc, reference: entryRef, date: entryDate };
     try {
       const r = await apiFetch(`${BASE}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const data = await r.json();
+      const data = await safeJson(r);
       if (!r.ok) throw new Error(data.error ?? "Failed");
       setEntryOk(true);
       await loadEntries(selectedAccount.id);

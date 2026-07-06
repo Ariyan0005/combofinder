@@ -3,6 +3,7 @@ import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
 // A POS sale (invoice) — one per checkout, may contain multiple line items
 export const salesTable = pgTable("sales", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id"),             // owner; NULL for legacy rows
   invoiceNumber: text("invoice_number").notNull().unique(),
   customerId: integer("customer_id"),
   customerName: text("customer_name"),

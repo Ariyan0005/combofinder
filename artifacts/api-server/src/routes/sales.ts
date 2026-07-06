@@ -38,14 +38,16 @@ function csvField(v: unknown): string {
 // GET /api/sales?from=YYYY-MM-DD&to=YYYY-MM-DD&q=search
 router.get("/", async (req, res) => {
   try {
+    const userId: number | undefined = (req as any).userId;
     const { from, to, q } = req.query as Record<string, string | undefined>;
-    const conditions = [];
-    if (from) conditions.push(gte(salesTable.date, from));
-    if (to) conditions.push(lte(salesTable.date, to));
+    const conditions: ReturnType<typeof eq>[] = [];
+    if (userId) conditions.push(eq(salesTable.userId, userId));
+    if (from) conditions.push(gte(salesTable.date, from) as any);
+    if (to) conditions.push(lte(salesTable.date, to) as any);
 
-    let rows = conditions.length
-      ? await db.select().from(salesTable).where(and(...conditions)).orderBy(desc(salesTable.id))
-      : await db.select().from(salesTable).orderBy(desc(salesTable.id));
+    let rows = await db.select().from(salesTable)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(desc(salesTable.id));
 
     if (q) {
       const needle = q.toLowerCase();
@@ -62,14 +64,16 @@ router.get("/", async (req, res) => {
 // GET /api/sales/export?from=&to=  — CSV, date-wise
 router.get("/export", async (req, res) => {
   try {
+    const userId: number | undefined = (req as any).userId;
     const { from, to } = req.query as Record<string, string | undefined>;
-    const conditions = [];
-    if (from) conditions.push(gte(salesTable.date, from));
-    if (to) conditions.push(lte(salesTable.date, to));
+    const conditions: ReturnType<typeof eq>[] = [];
+    if (userId) conditions.push(eq(salesTable.userId, userId));
+    if (from) conditions.push(gte(salesTable.date, from) as any);
+    if (to) conditions.push(lte(salesTable.date, to) as any);
 
-    const sales = conditions.length
-      ? await db.select().from(salesTable).where(and(...conditions)).orderBy(salesTable.date, salesTable.id)
-      : await db.select().from(salesTable).orderBy(salesTable.date, salesTable.id);
+    const sales = await db.select().from(salesTable)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(salesTable.date, salesTable.id);
 
     const header = ["Invoice", "Date", "Customer", "Phone", "Subtotal", "Discount", "Total", "Payment Method", "Status"];
     const lines = [header.map(csvField).join(",")];
@@ -92,8 +96,12 @@ router.get("/export", async (req, res) => {
 // GET /api/sales/:id  — invoice detail with items + returns
 router.get("/:id", async (req, res) => {
   try {
+    const userId: number | undefined = (req as any).userId;
     const id = Number(req.params.id);
-    const [sale] = await db.select().from(salesTable).where(eq(salesTable.id, id));
+    const whereClause = userId
+      ? and(eq(salesTable.id, id), eq(salesTable.userId, userId))
+      : eq(salesTable.id, id);
+    const [sale] = await db.select().from(salesTable).where(whereClause);
     if (!sale) return res.status(404).json({ error: "Not found" });
     const items = await db.select().from(saleItemsTable).where(eq(saleItemsTable.saleId, id));
     const returns = await db.select().from(saleReturnsTable).where(eq(saleReturnsTable.saleId, id));
@@ -167,7 +175,9 @@ router.post("/", async (req, res) => {
       // Insert with a temporary unique placeholder, then derive the invoice
       // number from the DB-assigned serial id so concurrent checkouts can
       // never collide (invoice_number has a unique constraint as a backstop).
+      const saleUserId: number | undefined = (req as any).userId;
       const [inserted] = await tx.insert(salesTable).values({
+        userId: saleUserId ?? null,
         invoiceNumber: `PENDING-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         customerId, customerName, customerPhone,
         subtotal: String(round2(subtotal)), discount: String(round2(discount)), total: String(total),
