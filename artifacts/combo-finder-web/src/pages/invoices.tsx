@@ -8,6 +8,12 @@ import {
 import { ProtectedPage } from "@/components/protected-page";
 import { generateInvoicePdf, generateSalesReportPdf } from "@/lib/invoice-pdf";
 import { saleToInvoiceData } from "@/pages/pos";
+import { useAuth } from "@/context/auth-context";
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$", EUR: "€", GBP: "£", BDT: "৳", INR: "₹",
+  PKR: "₨", NPR: "रू", LKR: "Rs", AED: "د.إ", SAR: "﷼",
+};
 
 const PRIMARY = "hsl(var(--primary))";
 const MUTED = "hsl(var(--muted-foreground))";
@@ -30,6 +36,8 @@ const STATUS_COLOR: Record<string, { bg: string; color: string }> = {
 
 export default function Invoices() {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -131,7 +139,7 @@ export default function Invoices() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold truncate">{it.partName}</p>
                           <p className="text-xs" style={{ color: MUTED }}>
-                            {it.quantity} × ৳{Number(it.unitPrice).toLocaleString()}
+                            {it.quantity} × {sym}{Number(it.unitPrice).toLocaleString()}
                             {it.returnedQuantity > 0 && <span> · {it.returnedQuantity} returned</span>}
                           </p>
                         </div>
@@ -142,7 +150,7 @@ export default function Invoices() {
                             disabled={eligible === 0}
                             className="w-16 text-xs px-2 py-1.5 rounded-lg border outline-none disabled:opacity-30" style={{ borderColor: BORDER }} />
                         ) : (
-                          <span className="text-sm font-bold">৳{Number(it.total).toLocaleString()}</span>
+                          <span className="text-sm font-bold">{sym}{Number(it.total).toLocaleString()}</span>
                         )}
                       </div>
                     );
@@ -150,11 +158,11 @@ export default function Invoices() {
                 </div>
 
                 <div className="mt-3 pt-3 border-t space-y-1" style={{ borderColor: BORDER }}>
-                  <div className="flex justify-between text-xs"><span style={{ color: MUTED }}>Subtotal</span><span>৳{Number(detail.subtotal).toLocaleString()}</span></div>
+                  <div className="flex justify-between text-xs"><span style={{ color: MUTED }}>Subtotal</span><span>{sym}{Number(detail.subtotal).toLocaleString()}</span></div>
                   {Number(detail.discount) > 0 && (
-                    <div className="flex justify-between text-xs"><span style={{ color: MUTED }}>Discount</span><span>-৳{Number(detail.discount).toLocaleString()}</span></div>
+                    <div className="flex justify-between text-xs"><span style={{ color: MUTED }}>Discount</span><span>-{sym}{Number(detail.discount).toLocaleString()}</span></div>
                   )}
-                  <div className="flex justify-between text-sm font-bold"><span>Total</span><span style={{ color: PRIMARY }}>৳{Number(detail.total).toLocaleString()}</span></div>
+                  <div className="flex justify-between text-sm font-bold"><span>Total</span><span style={{ color: PRIMARY }}>{sym}{Number(detail.total).toLocaleString()}</span></div>
                   <div className="flex justify-between text-xs pt-1"><span style={{ color: MUTED }}>Payment</span><span>{detail.paymentMethod}</span></div>
                 </div>
 
@@ -163,7 +171,7 @@ export default function Invoices() {
                     <p className="text-xs font-bold mb-1.5" style={{ color: MUTED }}>RETURN HISTORY</p>
                     {detail.returns.map((r: any) => (
                       <p key={r.id} className="text-xs" style={{ color: MUTED }}>
-                        {r.date} · {r.quantity} unit(s) · refunded ৳{Number(r.refundAmount).toLocaleString()} {r.reason && `— ${r.reason}`}
+                        {r.date} · {r.quantity} unit(s) · refunded {sym}{Number(r.refundAmount).toLocaleString()} {r.reason && `— ${r.reason}`}
                       </p>
                     ))}
                   </div>
@@ -277,7 +285,7 @@ export default function Invoices() {
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <span className="text-sm font-bold">৳{Number(s.total).toLocaleString()}</span>
+                  <span className="text-sm font-bold">{sym}{Number(s.total).toLocaleString()}</span>
                   <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={STATUS_COLOR[s.status] ?? { bg: "hsl(var(--muted))", color: MUTED }}>
                     {s.status}
                   </span>

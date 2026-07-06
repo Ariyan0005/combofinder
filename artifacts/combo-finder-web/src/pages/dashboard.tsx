@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   Wrench, Users, Package, CheckCircle, Bell, ChevronRight,
-  ShoppingCart, BarChart2, ArrowDownToLine, UserPlus, Wallet,
+  ShoppingCart, BarChart2, ArrowDownToLine, UserPlus, Wallet, Receipt,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/context/auth-context";
@@ -15,12 +15,13 @@ function greeting() {
 }
 
 const QUICK_LINKS = [
-  { label: "New Repair", icon: Wrench,           href: "/repairs",    color: "#6366F1", bg: "#EEF2FF" },
-  { label: "Customers",  icon: Users,             href: "/customers",  color: "#8B5CF6", bg: "#F5F3FF" },
-  { label: "POS",        icon: ShoppingCart,      href: "/pos",        color: "#10B981", bg: "#ECFDF5" },
-  { label: "Stock In",   icon: ArrowDownToLine,   href: "/inventory",  color: "#F59E0B", bg: "#FFF7E6" },
-  { label: "Expenses",   icon: Wallet,            href: "/expenses",   color: "#EF4444", bg: "#FEF2F2" },
-  { label: "Reports",    icon: BarChart2,          href: "/reports",    color: "#3B82F6", bg: "#EFF6FF" },
+  { label: "New Repair",  icon: Wrench,          href: "/repairs",    color: "#6366F1", bg: "#EEF2FF" },
+  { label: "Customers",   icon: Users,            href: "/customers",  color: "#8B5CF6", bg: "#F5F3FF" },
+  { label: "POS",         icon: ShoppingCart,     href: "/pos",        color: "#10B981", bg: "#ECFDF5" },
+  { label: "Stock In",    icon: ArrowDownToLine,  href: "/inventory",  color: "#F59E0B", bg: "#FFF7E6" },
+  { label: "Sell Report", icon: Receipt,          href: "/invoices",   color: "#0EA5E9", bg: "#F0FDFF" },
+  { label: "Expenses",    icon: Wallet,           href: "/expenses",   color: "#EF4444", bg: "#FEF2F2" },
+  { label: "Reports",     icon: BarChart2,        href: "/reports",    color: "#3B82F6", bg: "#EFF6FF" },
 ];
 
 export default function Dashboard() {

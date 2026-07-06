@@ -769,13 +769,16 @@ export default function Inventory() {
 
   const list = Array.isArray(items) ? items : [];
 
-  // Category tabs: "All" + DB categories + fallback part types (must be before activeTab)
+  // Category tabs: "All" + DB categories.
+  // Fallback part-type chips only shown when user has created zero categories.
   const catTabs: { key: string; name: string; id?: number; parentId?: number }[] = [
     { key: "All", name: "All" },
     ...categories.map(c => ({ key: `cat:${c.id}`, name: c.name, id: c.id, parentId: c.parentId ?? undefined })),
-    ...["Display","Battery","IC","Connector","Camera","Speaker","Other"]
-      .filter(t => !categories.some(c => c.name === t) && list.some(i => i.partType === t))
-      .map(t => ({ key: `type:${t}`, name: t })),
+    ...(categories.length === 0
+      ? ["Display","Battery","IC","Connector","Camera","Speaker","Other"]
+          .filter(t => list.some(i => i.partType === t))
+          .map(t => ({ key: `type:${t}`, name: t }))
+      : []),
   ];
 
   const activeTab = catTabs.find(t => t.key === activeCategoryKey) ?? catTabs[0];
@@ -908,10 +911,12 @@ export default function Inventory() {
                   </div>
                   <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                     <span className="text-sm font-black">{qty}</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                      style={isLow ? { background: "#FFF7E6", color: "#D97706" } : { background: "#ECFDF5", color: "#059669" }}>
-                      {isLow ? "Low" : "OK"}
-                    </span>
+                    {isLow && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                        style={{ background: "#FFF7E6", color: "#D97706" }}>
+                        Low
+                      </span>
+                    )}
                     {item.sellingPrice && (
                       <span className="text-[10px] font-semibold" style={{ color: MUTED }}>{sym}{Number(item.sellingPrice).toLocaleString()}</span>
                     )}
