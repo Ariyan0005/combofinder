@@ -768,6 +768,16 @@ export default function Inventory() {
   }, []);
 
   const list = Array.isArray(items) ? items : [];
+
+  // Category tabs: "All" + DB categories + fallback part types (must be before activeTab)
+  const catTabs: { key: string; name: string; id?: number; parentId?: number }[] = [
+    { key: "All", name: "All" },
+    ...categories.map(c => ({ key: `cat:${c.id}`, name: c.name, id: c.id, parentId: c.parentId ?? undefined })),
+    ...["Display","Battery","IC","Connector","Camera","Speaker","Other"]
+      .filter(t => !categories.some(c => c.name === t) && list.some(i => i.partType === t))
+      .map(t => ({ key: `type:${t}`, name: t })),
+  ];
+
   const activeTab = catTabs.find(t => t.key === activeCategoryKey) ?? catTabs[0];
   const filtered = list.filter(item => {
     const matchCat = activeTab.key === "All" ||
@@ -783,15 +793,6 @@ export default function Inventory() {
   });
 
   const lowCount = list.filter(i => i.minStock > 0 && i.quantity <= i.minStock).length;
-
-  // Category tabs: "All" + DB categories + fallback part types
-  const catTabs: { key: string; name: string; id?: number; parentId?: number }[] = [
-    { key: "All", name: "All" },
-    ...categories.map(c => ({ key: `cat:${c.id}`, name: c.name, id: c.id, parentId: c.parentId ?? undefined })),
-    ...["Display","Battery","IC","Connector","Camera","Speaker","Other"]
-      .filter(t => !categories.some(c => c.name === t) && list.some(i => i.partType === t))
-      .map(t => ({ key: `type:${t}`, name: t })),
-  ];
 
   function openItemSheet(item: Item) { setSelectedItem(item); setShowSheet(true); }
   function handleFAB(action: FabAction) {
