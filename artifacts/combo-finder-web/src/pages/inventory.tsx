@@ -37,7 +37,7 @@ type Item = {
   model?: string; brand?: string;
 };
 type Supplier = { id: number; name: string; phone?: string; whatsapp?: string; partTypes?: string; isActive: boolean; };
-type Category = { id: number; name: string; description?: string; color?: string; icon?: string; };
+type Category = { id: number; name: string; description?: string; color?: string; icon?: string; parentId?: number; };
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 const PRIMARY = "hsl(var(--primary))";
@@ -287,17 +287,25 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
   );
 }
 
-// ─── Add Category Modal ───────────────────────────────────────────────────────
-function AddCategoryModal({ onClose }: { onClose: () => void }) {
+// ─── Add / Edit Category Modal ───────────────────────────────────────────────
+function CategoryModal({ onClose, existing, allCategories }: {
+  onClose: () => void;
+  existing?: Category;
+  allCategories?: Category[];
+}) {
   const qc = useQueryClient();
-  const [name, setName] = useState(""); const [desc, setDesc] = useState("");
+  const [name, setName] = useState(existing?.name ?? "");
+  const [desc, setDesc] = useState(existing?.description ?? "");
+  const [parentId, setParentId] = useState(String(existing?.parentId ?? ""));
   const [error, setError] = useState("");
+  const isEdit = !!existing;
   const mut = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/inventory-categories", {
-        method: "POST", credentials: "include",
+      const url = isEdit ? `/api/inventory-categories/${existing!.id}` : "/api/inventory-categories";
+      const res = await fetch(url, {
+        method: isEdit ? "PUT" : "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), description: desc.trim() || null }),
+        body: JSON.stringify({ name: name.trim(), description: desc.trim() || null, parentId: parentId ? Number(parentId) : null }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error ?? "Failed");
@@ -306,14 +314,25 @@ function AddCategoryModal({ onClose }: { onClose: () => void }) {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["inv-categories"] }); onClose(); },
     onError: (e: any) => setError(e.message),
   });
+  const parentOptions = (allCategories ?? []).filter(c => c.id !== existing?.id && !c.parentId);
   return (
-    <ModalShell title="Add Category" onClose={onClose}>
+    <ModalShell title={isEdit ? "Edit Category" : "Add Category"} onClose={onClose}>
       <form onSubmit={e => { e.preventDefault(); if (!name.trim()) { setError("Name required"); return; } mut.mutate(); }}
         className="flex flex-col gap-3">
-        <Field label="Category Name *"><Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Displays" autoFocus /></Field>
-        <Field label="Description"><Input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Optional" /></Field>
+        <Field label="Category Name *">
+          <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Displays" autoFocus />
+        </Field>
+        <Field label="Sub-category of (optional)">
+          <Select value={parentId} onChange={e => setParentId(e.target.value)}>
+            <option value="">— Top Level —</option>
+            {parentOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </Select>
+        </Field>
+        <Field label="Description">
+          <Input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Optional" />
+        </Field>
         {error && <p className="text-xs" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
-        <SubmitBtn pending={mut.isPending} label="Add Category" />
+        <SubmitBtn pending={mut.isPending} label={isEdit ? "Save Changes" : "Add Category"} />
       </form>
     </ModalShell>
   );
@@ -586,10 +605,10 @@ function SellModal({ onClose, item: initialItem, allItems }: { onClose: () => vo
 }
 
 // ─── Item Detail Sheet ────────────────────────────────────────────────────────
-function ItemSheet({ item, suppliers, onClose, onEdit, onStockIn, onSell, onDelete }: {
+function ItemSheet({ item, suppliers, onClose, onEdit, onStockIn, onDelete }: {
   item: Item; suppliers: Supplier[];
   onClose: () => void; onEdit: () => void; onStockIn: () => void;
-  onSell: () => void; onDelete: () => void;
+  onDelete: () => void;
 }) {
   const { user } = useAuth();
   const sym = CURRENCY_SYMBOLS[user?.currency ?? "BDT"] ?? "৳";
@@ -623,17 +642,13 @@ function ItemSheet({ item, suppliers, onClose, onEdit, onStockIn, onSell, onDele
         </div>
 
         {/* Quick actions */}
-        <div className="grid grid-cols-2 gap-3 px-5 mb-4">
+        <div className="flex gap-3 px-5 mb-4">
           <button onClick={onStockIn}
-            className="flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm"
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm"
             style={{ background: PRIMARY, color: "#fff" }}>
             <ArrowDownToLine className="w-4 h-4" /> Stock In
           </button>
-          <button onClick={onSell} disabled={qty === 0}
-            className="flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm disabled:opacity-40"
-            style={{ border: `2px solid ${PRIMARY}`, color: PRIMARY }}>
-            <ShoppingCart className="w-4 h-4" /> Sell
-          </button>
+          <a href="/pos" style={{ flex: 1 }}><button type="button" className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm" style={{ border: `2px solid ${PRIMARY}`, color: PRIMARY }}><ShoppingCart className="w-4 h-4" /> POS</button></a>
         </div>
 
         {/* Info grid */}
@@ -671,13 +686,12 @@ function ItemSheet({ item, suppliers, onClose, onEdit, onStockIn, onSell, onDele
 }
 
 // ─── FAB Menu ─────────────────────────────────────────────────────────────────
-type FabAction = "add-product" | "add-category" | "add-supplier" | "stock-in" | "sell";
+type FabAction = "add-product" | "add-category" | "add-supplier" | "stock-in";
 const FAB_ITEMS: { action: FabAction; label: string; icon: React.ReactNode; color: string }[] = [
   { action: "add-product",  label: "Add Product",  icon: <Package className="w-4 h-4" />,       color: "#6366F1" },
   { action: "add-category", label: "Add Category", icon: <Tag className="w-4 h-4" />,            color: "#8B5CF6" },
   { action: "add-supplier", label: "Add Supplier", icon: <Truck className="w-4 h-4" />,          color: "#0EA5E9" },
   { action: "stock-in",     label: "Stock In",     icon: <ArrowDownToLine className="w-4 h-4" />, color: "#10B981" },
-  { action: "sell",         label: "Record Sale",  icon: <ShoppingCart className="w-4 h-4" />,   color: "#F59E0B" },
 ];
 
 function FABMenu({ onAction }: { onAction: (a: FabAction) => void }) {
@@ -706,7 +720,7 @@ function FABMenu({ onAction }: { onAction: (a: FabAction) => void }) {
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-type Modal = "add-product" | "add-category" | "add-supplier" | "stock-in" | "sell" | "scanner" | null;
+type Modal = "add-product" | "add-category" | "add-supplier" | "stock-in" | "scanner" | "edit-category" | null;
 
 export default function Inventory() {
   const { user } = useAuth();
@@ -716,6 +730,7 @@ export default function Inventory() {
   const [searchQ, setSearchQ] = useState("");
   const [selectedItem, setSelectedItem] = useState<Item | undefined>();
   const [showSheet, setShowSheet] = useState(false);
+  const [editCategory, setEditCategory] = useState<Category | undefined>();
   const qc = useQueryClient();
 
   const { data: items = [], isLoading } = useQuery<Item[]>({
@@ -754,7 +769,8 @@ export default function Inventory() {
 
   const list = Array.isArray(items) ? items : [];
   const filtered = list.filter(item => {
-    const matchCat = activeCategory === "All" || item.partType === activeCategory ||
+    const matchCat = activeCategory === "All" ||
+      item.partType === activeCategory ||
       categories.find(c => c.id === item.categoryId)?.name === activeCategory;
     const q = searchQ.toLowerCase();
     const matchSearch = !q ||
@@ -768,14 +784,17 @@ export default function Inventory() {
   const lowCount = list.filter(i => i.minStock > 0 && i.quantity <= i.minStock).length;
 
   // Category tabs: "All" + DB categories + fallback part types
-  const catTabs = ["All", ...categories.map(c => c.name),
-    ...["Display","Battery","IC","Connector","Camera","Speaker","Other"].filter(
-      t => !categories.some(c => c.name === t) && list.some(i => i.partType === t)
-    )];
+  const catTabs: { name: string; id?: number; parentId?: number }[] = [
+    { name: "All" },
+    ...categories.map(c => ({ name: c.name, id: c.id, parentId: c.parentId ?? undefined })),
+    ...["Display","Battery","IC","Connector","Camera","Speaker","Other"]
+      .filter(t => !categories.some(c => c.name === t) && list.some(i => i.partType === t))
+      .map(t => ({ name: t })),
+  ];
 
   function openItemSheet(item: Item) { setSelectedItem(item); setShowSheet(true); }
   function handleFAB(action: FabAction) {
-    if (action === "stock-in" || action === "sell") { setSelectedItem(undefined); }
+    if (action === "stock-in") { setSelectedItem(undefined); }
     setModal(action);
   }
 
@@ -829,16 +848,25 @@ export default function Inventory() {
           </button>
         </div>
 
-        {/* Category filter chips */}
-        <div className="flex gap-2 overflow-x-auto hide-scrollbar">
-          {catTabs.map(t => (
-            <button key={t} onClick={() => setActiveCategory(t)}
-              className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
-              style={t === activeCategory
-                ? { background: PRIMARY, color: "#fff" }
-                : { background: CARD, color: MUTED, border: `1px solid ${BORDER}` }}>
-              {t}
-            </button>
+        {/* Category filter chips with edit buttons */}
+        <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+          {catTabs.map(tab => (
+            <div key={tab.name} className="flex-shrink-0 flex items-center gap-0.5">
+              <button onClick={() => setActiveCategory(tab.name)}
+                className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+                style={tab.name === activeCategory
+                  ? { background: PRIMARY, color: "#fff" }
+                  : { background: CARD, color: MUTED, border: `1px solid ${BORDER}` }}>
+                {tab.parentId ? "↳ " : ""}{tab.name}
+              </button>
+              {tab.id && (
+                <button onClick={() => { const cat = categories.find(c => c.id === tab.id); setEditCategory(cat); setModal("edit-category" as any); }}
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[9px]"
+                  style={{ color: MUTED, background: "hsl(var(--muted))" }} title="Edit category">
+                  ✎
+                </button>
+              )}
+            </div>
           ))}
         </div>
 
@@ -905,8 +933,11 @@ export default function Inventory() {
           onClose={() => { setModal(null); setSelectedItem(undefined); }} />
       )}
 
-      {/* Add category */}
-      {modal === "add-category" && <AddCategoryModal onClose={() => setModal(null)} />}
+      {/* Add / Edit category */}
+      {(modal === "add-category" || modal === "edit-category") && (
+        <CategoryModal existing={modal === "edit-category" ? editCategory : undefined} allCategories={categories}
+          onClose={() => { setModal(null); setEditCategory(undefined); }} />
+      )}
 
       {/* Add supplier */}
       {modal === "add-supplier" && <AddSupplierModal onClose={() => setModal(null)} />}
@@ -917,11 +948,6 @@ export default function Inventory() {
           onClose={() => { setModal(null); setSelectedItem(undefined); }} />
       )}
 
-      {/* Sell / POS */}
-      {modal === "sell" && (
-        <SellModal item={selectedItem} allItems={list}
-          onClose={() => { setModal(null); setSelectedItem(undefined); }} />
-      )}
 
       {/* Item detail sheet */}
       {showSheet && selectedItem && (
@@ -929,7 +955,6 @@ export default function Inventory() {
           onClose={() => { setShowSheet(false); setSelectedItem(undefined); }}
           onEdit={() => { setShowSheet(false); setModal("add-product"); }}
           onStockIn={() => { setShowSheet(false); setModal("stock-in"); }}
-          onSell={() => { setShowSheet(false); setModal("sell"); }}
           onDelete={() => { if (confirm(`Delete "${selectedItem.partName}"?`)) deleteMut.mutate(selectedItem.id); }} />
       )}
     </ProtectedPage>

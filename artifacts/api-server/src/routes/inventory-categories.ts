@@ -1,34 +1,70 @@
 import { Router } from "express";
 import { db, inventoryCategoriesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 
 const router = Router();
 
+// GET /api/inventory-categories — return user's categories (with children nested)
 router.get("/", async (req, res) => {
   try {
-    const rows = await db.select().from(inventoryCategoriesTable).orderBy(inventoryCategoriesTable.name);
+    const userId: number | undefined = (req as any).userId;
+    const filter = userId ? eq(inventoryCategoriesTable.userId, userId) : isNull(inventoryCategoriesTable.userId);
+    const rows = await db.select().from(inventoryCategoriesTable)
+      .where(filter)
+      .orderBy(inventoryCategoriesTable.name);
     res.json(rows);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed" }); }
 });
 
+// POST /api/inventory-categories — create category (with optional parentId)
 router.post("/", async (req, res) => {
   try {
-    const [row] = await db.insert(inventoryCategoriesTable).values(req.body).returning();
+    const userId: number | undefined = (req as any).userId;
+    const { name, description, icon, color, parentId } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: "Name is required" });
+
+    const [row] = await db.insert(inventoryCategoriesTable).values({
+      userId: userId ?? null,
+      parentId: parentId ? Number(parentId) : null,
+      name: String(name).trim(),
+      description: description ? String(description).trim() : null,
+      icon: icon ? String(icon) : null,
+      color: color ? String(color) : null,
+    }).returning();
     res.status(201).json(row);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to create" }); }
 });
 
+// PUT /api/inventory-categories/:id — edit category
 router.put("/:id", async (req, res) => {
   try {
-    const [row] = await db.update(inventoryCategoriesTable).set(req.body).where(eq(inventoryCategoriesTable.id, Number(req.params.id))).returning();
+    const userId: number | undefined = (req as any).userId;
+    const { name, description, icon, color, parentId } = req.body;
+    const filter = userId
+      ? and(eq(inventoryCategoriesTable.id, Number(req.params.id)), eq(inventoryCategoriesTable.userId, userId))
+      : eq(inventoryCategoriesTable.id, Number(req.params.id));
+
+    const updateData: Record<string, any> = {};
+    if (name !== undefined) updateData.name = String(name).trim();
+    if (description !== undefined) updateData.description = description ? String(description).trim() : null;
+    if (icon !== undefined) updateData.icon = icon ? String(icon) : null;
+    if (color !== undefined) updateData.color = color ? String(color) : null;
+    if (parentId !== undefined) updateData.parentId = parentId ? Number(parentId) : null;
+
+    const [row] = await db.update(inventoryCategoriesTable).set(updateData).where(filter).returning();
     if (!row) return res.status(404).json({ error: "Not found" });
     res.json(row);
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed" }); }
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to update" }); }
 });
 
+// DELETE /api/inventory-categories/:id
 router.delete("/:id", async (req, res) => {
   try {
-    await db.delete(inventoryCategoriesTable).where(eq(inventoryCategoriesTable.id, Number(req.params.id)));
+    const userId: number | undefined = (req as any).userId;
+    const filter = userId
+      ? and(eq(inventoryCategoriesTable.id, Number(req.params.id)), eq(inventoryCategoriesTable.userId, userId))
+      : eq(inventoryCategoriesTable.id, Number(req.params.id));
+    await db.delete(inventoryCategoriesTable).where(filter);
     res.json({ success: true });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to delete" }); }
 });

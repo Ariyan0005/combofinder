@@ -1,8 +1,10 @@
-import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
 
 export const inventoryCategoriesTable = pgTable("inventory_categories", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),
+  userId: integer("user_id"),
+  parentId: integer("parent_id"),
+  name: text("name").notNull(),
   description: text("description"),
   icon: text("icon"),
   color: text("color"),

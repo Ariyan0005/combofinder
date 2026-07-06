@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { Wrench, Users, Package, CheckCircle, Bell, ChevronRight } from "lucide-react";
-import { Link } from "wouter";
+import {
+  Wrench, Users, Package, CheckCircle, Bell, ChevronRight,
+  ShoppingCart, BarChart2, ArrowDownToLine, UserPlus, Wallet,
+} from "lucide-react";
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
-
 
 function greeting() {
   const h = new Date().getHours();
@@ -12,15 +14,18 @@ function greeting() {
   return "Good Evening";
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  Waiting: "#F59E0B",
-  Repairing: "hsl(var(--primary))",
-  Ready: "#10B981",
-  Delivered: "#6B7280",
-};
+const QUICK_LINKS = [
+  { label: "New Repair", icon: Wrench,           href: "/repairs",    color: "#6366F1", bg: "#EEF2FF" },
+  { label: "Customers",  icon: Users,             href: "/customers",  color: "#8B5CF6", bg: "#F5F3FF" },
+  { label: "POS",        icon: ShoppingCart,      href: "/pos",        color: "#10B981", bg: "#ECFDF5" },
+  { label: "Stock In",   icon: ArrowDownToLine,   href: "/inventory",  color: "#F59E0B", bg: "#FFF7E6" },
+  { label: "Expenses",   icon: Wallet,            href: "/expenses",   color: "#EF4444", bg: "#FEF2F2" },
+  { label: "Reports",    icon: BarChart2,          href: "/reports",    color: "#3B82F6", bg: "#EFF6FF" },
+];
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
 
   const { data: stats } = useQuery<{
     totalCustomers?: number;
@@ -36,7 +41,6 @@ export default function Dashboard() {
     queryFn: () => fetch(`/api/repairs`, { credentials: "include" }).then(r => r.json()),
   });
 
-  const recentRepairs = Array.isArray(repairs) ? repairs.slice(0, 5) : [];
   const totalRepairs = Array.isArray(repairs) ? repairs.length : 0;
   const deliveredToday = Array.isArray(repairs)
     ? repairs.filter(r => r.status === "Delivered" &&
@@ -62,25 +66,27 @@ export default function Dashboard() {
         {/* Stat cards grid */}
         <div className="grid grid-cols-2 gap-3">
           {[
-            { label: "Total Repairs", value: totalRepairs, icon: Wrench, color: "hsl(var(--primary))", bg: "hsl(var(--primary) / 0.1)" },
-            { label: "Active Repairs", value: stats?.activeRepairs ?? 0, icon: Wrench, color: "#F59E0B", bg: "#FFF7E6" },
-            { label: "Delivered Today", value: deliveredToday, icon: CheckCircle, color: "#10B981", bg: "#ECFDF5" },
-            { label: "Customers", value: stats?.totalCustomers ?? 0, icon: Users, color: "#8B5CF6", bg: "#F5F3FF" },
-          ].map(({ label, value, icon: Icon, color, bg }) => (
-            <div key={label} className="bg-card rounded-2xl p-4 border border-border flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: bg }}>
-                <Icon className="w-5 h-5" style={{ color }} />
+            { label: "Total Repairs",   value: totalRepairs,              icon: Wrench,       color: "hsl(var(--primary))", bg: "hsl(var(--primary) / 0.1)", href: "/repairs" },
+            { label: "Active Repairs",  value: stats?.activeRepairs ?? 0, icon: Wrench,       color: "#F59E0B",             bg: "#FFF7E6",                     href: "/repairs" },
+            { label: "Delivered Today", value: deliveredToday,            icon: CheckCircle,  color: "#10B981",             bg: "#ECFDF5",                     href: "/repairs" },
+            { label: "Customers",       value: stats?.totalCustomers ?? 0,icon: Users,        color: "#8B5CF6",             bg: "#F5F3FF",                     href: "/customers" },
+          ].map(({ label, value, icon: Icon, color, bg, href }) => (
+            <Link key={label} href={href}>
+              <div className="bg-card rounded-2xl p-4 border border-border flex items-start gap-3 cursor-pointer hover:shadow-sm transition-shadow">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: bg }}>
+                  <Icon className="w-5 h-5" style={{ color }} />
+                </div>
+                <div>
+                  <p className="text-xs font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>{label}</p>
+                  <p className="text-2xl font-extrabold mt-0.5">{value}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>{label}</p>
-                <p className="text-2xl font-extrabold mt-0.5">{value}</p>
-              </div>
-            </div>
+            </Link>
           ))}
         </div>
 
-        {/* Low stock alert */}
+        {/* Low stock alert — only shows if there are real low-stock items */}
         {(stats?.lowStock ?? 0) > 0 && (
           <Link href="/inventory">
             <div className="flex items-center gap-3 p-4 rounded-2xl cursor-pointer"
@@ -94,47 +100,22 @@ export default function Dashboard() {
           </Link>
         )}
 
-        {/* Recent repairs */}
+        {/* Quick Links */}
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-base">Recent Repairs</h2>
-            <Link href="/repairs">
-              <span className="text-sm font-semibold" style={{ color: "hsl(var(--primary))" }}>View All</span>
-            </Link>
-          </div>
-
-          {recentRepairs.length === 0 ? (
-            <div className="bg-card rounded-2xl border border-border p-8 text-center">
-              <Wrench className="w-8 h-8 mx-auto mb-2" style={{ color: "hsl(var(--muted-foreground))" }} />
-              <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>No repairs yet</p>
-            </div>
-          ) : (
-            <div className="bg-card rounded-2xl border border-border divide-y divide-border overflow-hidden">
-              {recentRepairs.map((r) => (
-                <Link key={r.id} href="/repairs">
-                  <div className="flex items-center gap-3 p-4 hover:bg-muted/30 transition-colors cursor-pointer">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: "hsl(var(--muted))" }}>
-                      <Wrench className="w-5 h-5" style={{ color: "hsl(var(--muted-foreground))" }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{[r.phoneBrand, r.phoneModel].filter(Boolean).join(" ") || "Device"}</p>
-                      <p className="text-xs truncate" style={{ color: "hsl(var(--muted-foreground))" }}>
-                        {r.problem ?? "–"}
-                      </p>
-                    </div>
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0"
-                      style={{
-                        background: `${STATUS_COLOR[r.status] ?? "#9CA3AF"}20`,
-                        color: STATUS_COLOR[r.status] ?? "#9CA3AF",
-                      }}>
-                      {r.status}
-                    </span>
+          <h2 className="font-bold text-base mb-3">Quick Actions</h2>
+          <div className="grid grid-cols-3 gap-2.5">
+            {QUICK_LINKS.map(({ label, icon: Icon, href, color, bg }) => (
+              <Link key={href + label} href={href}>
+                <button className="w-full flex flex-col items-center gap-2 p-3.5 rounded-2xl border border-border bg-card hover:shadow-sm transition-shadow">
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: bg }}>
+                    <Icon className="w-5 h-5" style={{ color }} />
                   </div>
-                </Link>
-              ))}
-            </div>
-          )}
+                  <span className="text-[11px] font-semibold text-center leading-tight"
+                    style={{ color: "hsl(var(--foreground))" }}>{label}</span>
+                </button>
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
     </ProtectedPage>
