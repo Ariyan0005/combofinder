@@ -602,8 +602,8 @@ function ItemSheet({ item, suppliers, onClose, onEdit, onStockIn, onSell, onDele
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
-        style={{ background: CARD }}>
+      <div className="relative w-full max-w-md rounded-t-3xl shadow-2xl overflow-y-auto"
+        style={{ background: CARD, maxHeight: "calc(85vh - env(safe-area-inset-bottom, 0px))", WebkitOverflowScrolling: "touch" as any, touchAction: "pan-y" }}>
         {/* Header */}
         <div className="flex items-start justify-between px-5 pt-5 pb-3">
           <div>
@@ -655,7 +655,7 @@ function ItemSheet({ item, suppliers, onClose, onEdit, onStockIn, onSell, onDele
         </div>
 
         {/* Edit / Delete */}
-        <div className="flex gap-3 px-5 pb-6">
+        <div className="flex gap-3 px-5 pb-24">
           <button onClick={onEdit} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold"
             style={{ background: "hsl(var(--muted))" }}>
             <Edit3 className="w-4 h-4" /> Edit
