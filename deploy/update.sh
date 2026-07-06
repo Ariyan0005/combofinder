@@ -20,8 +20,9 @@ echo "=== [2/6] Install dependencies ==="
 pnpm install
 
 echo "=== [3/6] DB migration (new tables) ==="
-SUPABASE_DATABASE_URL="postgresql://postgres:AriyancomBD100@db.rueghpjcjoocorejovtz.supabase.co:5432/postgres" \
-  pnpm --filter @workspace/db run migrate || echo "⚠ DB migration failed — skipping, app will still run"
+# Load DB URL from .env — drizzle-kit did this automatically, we do it explicitly
+set -a && [ -f /var/www/combofinder/.env ] && source /var/www/combofinder/.env && set +a
+pnpm --filter @workspace/db run migrate || echo "⚠ DB migration failed — skipping, app will still run"
 
 echo "=== [4/6] Build API server ==="
 pnpm --filter @workspace/api-server run build
