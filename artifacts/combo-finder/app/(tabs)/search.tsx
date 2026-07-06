@@ -59,7 +59,6 @@ function StatPill({
   value: number | undefined;
   icon: string;
 }) {
-  const colors = useColors();
   return (
     <View style={[styles.statPill, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
       <Feather name={icon as any} size={14} color="rgba(255,255,255,0.9)" />
