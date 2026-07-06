@@ -726,7 +726,7 @@ export default function Inventory() {
   const { user } = useAuth();
   const sym = CURRENCY_SYMBOLS[user?.currency ?? "BDT"] ?? "৳";
   const [modal, setModal] = useState<Modal>(null);
-  const [activeCategory, setActiveCategory] = useState("All");
+  const [activeCategoryKey, setActiveCategoryKey] = useState("All");
   const [searchQ, setSearchQ] = useState("");
   const [selectedItem, setSelectedItem] = useState<Item | undefined>();
   const [showSheet, setShowSheet] = useState(false);
@@ -768,10 +768,11 @@ export default function Inventory() {
   }, []);
 
   const list = Array.isArray(items) ? items : [];
+  const activeTab = catTabs.find(t => t.key === activeCategoryKey) ?? catTabs[0];
   const filtered = list.filter(item => {
-    const matchCat = activeCategory === "All" ||
-      item.partType === activeCategory ||
-      categories.find(c => c.id === item.categoryId)?.name === activeCategory;
+    const matchCat = activeTab.key === "All" ||
+      (activeTab.id != null && item.categoryId === activeTab.id) ||
+      (activeTab.id == null && item.partType === activeTab.name);
     const q = searchQ.toLowerCase();
     const matchSearch = !q ||
       (item.partName ?? "").toLowerCase().includes(q) ||
@@ -784,12 +785,12 @@ export default function Inventory() {
   const lowCount = list.filter(i => i.minStock > 0 && i.quantity <= i.minStock).length;
 
   // Category tabs: "All" + DB categories + fallback part types
-  const catTabs: { name: string; id?: number; parentId?: number }[] = [
-    { name: "All" },
-    ...categories.map(c => ({ name: c.name, id: c.id, parentId: c.parentId ?? undefined })),
+  const catTabs: { key: string; name: string; id?: number; parentId?: number }[] = [
+    { key: "All", name: "All" },
+    ...categories.map(c => ({ key: `cat:${c.id}`, name: c.name, id: c.id, parentId: c.parentId ?? undefined })),
     ...["Display","Battery","IC","Connector","Camera","Speaker","Other"]
       .filter(t => !categories.some(c => c.name === t) && list.some(i => i.partType === t))
-      .map(t => ({ name: t })),
+      .map(t => ({ key: `type:${t}`, name: t })),
   ];
 
   function openItemSheet(item: Item) { setSelectedItem(item); setShowSheet(true); }
@@ -851,10 +852,10 @@ export default function Inventory() {
         {/* Category filter chips with edit buttons */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
           {catTabs.map(tab => (
-            <div key={tab.name} className="flex-shrink-0 flex items-center gap-0.5">
-              <button onClick={() => setActiveCategory(tab.name)}
+            <div key={tab.key} className="flex-shrink-0 flex items-center gap-0.5">
+              <button onClick={() => setActiveCategoryKey(tab.key)}
                 className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
-                style={tab.name === activeCategory
+                style={tab.key === activeCategoryKey
                   ? { background: PRIMARY, color: "#fff" }
                   : { background: CARD, color: MUTED, border: `1px solid ${BORDER}` }}>
                 {tab.parentId ? "↳ " : ""}{tab.name}

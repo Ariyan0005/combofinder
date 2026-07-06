@@ -61,7 +61,7 @@ router.use(requireAuth);
 router.use(brandsRouter);
 router.use(modelsRouter);
 router.use(combosRouter);
-router.use(statsRouter);
+router.use(requireUserAuth, statsRouter);
 router.use(monthlyStatsRouter);
 router.use(searchRouter);
 router.use("/parts", partsRouter);

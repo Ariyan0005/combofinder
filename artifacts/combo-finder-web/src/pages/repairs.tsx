@@ -329,7 +329,7 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
 
       // Deduct parts from inventory (only on new repair creation)
       if (!existing && parts.length > 0) {
-        await Promise.allSettled(parts.map(p =>
+        const results = await Promise.allSettled(parts.map(p =>
           fetch("/api/stock-movements", {
             method: "POST", credentials: "include",
             headers: { "Content-Type": "application/json" },
@@ -340,9 +340,13 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
               unitPrice: p.unitPrice || null,
               notes: `Used in repair #${saved.id}`,
             }),
-          })
+          }).then(r => r.ok ? r.json() : r.json().then(d => { throw new Error(d.error ?? "Failed"); }))
         ));
         qc.invalidateQueries({ queryKey: ["inventory"] });
+        const failed = results.filter(r => r.status === "rejected");
+        if (failed.length > 0) {
+          console.warn(`${failed.length} part(s) could not be deducted from inventory (may be insufficient stock)`);
+        }
       }
       return saved;
     },
