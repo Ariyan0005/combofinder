@@ -13,6 +13,7 @@ export const salesTable = pgTable("sales", {
   total: text("total").notNull(),
   paymentMethod: text("payment_method").default("Cash").notNull(), // Cash | Card | Mobile Banking | Other
   status: text("status").default("Completed").notNull(), // Completed | Returned | Partially Returned
+  advancePaid: text("advance_paid").default("0"), // Partial payment collected upfront for Credit sales
   notes: text("notes"),
   date: text("date").notNull(), // YYYY-MM-DD for easy date-wise filtering/export
   createdAt: timestamp("created_at").defaultNow().notNull(),

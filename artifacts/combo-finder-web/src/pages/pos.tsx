@@ -199,6 +199,7 @@ export default function Pos() {
   const [cart,            setCart]            = useState<CartLine[]>([]);
   const [discount,        setDiscount]        = useState("0");
   const [paymentMethod,   setPaymentMethod]   = useState("Cash");
+  const [advancePay,      setAdvancePay]      = useState("0");
   const [customerMode,    setCustomerMode]    = useState<CustomerMode>("cash");
   const [customerName,    setCustomerName]    = useState("Cash Customer");
   const [customerPhone,   setCustomerPhone]   = useState("");
@@ -261,9 +262,11 @@ export default function Pos() {
     setCart(prev => prev.filter(l => l.item.id !== id));
   }
 
-  const subtotal   = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
-  const discountNum = Number(discount) || 0;
-  const total      = Math.max(0, subtotal - discountNum);
+  const subtotal      = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
+  const discountNum   = Number(discount) || 0;
+  const total         = Math.max(0, subtotal - discountNum);
+  const advancePayNum = paymentMethod === "Credit" ? Math.min(Number(advancePay) || 0, total) : 0;
+  const amountDue     = paymentMethod === "Credit" ? Math.max(0, total - advancePayNum) : 0;
 
   // Effective customer name sent to API
   const effectiveCustomerName = customerMode === "cash" ? "Cash Customer" : (customerName || null);
@@ -278,6 +281,7 @@ export default function Pos() {
         body: JSON.stringify({
           items: cart.map(l => ({ inventoryId: l.item.id, quantity: l.quantity, unitPrice: l.unitPrice })),
           discount: discountNum, paymentMethod,
+          advancePaid: advancePayNum,
           customerName: effectiveCustomerName,
           customerPhone: effectiveCustomerPhone,
           notes: notes || null,
@@ -293,7 +297,7 @@ export default function Pos() {
       qc.invalidateQueries({ queryKey: ["inventory"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
       setCompletedInvoice(sale);
-      setCart([]); setDiscount("0");
+      setCart([]); setDiscount("0"); setAdvancePay("0");
       setCustomerMode("cash"); setCustomerName("Cash Customer"); setCustomerPhone(""); setNotes("");
     },
     onError: (e: any) => setError(e.message),
@@ -417,33 +421,43 @@ export default function Pos() {
           {cart.length === 0 ? (
             <p className="text-xs text-center py-4" style={{ color: MUTED }}>Add products above to start a sale</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1">
               {cart.map(l => (
-                <div key={l.item.id} className="flex items-center gap-2 py-2 border-b last:border-0" style={{ borderColor: BORDER }}>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold truncate">{l.item.partName}</p>
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="text-[10px]" style={{ color: MUTED }}>{sym}</span>
+                <div key={l.item.id} className="py-3 border-b last:border-0 space-y-2" style={{ borderColor: BORDER }}>
+                  {/* Row 1: name + remove */}
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold truncate flex-1">{l.item.partName}</p>
+                    <button onClick={() => removeLine(l.item.id)} style={{ color: "hsl(var(--destructive))" }}>
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {/* Row 2: price × qty = total */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 flex-1">
+                      <span className="text-xs font-medium" style={{ color: MUTED }}>{sym}</span>
                       <input type="number" min="0" value={l.unitPrice}
                         onChange={e => changePrice(l.item.id, e.target.value)}
-                        className="w-16 text-xs px-1.5 py-0.5 rounded border outline-none" style={{ borderColor: BORDER }} />
-                      <span className="text-[10px]" style={{ color: MUTED }}>each</span>
+                        className="w-20 text-sm font-semibold px-2 py-1.5 rounded-lg border outline-none"
+                        style={{ borderColor: BORDER }} />
+                      <span className="text-xs" style={{ color: MUTED }}>×</span>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => changeQty(l.item.id, -1)}
+                        className="w-7 h-7 rounded-full flex items-center justify-center border"
+                        style={{ borderColor: BORDER }}>
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-base font-bold w-6 text-center">{l.quantity}</span>
+                      <button onClick={() => changeQty(l.item.id, 1)} disabled={l.quantity >= l.item.quantity}
+                        className="w-7 h-7 rounded-full flex items-center justify-center border disabled:opacity-30"
+                        style={{ borderColor: BORDER }}>
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <span className="text-sm font-bold min-w-[56px] text-right" style={{ color: PRIMARY }}>
+                      {sym}{(l.unitPrice * l.quantity).toLocaleString()}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <button onClick={() => changeQty(l.item.id, -1)} className="w-6 h-6 rounded-full flex items-center justify-center border" style={{ borderColor: BORDER }}>
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <span className="text-xs font-bold w-5 text-center">{l.quantity}</span>
-                    <button onClick={() => changeQty(l.item.id, 1)} disabled={l.quantity >= l.item.quantity}
-                      className="w-6 h-6 rounded-full flex items-center justify-center border disabled:opacity-30" style={{ borderColor: BORDER }}>
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                  <span className="text-xs font-bold w-14 text-right">{sym}{(l.unitPrice * l.quantity).toLocaleString()}</span>
-                  <button onClick={() => removeLine(l.item.id)} style={{ color: "hsl(var(--destructive))" }}>
-                    <X className="w-3.5 h-3.5" />
-                  </button>
                 </div>
               ))}
             </div>
@@ -498,11 +512,38 @@ export default function Pos() {
               </div>
 
               {paymentMethod === "Credit" && (
-                <div className="flex items-center gap-2 p-3 rounded-xl"
-                  style={{ background: "#FFF7E6", border: "1px solid #F59E0B40" }}>
-                  <span className="text-xs font-semibold" style={{ color: "#D97706" }}>
-                    ⚠ Credit Sale — customer will pay later. Amount due: {sym}{total.toLocaleString()}
-                  </span>
+                <div className="space-y-3 p-3 rounded-xl"
+                  style={{ background: "#FFF7E6", border: "1px solid #F59E0B60" }}>
+                  <p className="text-xs font-bold" style={{ color: "#D97706" }}>⚠ Credit Sale</p>
+                  {/* Advance / partial payment input */}
+                  <div>
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: "#92400E" }}>
+                      Advance Payment ({sym}) — optional
+                    </label>
+                    <input
+                      type="number" min="0" max={total} value={advancePay}
+                      onChange={e => setAdvancePay(e.target.value)}
+                      placeholder="0"
+                      className="w-full px-3 py-2 rounded-lg border text-sm font-semibold outline-none"
+                      style={{ borderColor: "#F59E0B", background: "#fff" }}
+                    />
+                  </div>
+                  {/* Advance paid row */}
+                  {advancePayNum > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold" style={{ color: "#92400E" }}>Advance Collected</span>
+                      <span className="text-sm font-bold" style={{ color: "#059669" }}>
+                        {sym}{advancePayNum.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  {/* Amount due */}
+                  <div className="flex items-center justify-between border-t pt-2" style={{ borderColor: "#F59E0B60" }}>
+                    <span className="text-sm font-bold" style={{ color: "#D97706" }}>Amount Due (বাকি)</span>
+                    <span className="text-lg font-black" style={{ color: "#DC2626" }}>
+                      {sym}{amountDue.toLocaleString()}
+                    </span>
+                  </div>
                 </div>
               )}
 

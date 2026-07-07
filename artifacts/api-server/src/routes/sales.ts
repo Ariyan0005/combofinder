@@ -140,6 +140,7 @@ router.post("/", async (req, res) => {
     const customerName = req.body.customerName ? String(req.body.customerName).slice(0, 200) : null;
     const customerPhone = req.body.customerPhone ? String(req.body.customerPhone).slice(0, 50) : null;
     const notes = req.body.notes ? String(req.body.notes).slice(0, 500) : null;
+    const advancePaid = req.body.advancePaid !== undefined ? round2(Math.max(0, Number(req.body.advancePaid) || 0)) : 0;
 
     const result = await db.transaction(async (tx) => {
       let subtotal = 0;
@@ -179,11 +180,14 @@ router.post("/", async (req, res) => {
       // number from the DB-assigned serial id so concurrent checkouts can
       // never collide (invoice_number has a unique constraint as a backstop).
       const saleUserId: number = (req as any).userId;
+      const effectiveAdvance = paymentMethod === "Credit" ? Math.min(advancePaid, total) : total;
+
       const [inserted] = await tx.insert(salesTable).values({
         userId: saleUserId,
         invoiceNumber: `PENDING-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         customerId, customerName, customerPhone,
         subtotal: String(round2(subtotal)), discount: String(round2(discount)), total: String(total),
+        advancePaid: String(round2(effectiveAdvance)),
         paymentMethod, status: "Completed", notes, date,
       }).returning();
 
@@ -200,9 +204,13 @@ router.post("/", async (req, res) => {
         }).returning().then(r => r[0])
       ));
 
+      // For Credit sales, only record the advance actually collected; the remainder is receivable
       await tx.insert(transactionsTable).values({
-        type: "Income", category: "Sale", amount: String(total),
-        description: `POS sale ${invoiceNumber}`, relatedId: String(sale.id), relatedType: "sale",
+        type: "Income", category: "Sale", amount: String(round2(effectiveAdvance)),
+        description: paymentMethod === "Credit" && effectiveAdvance < total
+          ? `POS sale ${invoiceNumber} (advance ${effectiveAdvance}/${total})`
+          : `POS sale ${invoiceNumber}`,
+        relatedId: String(sale.id), relatedType: "sale",
         paymentMethod, status: "Completed", date,
       });
 
