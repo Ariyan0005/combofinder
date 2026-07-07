@@ -25,6 +25,7 @@ import TechnicianApprovals from "@/pages/technician-approvals";
 // Database additions
 import IssuesFixes from "@/pages/issues-fixes";
 import Schematics from "@/pages/schematics";
+import IspPinoutAdmin from "@/pages/isp-pinout";
 import Documents from "@/pages/documents";
 import Videos from "@/pages/videos";
 
@@ -92,6 +93,7 @@ function Router() {
         <Route path="/parts" component={Parts} />
         <Route path="/issues-fixes" component={IssuesFixes} />
         <Route path="/schematics" component={Schematics} />
+        <Route path="/isp-pinout" component={IspPinoutAdmin} />
         <Route path="/documents" component={Documents} />
         <Route path="/videos" component={Videos} />
         

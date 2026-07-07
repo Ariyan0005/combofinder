@@ -1,20 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Search, ChevronRight, Monitor, Battery, Cpu, Plug,
-  MoreHorizontal, Clock, X, Layers, Smartphone,
+  Search, ChevronRight, Monitor, Battery,
+  Clock, X, Layers, Smartphone, ChevronDown,
 } from "lucide-react";
 import { Link } from "wouter";
 
 const LS_KEY = "cf_recent_searches";
-
-const CATEGORIES = [
-  { label: "Display",   icon: Monitor,        color: "#6248FF", bg: "#EEF2FF" },
-  { label: "Battery",   icon: Battery,        color: "#10B981", bg: "#ECFDF5" },
-  { label: "IC",        icon: Cpu,            color: "#F59E0B", bg: "#FFF7E6" },
-  { label: "Connector", icon: Plug,           color: "#06B6D4", bg: "#F0FDFF" },
-  { label: "More",      icon: MoreHorizontal, color: "#8B5CF6", bg: "#F5F3FF" },
-];
 
 const BRAND_PALETTES = [
   { bg: "#EEF2FF", color: "#6366F1" },
@@ -45,17 +37,50 @@ const BORDER = "hsl(var(--border))";
 const CARD  = "hsl(var(--card))";
 const PRIMARY = "hsl(var(--primary))";
 
+const PART_TYPES = ["All", "Display", "Battery"] as const;
+type PartType = typeof PART_TYPES[number];
+
+function MobileLcdIcon({ size = 16, color }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color ?? "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="2" width="14" height="20" rx="2"/>
+      <rect x="7" y="4" width="10" height="13" rx="1"/>
+      <circle cx="12" cy="19.5" r="0.7" fill={color ?? "currentColor"} stroke="none"/>
+    </svg>
+  );
+}
+
 export default function Compatibility() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>(getRecentSearches);
+  const [partType, setPartType] = useState<PartType>(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get("type");
+      if (p === "Display" || p === "Battery") return p;
+    } catch {}
+    return "All";
+  });
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setDebouncedQuery(query.trim()), 350);
     return () => clearTimeout(timerRef.current);
   }, [query]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowTypeDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   const { data: searchResults, isLoading: searching } = useQuery<{ brands?: any[]; models?: any[] }>({
     queryKey: ["search", debouncedQuery],
@@ -91,6 +116,14 @@ export default function Compatibility() {
   const allBrands = Array.isArray(searchResults?.brands) ? searchResults!.brands : [];
   const brandList = Array.isArray(brands) ? brands.slice(0, 10) : [];
 
+  // Build navigation link with partType context
+  function modelLink(id: number) {
+    return partType !== "All" ? `/models/${id}?type=${partType}` : `/models/${id}`;
+  }
+
+  const partTypeColor = partType === "Display" ? "#6248FF" : partType === "Battery" ? "#10B981" : MUTED;
+  const partTypeBg = partType === "Display" ? "#EEF2FF" : partType === "Battery" ? "#ECFDF5" : "hsl(var(--muted))";
+
   return (
     <div className="space-y-4">
       {/* Header + stats pills */}
@@ -120,39 +153,73 @@ export default function Compatibility() {
         )}
       </div>
 
-      {/* Search bar */}
-      <div className="relative">
-        <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2" style={{ color: MUTED }} />
-        <input
-          type="text"
-          placeholder="Search model or part…"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          className="w-full pl-11 pr-10 py-3.5 rounded-2xl border text-sm outline-none transition-all"
-          style={{ borderColor: BORDER, background: CARD }}
-          onFocus={e => { e.currentTarget.style.borderColor = PRIMARY; }}
-          onBlur={e => { e.currentTarget.style.borderColor = BORDER; }}
-        />
-        {query && (
-          <button onClick={() => setQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2" style={{ color: MUTED }}>
-            <X className="w-4 h-4" />
+      {/* Search bar + Part Type dropdown */}
+      <div className="flex gap-2 items-center">
+        {/* Search input */}
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2" style={{ color: MUTED }} />
+          <input
+            type="text"
+            placeholder="Search model or part…"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            className="w-full pl-11 pr-10 py-3.5 rounded-2xl border text-sm outline-none transition-all"
+            style={{ borderColor: BORDER, background: CARD }}
+            onFocus={e => { e.currentTarget.style.borderColor = PRIMARY; }}
+            onBlur={e => { e.currentTarget.style.borderColor = BORDER; }}
+          />
+          {query && (
+            <button onClick={() => setQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2" style={{ color: MUTED }}>
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Part Type dropdown */}
+        <div className="relative flex-shrink-0" ref={dropdownRef}>
+          <button
+            onClick={() => setShowTypeDropdown(v => !v)}
+            className="flex items-center gap-1.5 px-3 py-3.5 rounded-2xl border text-sm font-semibold whitespace-nowrap transition-all"
+            style={{ borderColor: BORDER, background: partType !== "All" ? partTypeBg : CARD, color: partType !== "All" ? partTypeColor : "hsl(var(--foreground))" }}
+          >
+            {partType === "Display" && <MobileLcdIcon size={15} color={partTypeColor} />}
+            {partType === "Battery" && <Battery className="w-3.5 h-3.5" style={{ color: partTypeColor }} />}
+            {partType === "All" && <Monitor className="w-3.5 h-3.5" style={{ color: MUTED }} />}
+            <span>{partType === "All" ? "Part Type" : partType}</span>
+            <ChevronDown className="w-3.5 h-3.5 opacity-60" />
           </button>
-        )}
+
+          {showTypeDropdown && (
+            <div className="absolute right-0 top-full mt-1.5 z-50 rounded-2xl border shadow-lg overflow-hidden min-w-[130px]"
+              style={{ borderColor: BORDER, background: CARD }}>
+              {PART_TYPES.map(pt => (
+                <button
+                  key={pt}
+                  onClick={() => { setPartType(pt); setShowTypeDropdown(false); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-left transition-colors hover:bg-muted/50"
+                  style={pt === partType ? { color: PRIMARY, fontWeight: 700 } : { color: "hsl(var(--foreground))" }}
+                >
+                  {pt === "Display" && <MobileLcdIcon size={14} color={pt === partType ? PRIMARY : undefined} />}
+                  {pt === "Battery" && <Battery className="w-3.5 h-3.5" style={{ color: pt === partType ? PRIMARY : MUTED }} />}
+                  {pt === "All" && <Layers className="w-3.5 h-3.5" style={{ color: pt === partType ? PRIMARY : MUTED }} />}
+                  {pt}
+                  {pt === partType && <span className="ml-auto text-primary">✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Category filter chips */}
-      <div className="flex gap-2.5 overflow-x-auto hide-scrollbar pb-1">
-        {CATEGORIES.map(({ label, icon: Icon, color, bg }) => (
-          <button key={label}
-            onClick={() => setQuery(label === "More" ? "" : label)}
-            className="flex flex-col items-center gap-1.5 flex-shrink-0 min-w-[58px]">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm" style={{ background: bg }}>
-              <Icon className="w-5 h-5" style={{ color }} />
-            </div>
-            <span className="text-[10px] font-semibold" style={{ color: MUTED }}>{label}</span>
-          </button>
-        ))}
-      </div>
+      {/* Part type badge when searching */}
+      {debouncedQuery.length >= 2 && partType !== "All" && (
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
+            style={{ background: partTypeBg, color: partTypeColor }}>
+            {partType === "Display" ? "📱" : "🔋"} {partType} Compatibility
+          </span>
+        </div>
+      )}
 
       {/* Search results */}
       {debouncedQuery.length >= 2 ? (
@@ -175,13 +242,13 @@ export default function Compatibility() {
                       return (
                         <Link key={b.id} href={`/brands/${b.id}`}>
                           <div onClick={() => handleSearchSelect(b.name)}
-                            className="flex items-center gap-3 p-3 rounded-2xl border cursor-pointer"
+                            className="flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-all hover:shadow-sm"
                             style={{ borderColor: BORDER, background: CARD }}>
                             <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-black"
                               style={{ background: pal.bg, color: pal.color }}>{initials}</div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold truncate">{b.name}</p>
-                              {b.modelCount && <p className="text-[10px]" style={{ color: MUTED }}>{b.modelCount} models</p>}
+                              <p className="text-[10px]" style={{ color: MUTED }}>{b.modelCount ?? 0} models</p>
                             </div>
                             <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: MUTED }} />
                           </div>
@@ -196,20 +263,20 @@ export default function Compatibility() {
                   <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: MUTED }}>Models</p>
                   <div className="rounded-2xl border divide-y overflow-hidden" style={{ borderColor: BORDER, background: CARD }}>
                     {allModels.map((m: any) => (
-                      <Link key={m.id} href={`/models/${m.id}`}>
+                      <Link key={m.id} href={modelLink(m.id)}>
                         <div onClick={() => handleSearchSelect(m.name)}
-                          className="flex items-center justify-between px-4 py-3 cursor-pointer">
-                          <div className="flex items-center gap-3">
+                          className="flex items-center justify-between px-4 py-3 cursor-pointer transition-colors hover:bg-muted/30">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                               style={{ background: "hsl(var(--muted))" }}>
                               <Smartphone className="w-4 h-4" style={{ color: MUTED }} />
                             </div>
-                            <div>
-                              <p className="text-sm font-semibold">{m.name}</p>
-                              {m.brandName && <p className="text-[10px]" style={{ color: MUTED }}>{m.brandName}</p>}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold truncate">{m.name}</p>
+                              {m.brandName && <p className="text-[10px] truncate" style={{ color: MUTED }}>{m.brandName}{m.comboCount != null ? ` · ${m.comboCount} combo${m.comboCount !== 1 ? "s" : ""}` : ""}</p>}
                             </div>
                           </div>
-                          <ChevronRight className="w-4 h-4" style={{ color: MUTED }} />
+                          <ChevronRight className="w-4 h-4 flex-shrink-0 ml-2" style={{ color: MUTED }} />
                         </div>
                       </Link>
                     ))}
@@ -243,13 +310,13 @@ export default function Compatibility() {
                   const initials = b.name.split(/[\s/]/).map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
                   return (
                     <Link key={b.id} href={`/brands/${b.id}`}>
-                      <div className="flex items-center gap-3 p-3 rounded-2xl border cursor-pointer"
+                      <div className="flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-all hover:shadow-sm"
                         style={{ borderColor: BORDER, background: CARD }}>
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-black"
                           style={{ background: pal.bg, color: pal.color }}>{initials}</div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold truncate">{b.name}</p>
-                          {b.modelCount && <p className="text-[10px]" style={{ color: MUTED }}>{b.modelCount} models</p>}
+                          {b.modelCount != null && <p className="text-[10px]" style={{ color: MUTED }}>{b.modelCount} models</p>}
                         </div>
                         <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: MUTED }} />
                       </div>
@@ -269,7 +336,7 @@ export default function Compatibility() {
                   <div key={q} className="flex items-center justify-between px-4 py-3">
                     <button className="flex items-center gap-3 flex-1 text-left" onClick={() => setQuery(q)}>
                       <Clock className="w-4 h-4 flex-shrink-0" style={{ color: MUTED }} />
-                      <span className="text-sm font-medium">{q}</span>
+                      <span className="text-sm font-medium truncate">{q}</span>
                     </button>
                     <button onClick={() => removeRecent(q)}>
                       <X className="w-3.5 h-3.5" style={{ color: MUTED }} />

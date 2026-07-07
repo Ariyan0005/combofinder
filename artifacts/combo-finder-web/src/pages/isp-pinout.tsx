@@ -195,7 +195,7 @@ export default function IspPinout() {
 
   // Only show admin add button — simple check: user is authenticated (all users can add for now;
   // refine with a role flag if needed in the future)
-  const canAdd = !!user;
+  const canAdd = user?.role === "admin" || user?.role === "superadmin";
 
   return (
     <ProtectedPage>

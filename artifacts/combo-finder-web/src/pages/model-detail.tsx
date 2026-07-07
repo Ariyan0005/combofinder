@@ -34,14 +34,24 @@ export default function ModelDetail() {
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState<ComboType>("OEM");
 
+  // Read partType from URL to determine back navigation
+  const partTypeParam = (() => {
+    try { return new URLSearchParams(window.location.search).get("type") ?? ""; } catch { return ""; }
+  })();
+
   const { data: model, isLoading } = useGetModel(modelId);
 
   const combos = model?.combos ?? [];
   const filtered = combos.filter(c => c.comboType === activeTab);
 
+  function goBack() {
+    const backPath = partTypeParam ? `/compatibility?type=${partTypeParam}` : "/compatibility";
+    navigate(backPath);
+  }
+
   return (
     <div className="space-y-4">
-      <button onClick={() => navigate("/compatibility")}
+      <button onClick={goBack}
         className="flex items-center gap-1.5 text-sm font-medium"
         style={{ color: "hsl(var(--muted-foreground))" }}>
         <ArrowLeft className="w-4 h-4" />
@@ -61,8 +71,8 @@ export default function ModelDetail() {
           <div className="bg-card rounded-2xl border border-border p-4">
             <h1 className="text-xl font-extrabold">{model.name}</h1>
             <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>
-              {model.brand?.name ?? ""}
-              {model.releaseYear ? ` · Released ${model.releaseYear}` : ""}
+              {(model as any).brand?.name ?? (model as any).brandName ?? ""}
+              {(model as any).releaseYear ? ` · Released ${(model as any).releaseYear}` : ""}
             </p>
             <div className="flex gap-3 mt-3 flex-wrap">
               {(["OEM", "Compatible", "Refurbished"] as ComboType[]).map(t => {
@@ -98,15 +108,23 @@ export default function ModelDetail() {
             </div>
           ) : (
             <div className="bg-card rounded-2xl border border-border divide-y divide-border overflow-hidden">
-              {filtered.map(combo => {
+              {filtered.map((combo: any) => {
                 const cfg = comboTypeConfig[activeTab];
+                // API returns 'name' field (not 'comboCode')
+                const displayName = combo.name ?? combo.comboCode ?? "—";
                 return (
                   <div key={combo.id} className="p-4 flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-semibold">{combo.comboCode}</p>
+                        <p className="text-sm font-semibold">{displayName}</p>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                           style={{ background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
+                        {combo.qualityGrade && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                            style={{ background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
+                            {combo.qualityGrade}
+                          </span>
+                        )}
                         {combo.inStock
                           ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#ECFDF5", color: "#059669" }}>In Stock</span>
                           : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#FEF2F2", color: "#DC2626" }}>Out of Stock</span>}
@@ -114,8 +132,11 @@ export default function ModelDetail() {
                       {combo.notes && (
                         <p className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>{combo.notes}</p>
                       )}
+                      {combo.priceRange && (
+                        <p className="text-xs mt-0.5 font-semibold" style={{ color: "hsl(var(--primary))" }}>{combo.priceRange}</p>
+                      )}
                     </div>
-                    <CopyButton text={combo.comboCode} />
+                    <CopyButton text={displayName} />
                   </div>
                 );
               })}

@@ -38,6 +38,7 @@ const navigationGroups = [
       { name: "Compatibility Database", href: "/combos", icon: Database },
       { name: "Issues & Fixes", href: "/issues-fixes", icon: WrenchIcon },
       { name: "Schematics", href: "/schematics", icon: FolderOpen },
+      { name: "ISP & Pinout", href: "/isp-pinout", icon: Cpu, badge: "New" },
       { name: "Documents", href: "/documents", icon: FileText },
       { name: "Videos", href: "/videos", icon: Video },
     ]

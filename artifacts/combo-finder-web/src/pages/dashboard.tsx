@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   Wrench, Users, Package, CheckCircle, Bell, ChevronRight,
-  ShoppingCart, BarChart2, Wallet, Receipt, Monitor, Battery,
-  Cpu, BookOpen, CreditCard,
+  ShoppingCart, BarChart2, Wallet, Receipt, Battery,
+  Cpu, CreditCard,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/context/auth-context";
@@ -15,7 +15,18 @@ function greeting() {
   return "Good Evening";
 }
 
-// ── Quick Actions (Customers & Stock In removed; Ledger added) ────────────────
+// Mobile LCD / Display icon (custom SVG)
+function MobileLcdIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="2" width="14" height="20" rx="2"/>
+      <rect x="7" y="4" width="10" height="13" rx="1"/>
+      <circle cx="12" cy="19.5" r="0.7" fill="currentColor" stroke="none"/>
+    </svg>
+  );
+}
+
+// ── Quick Actions ────────────────────────────────────────────────────────────
 const QUICK_LINKS = [
   { label: "New Repair",    icon: Wrench,       href: "/repairs",    color: "#6366F1", bg: "#EEF2FF" },
   { label: "POS",           icon: ShoppingCart, href: "/pos",        color: "#10B981", bg: "#ECFDF5" },
@@ -29,23 +40,23 @@ const QUICK_LINKS = [
 const CF_TOOLS = [
   {
     label: "Display\nCompatibility",
-    icon: Monitor,
-    href: "/compatibility",
+    iconType: "display" as const,
+    href: "/compatibility?type=Display",
     color: "#6248FF",
     bg: "#EEF2FF",
     desc: "Screen swap guide",
   },
   {
     label: "Battery\nCompatibility",
-    icon: Battery,
-    href: "/compatibility",
+    iconType: "battery" as const,
+    href: "/compatibility?type=Battery",
     color: "#10B981",
     bg: "#ECFDF5",
     desc: "Safe replacements",
   },
   {
     label: "ISP & Pinout",
-    icon: Cpu,
+    iconType: "cpu" as const,
     href: "/isp-pinout",
     color: "#F59E0B",
     bg: "#FFF7E6",
@@ -53,6 +64,16 @@ const CF_TOOLS = [
     badge: "NEW",
   },
 ];
+
+function CfToolIcon({ type, color, size = 24 }: { type: "display" | "battery" | "cpu"; color: string; size?: number }) {
+  if (type === "display") {
+    return <MobileLcdIcon style={{ width: size, height: size, color }} />;
+  }
+  if (type === "battery") {
+    return <Battery style={{ width: size, height: size, color }} />;
+  }
+  return <Cpu style={{ width: size, height: size, color }} />;
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -146,7 +167,7 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-3 gap-2.5">
-            {CF_TOOLS.map(({ label, icon: Icon, href, color, bg, desc, badge }) => (
+            {CF_TOOLS.map(({ label, iconType, href, color, bg, desc, badge }) => (
               <Link key={href + label} href={href}>
                 <div className="relative flex flex-col items-center gap-2 p-3 rounded-2xl border cursor-pointer"
                   style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
@@ -158,7 +179,7 @@ export default function Dashboard() {
                   )}
                   <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
                     style={{ background: bg }}>
-                    <Icon className="w-6 h-6" style={{ color }} />
+                    <CfToolIcon type={iconType} color={color} size={24} />
                   </div>
                   <div className="text-center">
                     <p className="text-[11px] font-bold leading-tight whitespace-pre-line">{label}</p>
