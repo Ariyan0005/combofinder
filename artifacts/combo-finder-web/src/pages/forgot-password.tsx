@@ -3,8 +3,6 @@ import { Link, useLocation } from "wouter";
 import { ArrowLeft, Mail, CheckCircle2, KeyRound, Eye, EyeOff } from "lucide-react";
 import { AuthNavbar, type Lang } from "@/components/auth-navbar";
 
-const WHATSAPP_URL = "https://wa.me/96897043234";
-
 type Step = "request" | "verify" | "done";
 
 export default function ForgotPassword() {
