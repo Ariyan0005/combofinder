@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
-import { Smartphone, ChevronDown, MessageCircle } from "lucide-react";
+import { Smartphone, ChevronDown, MessageCircle, Globe } from "lucide-react";
 
 const WHATSAPP_URL = "https://wa.me/96897043234";
 
@@ -57,13 +57,14 @@ export function AuthNavbar({ lang, onLangChange, supportLabel = "Support" }: Pro
         <div className="relative" ref={ref}>
           <button
             onClick={() => setOpen(o => !o)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-semibold"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold"
             style={{
               borderColor: "hsl(var(--border))",
               color: "hsl(var(--foreground))",
               background: "hsl(var(--background))",
             }}
           >
+            <Globe className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary))" }} />
             {current.label}
             <ChevronDown
               className="w-3 h-3 transition-transform"
@@ -76,26 +77,31 @@ export function AuthNavbar({ lang, onLangChange, supportLabel = "Support" }: Pro
 
           {open && (
             <div
-              className="absolute right-0 mt-1 w-32 rounded-xl border shadow-lg z-50 overflow-hidden"
+              className="absolute right-0 mt-2 w-36 rounded-2xl border shadow-2xl z-[100] overflow-hidden"
               style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}
             >
-              {LANGUAGES.map(l => (
-                <button
-                  key={l.code}
-                  onClick={() => { onLangChange(l.code); setOpen(false); }}
-                  className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-left"
-                  style={{
-                    color: l.code === lang ? "hsl(var(--primary))" : "hsl(var(--foreground))",
-                    background: l.code === lang ? "hsl(var(--primary) / 0.08)" : "transparent",
-                    direction: l.code === "ar" ? "rtl" : "ltr",
-                  }}
-                  onMouseEnter={e => { if (l.code !== lang) e.currentTarget.style.background = "hsl(var(--muted))"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = l.code === lang ? "hsl(var(--primary) / 0.08)" : "transparent"; }}
-                >
-                  <span>{l.label}</span>
-                  {l.code === lang && <span>✓</span>}
-                </button>
-              ))}
+              <div className="p-1.5 flex flex-col gap-0.5">
+                {LANGUAGES.map(l => (
+                  <button
+                    key={l.code}
+                    onClick={() => { onLangChange(l.code); setOpen(false); }}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-left transition-all"
+                    style={{
+                      color: l.code === lang ? "hsl(var(--primary))" : "hsl(var(--foreground))",
+                      background: l.code === lang ? "hsl(var(--primary) / 0.12)" : "transparent",
+                      direction: l.code === "ar" ? "rtl" : "ltr",
+                    }}
+                    onMouseEnter={e => { if (l.code !== lang) e.currentTarget.style.background = "hsl(var(--muted))"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = l.code === lang ? "hsl(var(--primary) / 0.12)" : "transparent"; }}
+                  >
+                    <span>{l.label}</span>
+                    {l.code === lang && (
+                      <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold"
+                        style={{ background: "hsl(var(--primary))", color: "#fff" }}>✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>

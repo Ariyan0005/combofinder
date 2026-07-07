@@ -723,7 +723,7 @@ function FABMenu({ onAction }: { onAction: (a: FabAction) => void }) {
 type Modal = "add-product" | "add-category" | "add-supplier" | "stock-in" | "scanner" | "edit-category" | null;
 
 export default function Inventory() {
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? "৳";
   const [modal, setModal] = useState<Modal>(null);
   const [activeCategoryKey, setActiveCategoryKey] = useState("All");
@@ -736,14 +736,17 @@ export default function Inventory() {
   const { data: items = [], isLoading } = useQuery<Item[]>({
     queryKey: ["inventory"],
     queryFn: () => fetch("/api/inventory", { credentials: "include" }).then(r => r.json()),
+    enabled: !isGuest && !!user,
   });
   const { data: suppliers = [] } = useQuery<Supplier[]>({
     queryKey: ["suppliers"],
     queryFn: () => fetch("/api/suppliers", { credentials: "include" }).then(r => r.json()),
+    enabled: !isGuest && !!user,
   });
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["inv-categories"],
     queryFn: () => fetch("/api/inventory-categories", { credentials: "include" }).then(r => r.json()),
+    enabled: !isGuest && !!user,
   });
 
   const deleteMut = useMutation({
