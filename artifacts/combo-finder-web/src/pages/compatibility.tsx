@@ -195,7 +195,16 @@ export default function Compatibility() {
               {PART_TYPES.map(pt => (
                 <button
                   key={pt}
-                  onClick={() => { setPartType(pt); setShowTypeDropdown(false); }}
+                  onClick={() => {
+                  setPartType(pt);
+                  setShowTypeDropdown(false);
+                  try {
+                    const url = new URL(window.location.href);
+                    if (pt === 'All') url.searchParams.delete('type');
+                    else url.searchParams.set('type', pt);
+                    window.history.replaceState(null, '', url.toString());
+                  } catch {}
+                }}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-left transition-colors hover:bg-muted/50"
                   style={pt === partType ? { color: PRIMARY, fontWeight: 700 } : { color: "hsl(var(--foreground))" }}
                 >
