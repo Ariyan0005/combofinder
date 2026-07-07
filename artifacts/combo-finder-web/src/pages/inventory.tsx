@@ -4,7 +4,8 @@ import { Link } from "wouter";
 import {
   Plus, Search, Package, X, AlertCircle, Camera, ChevronRight,
   Tag, Truck, ArrowDownToLine, ShoppingCart, Edit3, Trash2,
-  QrCode, CheckCircle, ArrowUpFromLine, MoreVertical, Boxes,
+  QrCode, CheckCircle, ArrowUpFromLine, MoreVertical, Boxes, Settings,
+  FolderOpen, ChevronDown,
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/context/auth-context";
@@ -180,16 +181,25 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
   onClose: () => void; existing?: Item; suppliers: Supplier[]; categories: Category[];
 }) {
   const qc = useQueryClient();
+
+  // Split existing categoryId into parent + sub for two-step UX
+  const existingCat = existing?.categoryId ? categories.find(c => c.id === existing.categoryId) : undefined;
+  const initParentId = existingCat
+    ? (existingCat.parentId ? String(existingCat.parentId) : String(existingCat.id))
+    : "";
+  const initSubId = existingCat?.parentId ? String(existingCat.id) : "";
+
+  const [parentCatId, setParentCatId] = useState(initParentId);
+  const [subCatId, setSubCatId] = useState(initSubId);
+
   const [form, setForm] = useState({
     partName: existing?.partName ?? "",
-    partType: existing?.partType ?? "Display",
     quality: existing?.quality ?? "Original",
     quantity: String(existing?.quantity ?? ""),
     minStock: String(existing?.minStock ?? "0"),
     purchasePrice: String(existing?.purchasePrice ?? ""),
     sellingPrice: String(existing?.sellingPrice ?? ""),
     supplierId: String(existing?.supplierId ?? ""),
-    categoryId: String(existing?.categoryId ?? ""),
     barcode: existing?.barcode ?? "",
     sku: existing?.sku ?? "",
     model: existing?.model ?? "",
@@ -198,6 +208,11 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
   const [error, setError] = useState("");
   const [showScanner, setShowScanner] = useState(false);
   const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
+
+  // Parent categories only; sub-categories of selected parent
+  const parentCats = categories.filter(c => !c.parentId);
+  const subCats = parentCatId ? categories.filter(c => c.parentId === Number(parentCatId)) : [];
+  const finalCategoryId = subCatId || parentCatId;
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -213,7 +228,7 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
           quantity: Number(form.quantity) || 0,
           minStock: Number(form.minStock),
           supplierId: form.supplierId ? Number(form.supplierId) : null,
-          categoryId: form.categoryId ? Number(form.categoryId) : null,
+          categoryId: finalCategoryId ? Number(finalCategoryId) : null,
         }),
       });
       const d = await res.json();
@@ -237,11 +252,19 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
           <Input value={form.partName} onChange={e => set("partName", e.target.value)} placeholder="e.g. iPhone 13 Display" required />
         </Field>
         <Field label="Category">
-          <Select value={form.categoryId} onChange={e => set("categoryId", e.target.value)}>
-            <option value="">— Select —</option>
-            {categories.map(c => <option key={c.id} value={c.id}>{c.parentId ? `  ↳ ${c.name}` : c.name}</option>)}
+          <Select value={parentCatId} onChange={e => { setParentCatId(e.target.value); setSubCatId(""); }}>
+            <option value="">— Select category —</option>
+            {parentCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
         </Field>
+        {subCats.length > 0 && (
+          <Field label="Sub-category">
+            <Select value={subCatId} onChange={e => setSubCatId(e.target.value)}>
+              <option value="">— No sub-category —</option>
+              {subCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          </Field>
+        )}
         <Field label="Supplier">
           <Select value={form.supplierId} onChange={e => set("supplierId", e.target.value)}>
             <option value="">— No supplier —</option>
@@ -281,25 +304,34 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
 }
 
 // ─── Add / Edit Category Modal ───────────────────────────────────────────────
-function CategoryModal({ onClose, existing, initialParentId, parentName }: {
+// mode: "category" = top-level, "subcategory" = needs parent selection, "edit" = editing existing
+function CategoryModal({ onClose, existing, mode, parentCategories, initialParentId }: {
   onClose: () => void;
   existing?: Category;
-  initialParentId?: number;   // pre-set parent when adding sub-category
-  parentName?: string;        // shown in title when adding sub-category
+  mode: "category" | "subcategory" | "edit";
+  parentCategories?: Category[]; // all top-level categories (for sub-cat parent selector)
+  initialParentId?: number;      // pre-select a parent (e.g. from chip row)
 }) {
   const qc = useQueryClient();
   const [name, setName] = useState(existing?.name ?? "");
   const [desc, setDesc] = useState(existing?.description ?? "");
-  // parentId: from existing edit, or from initialParentId (sub-cat flow)
-  const resolvedParentId = existing?.parentId ?? initialParentId ?? null;
+  const [selectedParent, setSelectedParent] = useState<string>(
+    initialParentId != null ? String(initialParentId) :
+    (existing?.parentId ? String(existing.parentId) : "")
+  );
   const [error, setError] = useState("");
-  const isEdit = !!existing;
-  const isSub = !isEdit && initialParentId != null;
+
+  const resolvedParentId = mode === "subcategory"
+    ? (selectedParent ? Number(selectedParent) : null)
+    : mode === "edit"
+      ? (existing?.parentId ?? null)
+      : null;
+
   const mut = useMutation({
     mutationFn: async () => {
-      const url = isEdit ? `/api/inventory-categories/${existing!.id}` : "/api/inventory-categories";
+      const url = mode === "edit" ? `/api/inventory-categories/${existing!.id}` : "/api/inventory-categories";
       const res = await fetch(url, {
-        method: isEdit ? "PUT" : "POST", credentials: "include",
+        method: mode === "edit" ? "PUT" : "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim(), description: desc.trim() || null, parentId: resolvedParentId }),
       });
@@ -310,24 +342,46 @@ function CategoryModal({ onClose, existing, initialParentId, parentName }: {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["inv-categories"] }); onClose(); },
     onError: (e: any) => setError(e.message),
   });
-  const title = isEdit ? "Edit Category" : isSub ? `Add Sub-category` : "Add Category";
+
+  const title = mode === "edit"
+    ? (existing?.parentId ? "Edit Sub-category" : "Edit Category")
+    : mode === "subcategory" ? "Add Sub-category" : "Add Category";
+
   return (
     <ModalShell title={title} onClose={onClose}>
-      {isSub && parentName && (
-        <p className="text-xs mb-3 px-1" style={{ color: MUTED }}>
-          Under: <span className="font-semibold" style={{ color: PRIMARY }}>{parentName}</span>
-        </p>
-      )}
-      <form onSubmit={e => { e.preventDefault(); if (!name.trim()) { setError("Name required"); return; } mut.mutate(); }}
-        className="flex flex-col gap-3">
-        <Field label="Category Name *">
-          <Input value={name} onChange={e => setName(e.target.value)} placeholder={isSub ? "e.g. Display" : "e.g. Spare Parts"} autoFocus />
+      <form onSubmit={e => {
+        e.preventDefault();
+        if (!name.trim()) { setError("Name required"); return; }
+        if (mode === "subcategory" && !selectedParent) { setError("Select a parent category"); return; }
+        mut.mutate();
+      }} className="flex flex-col gap-3">
+        {/* Parent selector for sub-category mode */}
+        {mode === "subcategory" && parentCategories && (
+          <Field label="Parent Category *">
+            <Select value={selectedParent} onChange={e => setSelectedParent(e.target.value)}>
+              <option value="">— Select parent —</option>
+              {parentCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          </Field>
+        )}
+        {/* Show locked parent for edit mode */}
+        {mode === "edit" && existing?.parentId && parentCategories && (
+          <div className="px-3 py-2 rounded-xl text-xs" style={{ background: "hsl(var(--muted))" }}>
+            Sub-category of: <span className="font-semibold">
+              {parentCategories.find(c => c.id === existing.parentId)?.name ?? "—"}
+            </span>
+          </div>
+        )}
+        <Field label={mode === "subcategory" ? "Sub-category Name *" : "Category Name *"}>
+          <Input value={name} onChange={e => setName(e.target.value)}
+            placeholder={mode === "subcategory" ? "e.g. Display" : "e.g. Spare Parts"} autoFocus />
         </Field>
         <Field label="Description">
           <Input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Optional" />
         </Field>
         {error && <p className="text-xs" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
-        <SubmitBtn pending={mut.isPending} label={isEdit ? "Save Changes" : isSub ? "Add Sub-category" : "Add Category"} />
+        <SubmitBtn pending={mut.isPending}
+          label={mode === "edit" ? "Save Changes" : mode === "subcategory" ? "Add Sub-category" : "Add Category"} />
       </form>
     </ModalShell>
   );
@@ -359,8 +413,8 @@ function AddSupplierModal({ onClose }: { onClose: () => void }) {
         className="flex flex-col gap-3">
         <Field label="Supplier Name *"><Input value={f.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Ali Parts BD" autoFocus /></Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Phone"><Input value={f.phone} onChange={e => set("phone", e.target.value)} placeholder="01700000000" type="tel" /></Field>
-          <Field label="WhatsApp"><Input value={f.whatsapp} onChange={e => set("whatsapp", e.target.value)} placeholder="01700000000" type="tel" /></Field>
+          <Field label="Phone"><Input value={f.phone} onChange={e => set("phone", e.target.value)} placeholder="+1 555 000 0000" type="tel" /></Field>
+          <Field label="WhatsApp"><Input value={f.whatsapp} onChange={e => set("whatsapp", e.target.value)} placeholder="+1 555 000 0000" type="tel" /></Field>
         </div>
         <Field label="Supplies (part types)"><Input value={f.partTypes} onChange={e => set("partTypes", e.target.value)} placeholder="Display, Battery, IC…" /></Field>
         <Field label="Notes"><Input value={f.notes} onChange={e => set("notes", e.target.value)} placeholder="Optional" /></Field>
@@ -680,13 +734,69 @@ function ItemSheet({ item, suppliers, onClose, onEdit, onStockIn, onDelete }: {
   );
 }
 
+// ─── Manage Categories Modal ──────────────────────────────────────────────────
+function ManageCategoriesModal({ onClose, categories, onEdit, onDeleteCat }: {
+  onClose: () => void;
+  categories: Category[];
+  onEdit: (cat: Category) => void;
+  onDeleteCat: (cat: Category) => void;
+}) {
+  const parentCats = categories.filter(c => !c.parentId);
+  const subOf = (parentId: number) => categories.filter(c => c.parentId === parentId);
+
+  return (
+    <ModalShell title="Manage Categories" onClose={onClose}>
+      {parentCats.length === 0 ? (
+        <p className="text-sm text-center py-8" style={{ color: MUTED }}>No categories yet. Tap + to add one.</p>
+      ) : (
+        <div className="space-y-2">
+          {parentCats.map(parent => (
+            <div key={parent.id} className="rounded-2xl overflow-hidden border" style={{ borderColor: BORDER }}>
+              {/* Parent row */}
+              <div className="flex items-center gap-2 px-4 py-3" style={{ background: "hsl(var(--muted))" }}>
+                <FolderOpen className="w-4 h-4 flex-shrink-0" style={{ color: PRIMARY }} />
+                <span className="flex-1 font-semibold text-sm">{parent.name}</span>
+                <button onClick={() => onEdit(parent)} className="p-1.5 rounded-lg" style={{ color: PRIMARY }}>
+                  <Edit3 className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => onDeleteCat(parent)}
+                  className="p-1.5 rounded-lg" style={{ color: "hsl(var(--destructive))" }}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              {/* Sub-category rows */}
+              {subOf(parent.id).map((sub, idx, arr) => (
+                <div key={sub.id}
+                  className="flex items-center gap-2 px-4 py-2.5 border-t"
+                  style={{ borderColor: BORDER }}>
+                  <span className="text-xs" style={{ color: MUTED }}>↳</span>
+                  <span className="flex-1 text-sm">{sub.name}</span>
+                  <button onClick={() => onEdit(sub)} className="p-1.5 rounded-lg" style={{ color: PRIMARY }}>
+                    <Edit3 className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => onDeleteCat(sub)}
+                    className="p-1.5 rounded-lg" style={{ color: "hsl(var(--destructive))" }}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </ModalShell>
+  );
+}
+
 // ─── FAB Menu ─────────────────────────────────────────────────────────────────
-type FabAction = "add-product" | "add-category" | "add-supplier" | "stock-in";
+type FabAction = "add-product" | "add-category" | "add-subcategory" | "add-supplier" | "stock-in" | "manage-categories";
 const FAB_ITEMS: { action: FabAction; label: string; icon: React.ReactNode; color: string }[] = [
-  { action: "add-product",  label: "Add Product",  icon: <Package className="w-4 h-4" />,       color: "#6366F1" },
-  { action: "add-category", label: "Add Category", icon: <Tag className="w-4 h-4" />,            color: "#8B5CF6" },
-  { action: "add-supplier", label: "Add Supplier", icon: <Truck className="w-4 h-4" />,          color: "#0EA5E9" },
-  { action: "stock-in",     label: "Stock In",     icon: <ArrowDownToLine className="w-4 h-4" />, color: "#10B981" },
+  { action: "add-product",       label: "Add Product",        icon: <Package className="w-4 h-4" />,        color: "#6366F1" },
+  { action: "add-category",      label: "Add Category",       icon: <Tag className="w-4 h-4" />,             color: "#8B5CF6" },
+  { action: "add-subcategory",   label: "Add Sub-category",   icon: <ChevronDown className="w-4 h-4" />,     color: "#A78BFA" },
+  { action: "manage-categories", label: "Manage Categories",  icon: <Settings className="w-4 h-4" />,        color: "#64748B" },
+  { action: "add-supplier",      label: "Add Supplier",       icon: <Truck className="w-4 h-4" />,           color: "#0EA5E9" },
+  { action: "stock-in",          label: "Stock In",           icon: <ArrowDownToLine className="w-4 h-4" />, color: "#10B981" },
 ];
 
 function FABMenu({ onAction }: { onAction: (a: FabAction) => void }) {
@@ -715,18 +825,19 @@ function FABMenu({ onAction }: { onAction: (a: FabAction) => void }) {
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-type Modal = "add-product" | "add-category" | "add-supplier" | "stock-in" | "scanner" | "edit-category" | null;
+type Modal = "add-product" | "add-supplier" | "stock-in" | "scanner" | null;
+type CatModal = "category" | "subcategory" | "edit" | "manage" | null;
 
 export default function Inventory() {
   const { user, isGuest } = useAuth();
   const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? "৳";
   const [modal, setModal] = useState<Modal>(null);
+  const [catModal, setCatModal] = useState<CatModal>(null);
   const [activeCategoryKey, setActiveCategoryKey] = useState("All");
   const [searchQ, setSearchQ] = useState("");
   const [selectedItem, setSelectedItem] = useState<Item | undefined>();
   const [showSheet, setShowSheet] = useState(false);
   const [editCategory, setEditCategory] = useState<Category | undefined>();
-  const [addSubForParentId, setAddSubForParentId] = useState<number | undefined>();
   const qc = useQueryClient();
 
   const { data: items = [], isLoading } = useQuery<Item[]>({
@@ -748,6 +859,11 @@ export default function Inventory() {
   const deleteMut = useMutation({
     mutationFn: (id: number) => fetch(`/api/inventory/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["inventory"] }); setShowSheet(false); },
+  });
+
+  const deleteCatMut = useMutation({
+    mutationFn: (id: number) => fetch(`/api/inventory-categories/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["inv-categories"] }),
   });
 
   // Barcode lookup
@@ -821,9 +937,12 @@ export default function Inventory() {
 
   function openItemSheet(item: Item) { setSelectedItem(item); setShowSheet(true); }
   function handleFAB(action: FabAction) {
-    if (action === "stock-in") { setSelectedItem(undefined); }
-    if (action === "add-category") { setAddSubForParentId(undefined); } // FAB always top-level
-    setModal(action);
+    if (action === "add-product")       { setModal("add-product"); return; }
+    if (action === "add-supplier")      { setModal("add-supplier"); return; }
+    if (action === "stock-in")          { setSelectedItem(undefined); setModal("stock-in"); return; }
+    if (action === "add-category")      { setEditCategory(undefined); setCatModal("category"); return; }
+    if (action === "add-subcategory")   { setEditCategory(undefined); setCatModal("subcategory"); return; }
+    if (action === "manage-categories") { setCatModal("manage"); return; }
   }
 
   return (
@@ -901,8 +1020,8 @@ export default function Inventory() {
               </button>
             ))}
           </div>
-          {/* Sub-category row — visible when a parent is selected */}
-          {activeParentKey !== "All" && activeParentId != null && (
+          {/* Sub-category row — visible when a parent with subs is selected */}
+          {activeParentKey !== "All" && activeParentId != null && subTabs.length > 0 && (
             <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pl-1 pb-0.5">
               {subTabs.map(tab => (
                 <button key={tab.key}
@@ -914,13 +1033,6 @@ export default function Inventory() {
                   ↳ {tab.name}
                 </button>
               ))}
-              {/* Add sub-category button */}
-              <button
-                onClick={() => { setAddSubForParentId(activeParentId); setModal("add-category"); }}
-                className="flex-shrink-0 px-3 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all flex items-center gap-1"
-                style={{ background: "hsl(var(--muted))", color: MUTED, border: `1px solid ${BORDER}` }}>
-                <Plus className="w-2.5 h-2.5" /> Sub-category
-              </button>
             </div>
           )}
         </div>
@@ -990,15 +1102,30 @@ export default function Inventory() {
           onClose={() => { setModal(null); setSelectedItem(undefined); }} />
       )}
 
-      {/* Add / Edit category */}
-      {(modal === "add-category" || modal === "edit-category") && (
+      {/* Add Category / Sub-category / Edit category */}
+      {(catModal === "category" || catModal === "subcategory" || catModal === "edit") && (
         <CategoryModal
-          existing={modal === "edit-category" ? editCategory : undefined}
-          initialParentId={modal === "add-category" ? addSubForParentId : undefined}
-          parentName={modal === "add-category" && addSubForParentId
-            ? categories.find(c => c.id === addSubForParentId)?.name
-            : undefined}
-          onClose={() => { setModal(null); setEditCategory(undefined); setAddSubForParentId(undefined); }} />
+          mode={catModal}
+          existing={catModal === "edit" ? editCategory : undefined}
+          parentCategories={categories.filter(c => !c.parentId)}
+          onClose={() => { setCatModal(null); setEditCategory(undefined); }}
+        />
+      )}
+
+      {/* Manage Categories */}
+      {catModal === "manage" && (
+        <ManageCategoriesModal
+          categories={categories}
+          onClose={() => setCatModal(null)}
+          onEdit={cat => { setEditCategory(cat); setCatModal("edit"); }}
+          onDeleteCat={cat => {
+            const hasSubs = categories.some(c => c.parentId === cat.id);
+            const msg = hasSubs
+              ? `Delete "${cat.name}" and all its sub-categories?`
+              : `Delete "${cat.name}"?`;
+            if (confirm(msg)) deleteCatMut.mutate(cat.id);
+          }}
+        />
       )}
 
       {/* Add supplier */}
@@ -1009,7 +1136,6 @@ export default function Inventory() {
         <StockInModal item={selectedItem} suppliers={suppliers} allItems={list}
           onClose={() => { setModal(null); setSelectedItem(undefined); }} />
       )}
-
 
       {/* Item detail sheet */}
       {showSheet && selectedItem && (
