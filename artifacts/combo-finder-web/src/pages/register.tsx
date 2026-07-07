@@ -176,15 +176,15 @@ export default function Register() {
     <div className="min-h-screen flex flex-col" style={{ background: "hsl(var(--background))", direction: isRtl ? "rtl" : "ltr" }}>
       <AuthNavbar lang={lang} onLangChange={setLang} supportLabel={t.support} />
 
-      <div className="flex-1 p-5 pt-4">
+      <div className="flex-1 p-5 pt-3">
         <div className="w-full max-w-sm">
-          <div className="mb-6">
+          <div className="mb-3">
             <h1 className="text-2xl font-extrabold">{t.title}</h1>
             <p className="text-sm mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>{t.sub}</p>
           </div>
 
           {/* Social buttons */}
-          <div className="grid grid-cols-3 gap-2.5 mb-5">
+          <div className="grid grid-cols-3 gap-2 mb-3">
             {[
               { icon: <GoogleIcon />, label: "Google", href: "/api/auth/google" },
               { icon: <AppleIcon />, label: "Apple", href: "/api/auth/apple" },
@@ -205,13 +205,13 @@ export default function Register() {
           </div>
 
           {/* Divider */}
-          <div className="flex items-center gap-3 mb-5">
+          <div className="flex items-center gap-3 mb-3">
             <div className="flex-1 h-px" style={{ background: "hsl(var(--border))" }} />
             <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{t.orContinue}</span>
             <div className="flex-1 h-px" style={{ background: "hsl(var(--border))" }} />
           </div>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             {/* Email */}
             <div>
               <label className="text-sm font-semibold block mb-1.5">
@@ -292,7 +292,7 @@ export default function Register() {
             </button>
           </form>
 
-          <p className="text-sm text-center mt-5" style={{ color: "hsl(var(--muted-foreground))" }}>
+          <p className="text-sm text-center mt-3" style={{ color: "hsl(var(--muted-foreground))" }}>
             {t.haveAccount}{" "}
             <Link href="/login">
               <span className="font-bold cursor-pointer" style={{ color: "hsl(var(--primary))" }}>{t.login}</span>
