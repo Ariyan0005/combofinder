@@ -57,40 +57,46 @@ function Router() {
     );
   }
 
+  // Auth pages always render without MainLayout, even for guests
   return (
-    <MainLayout>
-      <Switch>
-        <Route path="/">
-          {user ? <Dashboard /> : <Compatibility />}
-        </Route>
-        <Route path="/compatibility" component={Compatibility} />
-        <Route path="/brands/:id" component={BrandDetail} />
-        <Route path="/models/:id" component={ModelDetail} />
-        <Route path="/repairs" component={Repairs} />
-        <Route path="/inventory" component={Inventory} />
-        <Route path="/pos" component={Pos} />
-        <Route path="/invoices" component={Invoices} />
-        <Route path="/customers" component={Customers} />
-        <Route path="/customers/:id" component={CustomerProfile} />
-        <Route path="/knowledge-base" component={KnowledgeBase} />
-        <Route path="/reports" component={Reports} />
-        <Route path="/unlock-services" component={UnlockServices} />
-        <Route path="/expenses" component={Expenses} />
-        <Route path="/settings" component={Settings} />
-        <Route path="/subscription" component={Subscription} />
-        <Route path="/ledger" component={Ledger} />
-        <Route path="/isp-pinout" component={IspPinout} />
-        <Route path="/donate" component={Donate} />
-        <Route path="/login" component={Login} />
-        <Route path="/register" component={Register} />
-        <Route>
-          <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
-            <p className="text-4xl font-bold">404</p>
-            <p style={{ color: "hsl(var(--muted-foreground))" }}>Page not found.</p>
-          </div>
-        </Route>
-      </Switch>
-    </MainLayout>
+    <Switch>
+      <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route>
+        <MainLayout>
+          <Switch>
+            <Route path="/">
+              {user ? <Dashboard /> : <Compatibility />}
+            </Route>
+            <Route path="/compatibility" component={Compatibility} />
+            <Route path="/brands/:id" component={BrandDetail} />
+            <Route path="/models/:id" component={ModelDetail} />
+            <Route path="/repairs" component={Repairs} />
+            <Route path="/inventory" component={Inventory} />
+            <Route path="/pos" component={Pos} />
+            <Route path="/invoices" component={Invoices} />
+            <Route path="/customers" component={Customers} />
+            <Route path="/customers/:id" component={CustomerProfile} />
+            <Route path="/knowledge-base" component={KnowledgeBase} />
+            <Route path="/reports" component={Reports} />
+            <Route path="/unlock-services" component={UnlockServices} />
+            <Route path="/expenses" component={Expenses} />
+            <Route path="/settings" component={Settings} />
+            <Route path="/subscription" component={Subscription} />
+            <Route path="/ledger" component={Ledger} />
+            <Route path="/isp-pinout" component={IspPinout} />
+            <Route path="/donate" component={Donate} />
+            <Route>
+              <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
+                <p className="text-4xl font-bold">404</p>
+                <p style={{ color: "hsl(var(--muted-foreground))" }}>Page not found.</p>
+              </div>
+            </Route>
+          </Switch>
+        </MainLayout>
+      </Route>
+    </Switch>
   );
 }
 
