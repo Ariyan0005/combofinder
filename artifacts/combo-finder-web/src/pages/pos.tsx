@@ -38,7 +38,7 @@ function CustomerPicker({
   mode, onModeChange,
   customerName, onCustomerName,
   customerPhone, onCustomerPhone,
-  customers,
+  customers, onResetCredit,
 }: {
   mode: CustomerMode;
   onModeChange: (m: CustomerMode) => void;
@@ -47,6 +47,7 @@ function CustomerPicker({
   customerPhone: string;
   onCustomerPhone: (v: string) => void;
   customers: Customer[];
+  onResetCredit?: () => void;
 }) {
   const [search, setSearch] = useState("");
   const [open, setOpen]   = useState(false);
@@ -81,8 +82,9 @@ function CustomerPicker({
       <div className="flex gap-1.5">
         <button
           type="button"
-          onClick={() => { onModeChange("cash"); onCustomerName("Cash Customer"); onCustomerPhone(""); }}
+          onClick={() => { onModeChange("cash"); onCustomerName("Cash Customer"); onCustomerPhone(""); onResetCredit?.(); }}
           className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold border transition-all"
+          title="Credit not available for walk-in cash customers"
           style={mode === "cash"
             ? { background: PRIMARY, color: "#fff", borderColor: PRIMARY }
             : { background: CARD, color: MUTED, borderColor: BORDER }}>
@@ -476,6 +478,7 @@ export default function Pos() {
                   customerPhone={customerPhone}
                   onCustomerPhone={setCustomerPhone}
                   customers={customerList}
+                  onResetCredit={() => { if (paymentMethod === "Credit") setPaymentMethod("Cash"); }}
                 />
               </div>
 
@@ -490,7 +493,12 @@ export default function Pos() {
                   <label className="text-[10px] font-semibold block mb-1" style={{ color: MUTED }}>Payment Method</label>
                   <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
                     className="w-full px-2.5 py-2 rounded-lg border text-xs outline-none" style={{ borderColor: BORDER, background: CARD }}>
-                    <option>Cash</option><option>Card</option><option>Mobile Banking</option><option>Credit</option><option>Other</option>
+                    <option>Cash</option>
+                    <option>Card</option>
+                    <option>Mobile Banking</option>
+                    {/* Credit only available when a real (DB) customer is selected */}
+                    {customerMode === "db" && customerName && <option>Credit</option>}
+                    <option>Other</option>
                   </select>
                 </div>
               </div>

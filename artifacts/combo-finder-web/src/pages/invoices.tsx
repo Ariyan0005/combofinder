@@ -42,6 +42,7 @@ export default function Invoices() {
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [creditOnly, setCreditOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [returnMode, setReturnMode] = useState(false);
   const [returnQty, setReturnQty] = useState<Record<number, string>>({});
@@ -256,50 +257,72 @@ export default function Invoices() {
           </div>
         </div>
 
-        <div className="flex gap-2">
+        {/* Credit filter chip + export buttons */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCreditOnly(v => !v)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all"
+            style={creditOnly
+              ? { background: "#FFF7E6", color: "#D97706", borderColor: "#F59E0B" }
+              : { borderColor: BORDER, color: MUTED }}>
+            ⚠ Credit Only {creditOnly && `(${sales.filter(s => s.paymentMethod === "Credit").length})`}
+          </button>
+          <div className="flex-1" />
           <button onClick={exportCsv} disabled={sales.length === 0}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border disabled:opacity-40" style={{ borderColor: BORDER }}>
-            <FileDown className="w-3.5 h-3.5" /> Export CSV
+            className="flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-bold border disabled:opacity-40" style={{ borderColor: BORDER }}>
+            <FileDown className="w-3.5 h-3.5" /> CSV
           </button>
           <button onClick={exportPdf} disabled={sales.length === 0}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border disabled:opacity-40" style={{ borderColor: BORDER }}>
-            <Download className="w-3.5 h-3.5" /> Export PDF
+            className="flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-bold border disabled:opacity-40" style={{ borderColor: BORDER }}>
+            <Download className="w-3.5 h-3.5" /> PDF
           </button>
         </div>
 
-        {isLoading ? (
-          <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-16 rounded-2xl animate-pulse" style={{ background: "hsl(var(--muted))" }} />)}</div>
-        ) : sales.length === 0 ? (
-          <div className="text-center py-16">
-            <Receipt className="w-10 h-10 mx-auto mb-3" style={{ color: MUTED }} />
-            <p className="font-semibold">No invoices yet</p>
-            <p className="text-sm mt-1" style={{ color: MUTED }}>Sales from the POS will show up here</p>
-          </div>
-        ) : (
-          <div className="rounded-2xl border divide-y overflow-hidden" style={{ borderColor: BORDER, background: CARD }}>
-            {sales.map(s => (
-              <button key={s.id} onClick={() => setSelectedId(s.id)}
-                className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-muted/30 transition-colors">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "hsl(var(--muted))" }}>
-                  <Receipt className="w-4 h-4" style={{ color: MUTED }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{s.invoiceNumber}</p>
-                  <p className="text-xs truncate" style={{ color: MUTED }}>
-                    {s.date} {s.customerName && `· ${s.customerName}`}
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <span className="text-sm font-bold">{sym}{Number(s.total).toLocaleString()}</span>
-                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={STATUS_COLOR[s.status] ?? { bg: "hsl(var(--muted))", color: MUTED }}>
-                    {s.status}
-                  </span>
-                </div>
-                <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: MUTED }} />
-              </button>
-            ))}
-          </div>
-        )}
+        {(() => {
+          const filtered = creditOnly ? sales.filter(s => s.paymentMethod === "Credit") : sales;
+          return isLoading ? (
+            <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-16 rounded-2xl animate-pulse" style={{ background: "hsl(var(--muted))" }} />)}</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-16">
+              <Receipt className="w-10 h-10 mx-auto mb-3" style={{ color: MUTED }} />
+              <p className="font-semibold">{creditOnly ? "No credit sales found" : "No invoices yet"}</p>
+              <p className="text-sm mt-1" style={{ color: MUTED }}>
+                {creditOnly ? "Try removing the Credit filter" : "Sales from the POS will show up here"}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border divide-y overflow-hidden" style={{ borderColor: BORDER, background: CARD }}>
+              {filtered.map(s => (
+                <button key={s.id} onClick={() => setSelectedId(s.id)}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-muted/30 transition-colors">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "hsl(var(--muted))" }}>
+                    <Receipt className="w-4 h-4" style={{ color: MUTED }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-semibold truncate">{s.invoiceNumber}</p>
+                      {s.paymentMethod === "Credit" && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                          style={{ background: "#FFF7E6", color: "#D97706" }}>CREDIT</span>
+                      )}
+                    </div>
+                    <p className="text-xs truncate" style={{ color: MUTED }}>
+                      {s.date} {s.customerName && `· ${s.customerName}`}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span className="text-sm font-bold">{sym}{Number(s.total).toLocaleString()}</span>
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full"
+                      style={STATUS_COLOR[s.status] ?? { bg: "hsl(var(--muted))", color: MUTED }}>
+                      {s.status}
+                    </span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: MUTED }} />
+                </button>
+              ))}
+            </div>
+          );
+        })()}
       </div>
     </ProtectedPage>
   );

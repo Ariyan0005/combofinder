@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  BookMarked, Plus, X, Printer, Download, Search, ChevronLeft,
+  BookMarked, Plus, X, FileDown, Search, ChevronLeft,
   ArrowUpCircle, ArrowDownCircle, Trash2, Edit2, Phone, Check,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
 
@@ -82,6 +84,73 @@ export default function Ledger() {
   const [entryOk, setEntryOk] = useState(false);
 
   const printRef = useRef<HTMLDivElement>(null);
+
+  function exportPdf() {
+    const acc = selectedAccount;
+    if (!acc) return;
+
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+
+    // Header band
+    doc.setFillColor(37, 99, 235);
+    doc.rect(0, 0, pageW, 28, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text(acc.name, 14, 12);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    if (acc.phone) doc.text(`Phone: ${acc.phone}`, 14, 19);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageW - 14, 19, { align: "right" });
+
+    // Summary row
+    doc.setTextColor(30, 30, 30);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Total Credit: ${sym}${(acc.creditSum ?? 0).toLocaleString()}`, 14, 36);
+    doc.text(`Total Debit: ${sym}${(acc.debitSum ?? 0).toLocaleString()}`, 80, 36);
+    const balLabel = acc.balance > 0 ? `Balance Due: ${sym}${acc.balance.toLocaleString()} (Customer owes)`
+      : acc.balance < 0 ? `Balance: ${sym}${Math.abs(acc.balance).toLocaleString()} (You owe)`
+      : "Balance: Settled";
+    doc.text(balLabel, 14, 43);
+
+    // Table — sorted by date ascending
+    const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+
+    autoTable(doc, {
+      startY: 50,
+      head: [["Date", "Product / Item", "Description", "Reference", `Credit (${sym})`, `Debit (${sym})`]],
+      body: sorted.map(e => [
+        fmtDate(e.date),
+        (e as any).itemName ?? "—",
+        e.description ?? "—",
+        e.reference ?? "—",
+        e.type === "credit" ? Number(e.amount).toLocaleString() : "",
+        e.type === "debit"  ? Number(e.amount).toLocaleString() : "",
+      ]),
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold" },
+      columnStyles: {
+        0: { cellWidth: 24 },
+        1: { cellWidth: 36 },
+        2: { cellWidth: 40 },
+        3: { cellWidth: 24 },
+        4: { cellWidth: 22, halign: "right", textColor: [22, 163, 74] },
+        5: { cellWidth: 22, halign: "right", textColor: [220, 38, 38] },
+      },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    });
+
+    // Footer
+    const finalY = (doc as any).lastAutoTable?.finalY ?? 200;
+    doc.setFontSize(7);
+    doc.setTextColor(150, 150, 150);
+    doc.text("ComboFinder · Ledger Report", 14, finalY + 10);
+    doc.text(`Page 1`, pageW - 14, finalY + 10, { align: "right" });
+
+    doc.save(`ledger-${acc.name.replace(/\s+/g, "-")}.pdf`);
+  }
 
   async function loadAccounts() {
     setLoading(true);
@@ -248,13 +317,9 @@ export default function Ledger() {
               <h1 className="text-xl font-extrabold">{acc.name}</h1>
               {acc.phone && <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}><Phone className="w-3 h-3 inline mr-1" />{acc.phone}</p>}
             </div>
-            <button onClick={handlePrint}
-              className="p-2 rounded-xl border border-border hover:border-primary transition-colors">
-              <Printer className="w-4 h-4" />
-            </button>
-            <button onClick={exportCSV}
-              className="p-2 rounded-xl border border-border hover:border-primary transition-colors">
-              <Download className="w-4 h-4" />
+            <button onClick={exportPdf}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border hover:border-primary transition-colors text-xs font-bold">
+              <FileDown className="w-4 h-4" /> Export PDF
             </button>
             <button onClick={() => openAddAccount(acc)}
               className="p-2 rounded-xl border border-border hover:border-primary transition-colors">
