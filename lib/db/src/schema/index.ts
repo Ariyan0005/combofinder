@@ -22,3 +22,4 @@ export * from "./activity-logs";
 export * from "./stock-movements";
 export * from "./sales";
 export * from "./ledger";
+export * from "./password-reset-tokens";

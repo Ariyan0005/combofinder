@@ -6,6 +6,8 @@ import MainLayout from "@/components/layout/main-layout";
 import Splash from "@/pages/splash";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
+import ForgotPassword from "@/pages/forgot-password";
+import Donate from "@/pages/donate";
 import Dashboard from "@/pages/dashboard";
 import Compatibility from "@/pages/compatibility";
 import BrandDetail from "@/pages/brand-detail";
@@ -48,6 +50,8 @@ function Router() {
       <Switch>
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
+        <Route path="/forgot-password" component={ForgotPassword} />
+        <Route path="/donate" component={Donate} />
         <Route component={Splash} />
       </Switch>
     );
@@ -76,6 +80,7 @@ function Router() {
         <Route path="/subscription" component={Subscription} />
         <Route path="/ledger" component={Ledger} />
         <Route path="/isp-pinout" component={IspPinout} />
+        <Route path="/donate" component={Donate} />
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
         <Route>

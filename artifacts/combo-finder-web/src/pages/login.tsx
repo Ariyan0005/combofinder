@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
-import { Eye, EyeOff, Smartphone, Home } from "lucide-react";
+import { Eye, EyeOff, Smartphone } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 
 export default function Login() {
@@ -32,22 +32,18 @@ export default function Login() {
       style={{ background: "hsl(var(--background))" }}>
 
       <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
-            style={{ background: "hsl(var(--primary))" }}>
-            <Smartphone className="w-6 h-6 text-white" />
+        {/* Logo + Site Name — links to home/splash */}
+        <Link href="/">
+          <div className="flex justify-center items-center gap-2.5 mb-8 cursor-pointer group">
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center transition-transform group-active:scale-95"
+              style={{ background: "hsl(var(--primary))" }}>
+              <Smartphone className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-xl font-extrabold tracking-tight" style={{ color: "hsl(var(--foreground))" }}>
+              ComboFinder
+            </span>
           </div>
-        </div>
-
-        <div className="flex justify-end mb-2">
-          <Link href="/">
-            <button className="flex items-center gap-1.5 text-sm font-medium"
-              style={{ color: "hsl(var(--muted-foreground))" }}>
-              <Home className="w-4 h-4" /> Home
-            </button>
-          </Link>
-        </div>
+        </Link>
 
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-extrabold">Welcome Back!</h1>
@@ -70,7 +66,14 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="text-sm font-semibold block mb-1.5">Password</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-semibold">Password</label>
+              <Link href="/forgot-password">
+                <span className="text-xs font-semibold cursor-pointer" style={{ color: "hsl(var(--primary))" }}>
+                  Forgot Password?
+                </span>
+              </Link>
+            </div>
             <div className="relative">
               <input
                 type={showPass ? "text" : "password"}
@@ -90,14 +93,11 @@ export default function Login() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-sm">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" className="rounded" />
-              <span style={{ color: "hsl(var(--muted-foreground))" }}>Remember me</span>
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id="remember" className="rounded" />
+            <label htmlFor="remember" className="text-sm cursor-pointer" style={{ color: "hsl(var(--muted-foreground))" }}>
+              Remember me
             </label>
-            <span className="font-semibold cursor-pointer" style={{ color: "hsl(var(--primary))" }}>
-              Forgot Password?
-            </span>
           </div>
 
           {error && (
