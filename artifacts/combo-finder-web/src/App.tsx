@@ -23,6 +23,7 @@ import Expenses from "@/pages/expenses";
 import Settings from "@/pages/settings";
 import Subscription from "@/pages/subscription";
 import Ledger from "@/pages/ledger";
+import IspPinout from "@/pages/isp-pinout";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -74,6 +75,7 @@ function Router() {
         <Route path="/settings" component={Settings} />
         <Route path="/subscription" component={Subscription} />
         <Route path="/ledger" component={Ledger} />
+        <Route path="/isp-pinout" component={IspPinout} />
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
         <Route>
