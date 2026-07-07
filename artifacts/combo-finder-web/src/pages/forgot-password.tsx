@@ -1,12 +1,15 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
-import { Smartphone, ArrowLeft, Mail, CheckCircle2, KeyRound, Eye, EyeOff } from "lucide-react";
+import { Smartphone, ArrowLeft, Mail, CheckCircle2, KeyRound, Eye, EyeOff, Globe, MessageCircle } from "lucide-react";
+
+const WHATSAPP_URL = "https://wa.me/96897043234";
 
 type Step = "request" | "verify" | "done";
 
 export default function ForgotPassword() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState<Step>("request");
+  const [lang, setLang] = useState<"en" | "bn">("en");
   const [email, setEmail] = useState("");
   const [token, setToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -69,22 +72,38 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-5"
-      style={{ background: "hsl(var(--background))" }}>
+    <div className="min-h-screen flex flex-col" style={{ background: "hsl(var(--background))" }}>
 
-      <div className="w-full max-w-sm">
-        {/* Logo — links to home */}
+      {/* ── Top Navbar ── */}
+      <header className="w-full px-4 py-3 flex items-center justify-between border-b"
+        style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
         <Link href="/">
-          <div className="flex justify-center mb-8 cursor-pointer">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
-                style={{ background: "hsl(var(--primary))" }}>
-                <Smartphone className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-lg font-extrabold" style={{ color: "hsl(var(--foreground))" }}>ComboFinder</span>
+          <div className="flex items-center gap-2 cursor-pointer">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+              style={{ background: "hsl(var(--primary))" }}>
+              <Smartphone className="w-4 h-4 text-white" />
             </div>
+            <span className="text-base font-extrabold" style={{ color: "hsl(var(--foreground))" }}>ComboFinder</span>
           </div>
         </Link>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setLang(l => l === "en" ? "bn" : "en")}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold"
+            style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))", background: "hsl(var(--background))" }}>
+            <Globe className="w-3.5 h-3.5" />
+            {lang === "en" ? "বাংলা" : "English"}
+          </button>
+          <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold"
+            style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))", background: "hsl(var(--background))" }}>
+            <MessageCircle className="w-3.5 h-3.5" />
+            Support
+          </a>
+        </div>
+      </header>
+
+      <div className="flex-1 flex flex-col items-center justify-center p-5">
+      <div className="w-full max-w-sm">
 
         {step === "request" && (
           <>
@@ -243,6 +262,7 @@ export default function ForgotPassword() {
             </Link>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
