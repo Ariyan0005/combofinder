@@ -32,16 +32,38 @@ function isDisposableEmail(email: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Mail transporter — supports generic VPS SMTP or Brevo fallback
+// Mail transporter — supports multiple common SMTP env var naming patterns
 // ---------------------------------------------------------------------------
 function getMailTransporter() {
-  const smtpHost = process.env["SMTP_HOST"];
-  const smtpUser = process.env["SMTP_USER"];
-  const smtpPass = process.env["SMTP_PASS"];
+  // Support common naming patterns: SMTP_HOST / MAIL_HOST / EMAIL_HOST
+  const smtpHost =
+    process.env["SMTP_HOST"] ??
+    process.env["MAIL_HOST"] ??
+    process.env["EMAIL_HOST"];
+
+  // SMTP_USER / SMTP_USERNAME / MAIL_USER / MAIL_USERNAME
+  const smtpUser =
+    process.env["SMTP_USER"] ??
+    process.env["SMTP_USERNAME"] ??
+    process.env["MAIL_USER"] ??
+    process.env["MAIL_USERNAME"];
+
+  // SMTP_PASS / SMTP_PASSWORD / MAIL_PASS / MAIL_PASSWORD
+  const smtpPass =
+    process.env["SMTP_PASS"] ??
+    process.env["SMTP_PASSWORD"] ??
+    process.env["MAIL_PASS"] ??
+    process.env["MAIL_PASSWORD"];
 
   if (smtpHost && smtpUser && smtpPass) {
-    const port = parseInt(process.env["SMTP_PORT"] ?? "587", 10);
-    const secure = process.env["SMTP_SECURE"] === "true" || port === 465;
+    const port = parseInt(
+      process.env["SMTP_PORT"] ?? process.env["MAIL_PORT"] ?? "587",
+      10,
+    );
+    const secure =
+      process.env["SMTP_SECURE"] === "true" ||
+      process.env["MAIL_ENCRYPTION"] === "ssl" ||
+      port === 465;
     return nodemailer.createTransport({
       host: smtpHost,
       port,
@@ -51,6 +73,7 @@ function getMailTransporter() {
     });
   }
 
+  // Brevo fallback
   const brevoKey = process.env["BREVO_SMTP_KEY"];
   if (brevoKey) {
     return nodemailer.createTransport({
