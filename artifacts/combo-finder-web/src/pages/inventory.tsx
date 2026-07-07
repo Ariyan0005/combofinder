@@ -784,11 +784,33 @@ export default function Inventory() {
       : []),
   ];
 
+  // Two-tier category logic
+  const parentTabs = catTabs.filter(t => t.key === "All" || !t.parentId);
   const activeTab = catTabs.find(t => t.key === activeCategoryKey) ?? catTabs[0];
+
+  // Which parent is "active" (either directly selected, or is parent of selected sub)
+  const activeParentKey = (() => {
+    if (!activeTab.parentId) return activeTab.key;
+    const parent = catTabs.find(t => t.id === activeTab.parentId);
+    return parent?.key ?? "All";
+  })();
+
+  // Sub-tabs of the active parent
+  const activeParentId = parentTabs.find(t => t.key === activeParentKey)?.id;
+  const subTabs = activeParentId != null
+    ? catTabs.filter(t => t.parentId === activeParentId)
+    : [];
+
   const filtered = list.filter(item => {
-    const matchCat = activeTab.key === "All" ||
-      (activeTab.id != null && item.categoryId === activeTab.id) ||
-      (activeTab.id == null && item.partType === activeTab.name);
+    const matchCat = (() => {
+      if (activeTab.key === "All") return true;
+      if (activeTab.id != null) {
+        // parent selected → include its children too; sub selected → exact match
+        const childIds = categories.filter(c => c.parentId === activeTab.id).map(c => c.id);
+        return item.categoryId === activeTab.id || childIds.includes(item.categoryId ?? -1);
+      }
+      return item.partType === activeTab.name; // fallback part-type
+    })();
     const q = searchQ.toLowerCase();
     const matchSearch = !q ||
       (item.partName ?? "").toLowerCase().includes(q) ||
@@ -799,6 +821,7 @@ export default function Inventory() {
   });
 
   const lowCount = list.filter(i => i.minStock > 0 && i.quantity <= i.minStock).length;
+  const totalValue = list.reduce((s, i) => s + (Number(i.purchasePrice) || 0) * i.quantity, 0);
 
   function openItemSheet(item: Item) { setSelectedItem(item); setShowSheet(true); }
   function handleFAB(action: FabAction) {
@@ -828,16 +851,26 @@ export default function Inventory() {
           <FABMenu onAction={handleFAB} />
         </div>
 
-        {/* Low stock banner */}
-        {lowCount > 0 && (
-          <div className="flex items-center gap-3 p-3.5 rounded-2xl"
-            style={{ background: "hsl(0 84% 60% / 0.08)", border: "1px solid hsl(0 84% 60% / 0.2)" }}>
-            <AlertCircle className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--destructive))" }} />
-            <p className="text-xs font-semibold flex-1" style={{ color: "hsl(var(--destructive))" }}>
-              {lowCount} item{lowCount !== 1 ? "s" : ""} below minimum stock
-            </p>
-          </div>
-        )}
+        {/* Stats bar */}
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: "Total Items", value: String(list.length), alert: false },
+            { label: "Low Stock",   value: String(lowCount),    alert: lowCount > 0 },
+            { label: "Stock Value", value: `${sym}${totalValue > 999 ? (totalValue/1000).toFixed(1)+"k" : totalValue.toLocaleString()}`, alert: false },
+          ].map(({ label, value, alert }) => (
+            <div key={label} className="rounded-2xl p-3 flex flex-col gap-0.5"
+              style={{
+                background: alert ? "hsl(0 84% 60% / 0.08)" : CARD,
+                border: `1px solid ${alert ? "hsl(0 84% 60% / 0.25)" : BORDER}`,
+              }}>
+              <span className="text-base font-black leading-none"
+                style={{ color: alert ? "hsl(var(--destructive))" : "hsl(var(--foreground))" }}>
+                {value}
+              </span>
+              <span className="text-[10px] font-medium leading-tight" style={{ color: MUTED }}>{label}</span>
+            </div>
+          ))}
+        </div>
 
         {/* Search + scan */}
         <div className="relative flex gap-2">
@@ -856,26 +889,36 @@ export default function Inventory() {
           </button>
         </div>
 
-        {/* Category filter chips with edit buttons */}
-        <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
-          {catTabs.map(tab => (
-            <div key={tab.key} className="flex-shrink-0 flex items-center gap-0.5">
-              <button onClick={() => setActiveCategoryKey(tab.key)}
-                className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
-                style={tab.key === activeCategoryKey
+        {/* Two-tier category filter */}
+        <div className="space-y-1.5">
+          {/* Parent categories row */}
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-0.5">
+            {parentTabs.map(tab => (
+              <button key={tab.key}
+                onClick={() => setActiveCategoryKey(tab.key)}
+                className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all"
+                style={tab.key === activeParentKey
                   ? { background: PRIMARY, color: "#fff" }
                   : { background: CARD, color: MUTED, border: `1px solid ${BORDER}` }}>
-                {tab.parentId ? "↳ " : ""}{tab.name}
+                {tab.name}
               </button>
-              {tab.id && (
-                <button onClick={() => { const cat = categories.find(c => c.id === tab.id); setEditCategory(cat); setModal("edit-category" as any); }}
-                  className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ color: PRIMARY, background: `${PRIMARY}18`, border: `1px solid ${PRIMARY}40` }} title="Edit category">
-                  <Edit3 className="w-3 h-3" />
+            ))}
+          </div>
+          {/* Sub-category row — only visible when selected parent has children */}
+          {subTabs.length > 0 && (
+            <div className="flex gap-1.5 overflow-x-auto hide-scrollbar pl-1 pb-0.5">
+              {subTabs.map(tab => (
+                <button key={tab.key}
+                  onClick={() => setActiveCategoryKey(tab.key)}
+                  className="flex-shrink-0 px-3 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all"
+                  style={tab.key === activeCategoryKey
+                    ? { background: PRIMARY, color: "#fff" }
+                    : { background: `hsl(var(--primary) / 0.1)`, color: PRIMARY }}>
+                  ↳ {tab.name}
                 </button>
-              )}
+              ))}
             </div>
-          ))}
+          )}
         </div>
 
         {/* Item list */}

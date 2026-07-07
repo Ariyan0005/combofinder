@@ -138,13 +138,13 @@ export default function Login() {
 
       <div className="flex-1 p-5 pt-4">
         <div className="w-full max-w-sm">
-          <div className="mb-6">
+          <div className="mb-4">
             <h1 className="text-2xl font-extrabold">{t.welcome}</h1>
             <p className="text-sm mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>{t.sub}</p>
           </div>
 
           {/* Social login buttons */}
-          <div className="grid grid-cols-3 gap-2.5 mb-5">
+          <div className="grid grid-cols-3 gap-2 mb-4">
             {[
               { icon: <GoogleIcon />, label: "Google", href: "/api/auth/google" },
               { icon: <AppleIcon />, label: "Apple", href: "/api/auth/apple" },
@@ -165,13 +165,13 @@ export default function Login() {
           </div>
 
           {/* Divider */}
-          <div className="flex items-center gap-3 mb-5">
+          <div className="flex items-center gap-3 mb-4">
             <div className="flex-1 h-px" style={{ background: "hsl(var(--border))" }} />
             <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{t.orContinue}</span>
             <div className="flex-1 h-px" style={{ background: "hsl(var(--border))" }} />
           </div>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div>
               <label className="text-sm font-semibold block mb-1.5">{t.emailLabel}</label>
               <input type="email" placeholder={t.emailPh} value={email}
@@ -217,7 +217,7 @@ export default function Login() {
             </button>
           </form>
 
-          <p className="text-sm text-center mt-5" style={{ color: "hsl(var(--muted-foreground))" }}>
+          <p className="text-sm text-center mt-3" style={{ color: "hsl(var(--muted-foreground))" }}>
             {t.noAccount}{" "}
             <Link href="/register">
               <span className="font-bold cursor-pointer" style={{ color: "hsl(var(--primary))" }}>{t.signUp}</span>
