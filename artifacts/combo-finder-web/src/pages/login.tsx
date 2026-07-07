@@ -1,60 +1,93 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
-import { Eye, EyeOff, Smartphone, Globe, MessageCircle } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
+import { AuthNavbar, type Lang } from "@/components/auth-navbar";
 
-const WHATSAPP_URL = "https://wa.me/96897043234";
+const T = {
+  en: {
+    welcome: "Welcome Back!",
+    sub: "Sign in to your account",
+    emailLabel: "Email",
+    emailPh: "Enter your email address",
+    passLabel: "Password",
+    passPh: "Enter your password",
+    forgot: "Forgot password?",
+    remember: "Remember me",
+    btn: "Sign In",
+    btnLoading: "Signing in…",
+    noAccount: "New user?",
+    signUp: "Create an account",
+    support: "Support",
+  },
+  bn: {
+    welcome: "স্বাগতম!",
+    sub: "আপনার অ্যাকাউন্টে সাইন ইন করুন",
+    emailLabel: "ইমেইল",
+    emailPh: "ইমেইল লিখুন",
+    passLabel: "পাসওয়ার্ড",
+    passPh: "পাসওয়ার্ড লিখুন",
+    forgot: "পাসওয়ার্ড ভুলেছেন?",
+    remember: "মনে রাখুন",
+    btn: "সাইন ইন",
+    btnLoading: "সাইন ইন হচ্ছে…",
+    noAccount: "নতুন ব্যবহারকারী?",
+    signUp: "অ্যাকাউন্ট তৈরি করুন",
+    support: "সাপোর্ট",
+  },
+  ar: {
+    welcome: "مرحباً بعودتك!",
+    sub: "تسجيل الدخول إلى حسابك",
+    emailLabel: "البريد الإلكتروني",
+    emailPh: "أدخل بريدك الإلكتروني",
+    passLabel: "كلمة المرور",
+    passPh: "أدخل كلمة المرور",
+    forgot: "نسيت كلمة المرور؟",
+    remember: "تذكرني",
+    btn: "تسجيل الدخول",
+    btnLoading: "جارٍ تسجيل الدخول…",
+    noAccount: "مستخدم جديد؟",
+    signUp: "إنشاء حساب",
+    support: "الدعم",
+  },
+  hi: {
+    welcome: "वापस आपका स्वागत है!",
+    sub: "अपने अकाउंट में साइन इन करें",
+    emailLabel: "ईमेल",
+    emailPh: "अपना ईमेल दर्ज करें",
+    passLabel: "पासवर्ड",
+    passPh: "पासवर्ड दर्ज करें",
+    forgot: "पासवर्ड भूल गए?",
+    remember: "मुझे याद रखें",
+    btn: "साइन इन करें",
+    btnLoading: "साइन इन हो रहा है…",
+    noAccount: "नए उपयोगकर्ता?",
+    signUp: "अकाउंट बनाएं",
+    support: "सहायता",
+  },
+} as const;
 
 export default function Login() {
   const { login } = useAuth();
   const [, navigate] = useLocation();
-  const [identifier, setIdentifier] = useState("");
+  const [lang, setLang] = useState<Lang>("en");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [lang, setLang] = useState<"en" | "bn">("en");
 
-  const t = {
-    en: {
-      welcome: "Welcome Back!",
-      sub: "Login to your account",
-      emailLabel: "Email or Username",
-      emailPh: "Enter your email or username",
-      passLabel: "Password",
-      passPh: "Enter your password",
-      forgot: "Forgot Password?",
-      remember: "Remember me",
-      btn: "Login",
-      btnLoading: "Logging in…",
-      noAccount: "Don't have an account?",
-      signUp: "Sign Up",
-      support: "Support",
-    },
-    bn: {
-      welcome: "স্বাগতম!",
-      sub: "আপনার অ্যাকাউন্টে লগিন করুন",
-      emailLabel: "ইমেইল বা ইউজারনেম",
-      emailPh: "ইমেইল বা ইউজারনেম লিখুন",
-      passLabel: "পাসওয়ার্ড",
-      passPh: "পাসওয়ার্ড লিখুন",
-      forgot: "পাসওয়ার্ড ভুলেছেন?",
-      remember: "মনে রাখুন",
-      btn: "লগিন",
-      btnLoading: "লগিন হচ্ছে…",
-      noAccount: "অ্যাকাউন্ট নেই?",
-      signUp: "সাইন আপ",
-      support: "সাপোর্ট",
-    },
-  }[lang];
+  const t = T[lang];
+  const isRtl = lang === "ar";
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    if (!identifier || !password) { setError("All fields are required"); return; }
+    if (!email || !password) { setError("All fields are required"); return; }
     setLoading(true);
     try {
-      await login(identifier, password);
+      await login(email, password);
       navigate("/");
     } catch (err: any) {
       setError(err.message ?? "Login failed");
@@ -63,46 +96,18 @@ export default function Login() {
     }
   }
 
+  const inputCls = "w-full px-4 py-3.5 rounded-xl border text-sm outline-none transition-colors";
+  const inputStyle = { borderColor: "hsl(var(--border))", background: "hsl(var(--card))", color: "hsl(var(--foreground))" };
+  const focusIn = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; };
+  const focusOut = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style.borderColor = "hsl(var(--border))"; };
+
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "hsl(var(--background))" }}>
+    <div className="min-h-screen flex flex-col" style={{ background: "hsl(var(--background))", direction: isRtl ? "rtl" : "ltr" }}>
+      <AuthNavbar lang={lang} onLangChange={setLang} supportLabel={t.support} />
 
-      {/* ── Top Navbar ── */}
-      <header className="w-full px-4 py-3 flex items-center justify-between border-b"
-        style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
-        <Link href="/">
-          <div className="flex items-center gap-2 cursor-pointer">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-              style={{ background: "hsl(var(--primary))" }}>
-              <Smartphone className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-base font-extrabold" style={{ color: "hsl(var(--foreground))" }}>
-              ComboFinder
-            </span>
-          </div>
-        </Link>
-        <div className="flex items-center gap-2">
-          {/* Language switcher */}
-          <button
-            onClick={() => setLang(l => l === "en" ? "bn" : "en")}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-colors"
-            style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))", background: "hsl(var(--background))" }}>
-            <Globe className="w-3.5 h-3.5" />
-            {lang === "en" ? "বাংলা" : "English"}
-          </button>
-          {/* Support */}
-          <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-colors"
-            style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))", background: "hsl(var(--background))" }}>
-            <MessageCircle className="w-3.5 h-3.5" />
-            {t.support}
-          </a>
-        </div>
-      </header>
-
-      {/* ── Form ── */}
-      <div className="flex-1 flex flex-col items-center justify-center p-5">
+      <div className="flex-1 flex items-center justify-center p-5">
         <div className="w-full max-w-sm">
-          <div className="mb-6 text-center">
+          <div className="mb-8">
             <h1 className="text-2xl font-extrabold">{t.welcome}</h1>
             <p className="text-sm mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>{t.sub}</p>
           </div>
@@ -111,14 +116,15 @@ export default function Login() {
             <div>
               <label className="text-sm font-semibold block mb-1.5">{t.emailLabel}</label>
               <input
-                type="text"
+                type="email"
                 placeholder={t.emailPh}
-                value={identifier}
-                onChange={e => setIdentifier(e.target.value)}
-                className="w-full px-4 py-3.5 rounded-xl border text-sm outline-none transition-all"
-                style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}
-                onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
-                onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }}
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className={inputCls}
+                style={inputStyle}
+                onFocus={focusIn}
+                onBlur={focusOut}
+                dir="ltr"
               />
             </div>
 
@@ -137,25 +143,32 @@ export default function Login() {
                   placeholder={t.passPh}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full px-4 py-3.5 pr-12 rounded-xl border text-sm outline-none transition-all"
-                  style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}
-                  onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
-                  onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }}
+                  className={`${inputCls} pr-12`}
+                  style={inputStyle}
+                  onFocus={focusIn}
+                  onBlur={focusOut}
+                  dir="ltr"
                 />
-                <button type="button" onClick={() => setShowPass(p => !p)}
+                <button
+                  type="button"
+                  onClick={() => setShowPass(p => !p)}
                   className="absolute right-4 top-1/2 -translate-y-1/2"
-                  style={{ color: "hsl(var(--muted-foreground))" }}>
+                  style={{ color: "hsl(var(--muted-foreground))" }}
+                >
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <input type="checkbox" id="remember" className="rounded" />
-              <label htmlFor="remember" className="text-sm cursor-pointer" style={{ color: "hsl(var(--muted-foreground))" }}>
-                {t.remember}
-              </label>
-            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={e => setRemember(e.target.checked)}
+                style={{ accentColor: "hsl(var(--primary))" }}
+              />
+              <span className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>{t.remember}</span>
+            </label>
 
             {error && (
               <p className="text-sm text-center px-3 py-2.5 rounded-xl font-medium"
@@ -164,9 +177,12 @@ export default function Login() {
               </p>
             )}
 
-            <button type="submit" disabled={loading}
-              className="w-full py-4 rounded-xl font-bold text-white text-sm transition-opacity disabled:opacity-60"
-              style={{ background: "hsl(var(--primary))" }}>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 rounded-xl font-bold text-white text-sm transition-opacity disabled:opacity-60 mt-1"
+              style={{ background: "hsl(var(--primary))" }}
+            >
               {loading ? t.btnLoading : t.btn}
             </button>
           </form>
