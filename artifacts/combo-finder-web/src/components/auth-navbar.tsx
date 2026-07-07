@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
-import { Smartphone, ChevronDown, MessageCircle, Globe } from "lucide-react";
+import { Smartphone, ChevronDown, MessageCircle } from "lucide-react";
 
 const WHATSAPP_URL = "https://wa.me/96897043234";
 
@@ -64,7 +64,6 @@ export function AuthNavbar({ lang, onLangChange, supportLabel = "Support" }: Pro
               background: "hsl(var(--background))",
             }}
           >
-            <Globe className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary))" }} />
             {current.label}
             <ChevronDown
               className="w-3 h-3 transition-transform"
@@ -89,7 +88,6 @@ export function AuthNavbar({ lang, onLangChange, supportLabel = "Support" }: Pro
                     style={{
                       color: l.code === lang ? "hsl(var(--primary))" : "hsl(var(--foreground))",
                       background: l.code === lang ? "hsl(var(--primary) / 0.12)" : "transparent",
-                      direction: l.code === "ar" ? "rtl" : "ltr",
                     }}
                     onMouseEnter={e => { if (l.code !== lang) e.currentTarget.style.background = "hsl(var(--muted))"; }}
                     onMouseLeave={e => { e.currentTarget.style.background = l.code === lang ? "hsl(var(--primary) / 0.12)" : "transparent"; }}
