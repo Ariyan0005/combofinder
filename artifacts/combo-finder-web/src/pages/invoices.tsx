@@ -24,6 +24,7 @@ const CARD = "hsl(var(--card))";
 type Sale = {
   id: number; invoiceNumber: string; date: string; customerName?: string; customerPhone?: string;
   subtotal: string; discount: string; total: string; paymentMethod: string; status: string;
+  advancePaid?: string;
 };
 
 type SaleItem = { id: number; partName: string; quantity: number; unitPrice: string; total: string; returnedQuantity: number; };
@@ -297,7 +298,7 @@ export default function Invoices() {
             style={creditOnly
               ? { background: "#FFF7E6", color: "#D97706", borderColor: "#F59E0B" }
               : { borderColor: BORDER, color: MUTED }}>
-            ⚠ Credit Only {creditOnly && `(${sales.filter(s => s.paymentMethod === "Credit").length})`}
+            ⚠ Credit Only {creditOnly && `(${sales.filter(s => s.paymentMethod === "Credit" && (Number(s.total) - Number(s.advancePaid ?? 0)) > 0.005).length})`}
           </button>
           <div className="flex-1" />
           <button onClick={exportCsv} disabled={sales.length === 0}
@@ -311,7 +312,9 @@ export default function Invoices() {
         </div>
 
         {(() => {
-          const filtered = creditOnly ? sales.filter(s => s.paymentMethod === "Credit") : sales;
+          const filtered = creditOnly
+            ? sales.filter(s => s.paymentMethod === "Credit" && (Number(s.total) - Number(s.advancePaid ?? 0)) > 0.005)
+            : sales;
           return isLoading ? (
             <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-16 rounded-2xl animate-pulse" style={{ background: "hsl(var(--muted))" }} />)}</div>
           ) : filtered.length === 0 ? (
@@ -333,10 +336,14 @@ export default function Invoices() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="text-sm font-semibold truncate">{s.invoiceNumber}</p>
-                      {s.paymentMethod === "Credit" && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
-                          style={{ background: "#FFF7E6", color: "#D97706" }}>CREDIT</span>
-                      )}
+                      {s.paymentMethod === "Credit" && (() => {
+                        const due = Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0));
+                        return due > 0.005
+                          ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                              style={{ background: "#FFF7E6", color: "#D97706" }}>CREDIT</span>
+                          : <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                              style={{ background: "#ECFDF5", color: "#059669" }}>SETTLED</span>;
+                      })()}
                     </div>
                     <p className="text-xs truncate" style={{ color: MUTED }}>
                       {s.date} {s.customerName && `· ${s.customerName}`}
