@@ -842,17 +842,17 @@ export default function Inventory() {
 
   const { data: items = [], isLoading } = useQuery<Item[]>({
     queryKey: ["inventory"],
-    queryFn: () => fetch("/api/inventory", { credentials: "include" }).then(r => r.json()),
+    queryFn: async () => { const d = await fetch("/api/inventory", { credentials: "include" }).then(r => r.json()); return Array.isArray(d) ? d : []; },
     enabled: !isGuest && !!user,
   });
   const { data: suppliers = [] } = useQuery<Supplier[]>({
     queryKey: ["suppliers"],
-    queryFn: () => fetch("/api/suppliers", { credentials: "include" }).then(r => r.json()),
+    queryFn: async () => { const d = await fetch("/api/suppliers", { credentials: "include" }).then(r => r.json()); return Array.isArray(d) ? d : []; },
     enabled: !isGuest && !!user,
   });
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["inv-categories"],
-    queryFn: () => fetch("/api/inventory-categories", { credentials: "include" }).then(r => r.json()),
+    queryFn: async () => { const d = await fetch("/api/inventory-categories", { credentials: "include" }).then(r => r.json()); return Array.isArray(d) ? d : []; },
     enabled: !isGuest && !!user,
   });
 
