@@ -38,6 +38,7 @@ function CustomerPicker({
   mode, onModeChange,
   customerName, onCustomerName,
   customerPhone, onCustomerPhone,
+  onCustomerId,
   customers, onResetCredit,
 }: {
   mode: CustomerMode;
@@ -46,6 +47,7 @@ function CustomerPicker({
   onCustomerName: (v: string) => void;
   customerPhone: string;
   onCustomerPhone: (v: string) => void;
+  onCustomerId: (id: number | null) => void;
   customers: Customer[];
   onResetCredit?: () => void;
 }) {
@@ -72,6 +74,7 @@ function CustomerPicker({
   function selectCustomer(c: Customer) {
     onCustomerName(c.name);
     onCustomerPhone(c.phone ?? "");
+    onCustomerId(c.id);
     setSearch("");
     setOpen(false);
   }
@@ -101,6 +104,7 @@ function CustomerPicker({
         </button>
       </div>
 
+      {/* Clear button resets customerId too */}
       {/* Cash Customer — just a display chip */}
       {mode === "cash" && (
         <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
@@ -205,6 +209,7 @@ export default function Pos() {
   const [customerMode,    setCustomerMode]    = useState<CustomerMode>("cash");
   const [customerName,    setCustomerName]    = useState("Cash Customer");
   const [customerPhone,   setCustomerPhone]   = useState("");
+  const [customerId,      setCustomerId]      = useState<number | null>(null);
   const [notes,           setNotes]           = useState("");
   const [error,           setError]           = useState("");
   const [completedInvoice, setCompletedInvoice] = useState<any | null>(null);
@@ -270,9 +275,10 @@ export default function Pos() {
   const advancePayNum = paymentMethod === "Credit" ? Math.min(Number(advancePay) || 0, total) : 0;
   const amountDue     = paymentMethod === "Credit" ? Math.max(0, total - advancePayNum) : 0;
 
-  // Effective customer name sent to API
-  const effectiveCustomerName = customerMode === "cash" ? "Cash Customer" : (customerName || null);
+  // Effective customer fields sent to API
+  const effectiveCustomerName  = customerMode === "cash" ? "Cash Customer" : (customerName || null);
   const effectiveCustomerPhone = customerMode === "cash" ? null : (customerPhone || null);
+  const effectiveCustomerId    = customerMode === "db" ? customerId : null;
 
   const checkoutMut = useMutation({
     mutationFn: async () => {
@@ -284,6 +290,7 @@ export default function Pos() {
           items: cart.map(l => ({ inventoryId: l.item.id, quantity: l.quantity, unitPrice: l.unitPrice })),
           discount: discountNum, paymentMethod,
           advancePaid: advancePayNum,
+          customerId: effectiveCustomerId,
           customerName: effectiveCustomerName,
           customerPhone: effectiveCustomerPhone,
           notes: notes || null,
@@ -300,7 +307,7 @@ export default function Pos() {
       qc.invalidateQueries({ queryKey: ["sales"] });
       setCompletedInvoice(sale);
       setCart([]); setDiscount("0"); setAdvancePay("0");
-      setCustomerMode("cash"); setCustomerName("Cash Customer"); setCustomerPhone(""); setNotes("");
+      setCustomerMode("cash"); setCustomerName("Cash Customer"); setCustomerPhone(""); setCustomerId(null); setNotes("");
     },
     onError: (e: any) => setError(e.message),
   });
@@ -472,11 +479,12 @@ export default function Pos() {
                 <p className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: MUTED }}>Customer</p>
                 <CustomerPicker
                   mode={customerMode}
-                  onModeChange={setCustomerMode}
+                  onModeChange={(m) => { setCustomerMode(m); setCustomerId(null); }}
                   customerName={customerName}
                   onCustomerName={setCustomerName}
                   customerPhone={customerPhone}
                   onCustomerPhone={setCustomerPhone}
+                  onCustomerId={setCustomerId}
                   customers={customerList}
                   onResetCredit={() => { if (paymentMethod === "Credit") setPaymentMethod("Cash"); }}
                 />
