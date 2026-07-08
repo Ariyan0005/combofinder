@@ -184,7 +184,7 @@ export default function IspPinoutAdmin() {
   async function deletePinout(id: number) {
     if (!confirm("Delete this pinout? This cannot be undone.")) return;
     setDeleting(id);
-    await fetch(`/api/schematics/${id}`, { method: "DELETE" });
+    await fetch(`/api/schematics/${id}`, { method: "DELETE", credentials: "include" });
     qc.invalidateQueries({ queryKey: ["admin-isp-pinouts"] });
     setDeleting(null);
   }
