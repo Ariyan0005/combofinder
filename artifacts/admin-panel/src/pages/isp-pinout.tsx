@@ -46,6 +46,7 @@ function AddPinoutModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
     try {
       const res = await fetch("/api/schematics", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
