@@ -33,16 +33,38 @@ function isDisposableEmail(email: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// MX record check — verify the email domain can actually receive mail
+// MX record check — verify the email domain can actually receive mail.
+// Policy:
+//   • ENOTFOUND (domain does not exist) → block
+//   • ENODATA   (domain has no MX records) → block
+//   • Transient errors (timeout, SERVFAIL, network) → fail-open (allow)
+//   • Lookup is raced against a 5 s timeout so registration never stalls
 // ---------------------------------------------------------------------------
+const MX_LOOKUP_TIMEOUT_MS = 5000;
+const MX_DEFINITIVE_BLOCK_CODES = new Set(["ENOTFOUND", "ENODATA"]);
+
 async function hasMxRecord(email: string): Promise<boolean> {
   const domain = email.toLowerCase().split("@")[1];
   if (!domain) return false;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
   try {
-    const records = await dnsPromises.resolveMx(domain);
+    const records = await Promise.race([
+      dnsPromises.resolveMx(domain),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(Object.assign(new Error("DNS_TIMEOUT"), { code: "DNS_TIMEOUT" })), MX_LOOKUP_TIMEOUT_MS);
+      }),
+    ]);
+    clearTimeout(timeoutId);
     return Array.isArray(records) && records.length > 0;
-  } catch {
-    return false;
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    const code: string = err?.code ?? "";
+    if (MX_DEFINITIVE_BLOCK_CODES.has(code)) {
+      // Domain definitively does not exist or has no mail servers → block
+      return false;
+    }
+    // Transient / unknown errors — fail open so DNS outages never lock users out
+    return true;
   }
 }
 
