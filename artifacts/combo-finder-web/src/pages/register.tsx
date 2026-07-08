@@ -176,7 +176,7 @@ export default function Register() {
     <div className="min-h-screen flex flex-col" style={{ background: "hsl(var(--background))", direction: isRtl ? "rtl" : "ltr" }}>
       <AuthNavbar lang={lang} onLangChange={setLang} supportLabel={t.support} />
 
-      <div className="flex-1 flex items-center justify-center p-5 pt-3">
+      <div className="flex-1 flex items-start md:items-center justify-center p-5 pt-6 overflow-y-auto">
         <div className="w-full max-w-sm">
           <div className="mb-3">
             <h1 className="text-2xl font-extrabold">{t.title}</h1>

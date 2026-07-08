@@ -195,6 +195,7 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
   const [form, setForm] = useState({
     partName: existing?.partName ?? "",
     quality: existing?.quality ?? "Original",
+    brand: existing?.brand ?? "",
     quantity: String(existing?.quantity ?? ""),
     minStock: String(existing?.minStock ?? "0"),
     purchasePrice: String(existing?.purchasePrice ?? ""),
@@ -275,6 +276,9 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
           <Select value={form.quality} onChange={e => set("quality", e.target.value)}>
             {["Original","OEM","Copy","Refurbished"].map(q => <option key={q}>{q}</option>)}
           </Select>
+        </Field>
+        <Field label="Brand / Company">
+          <Input value={form.brand} onChange={e => set("brand", e.target.value)} placeholder="e.g. Samsung, Apple, Huawei…" />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Quantity"><Input type="number" min="0" value={form.quantity} onChange={e => set("quantity", e.target.value)} placeholder="0" /></Field>

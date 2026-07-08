@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   Search, Package, Minus, Plus, Trash2, ShoppingCart, CheckCircle,
-  ClipboardList, X, Boxes, User, Users, ChevronDown,
+  ClipboardList, X, Boxes, User, Users, ChevronDown, QrCode,
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 import { generateInvoicePdf, type InvoiceData } from "@/lib/invoice-pdf";
@@ -194,6 +194,94 @@ function CustomerPicker({
   );
 }
 
+// ── POS Barcode Scanner ───────────────────────────────────────────────────────
+function PosBarcodeScanner({ onDetect, onClose }: { onDetect: (code: string) => void; onClose: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [supported, setSupported] = useState<boolean | null>(null);
+  const [manualCode, setManualCode] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const rafRef = useRef<number>(0);
+
+  useEffect(() => {
+    const hasApi = "BarcodeDetector" in window;
+    setSupported(hasApi);
+    if (!hasApi) return;
+    let stream: MediaStream | null = null;
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); }
+        setScanning(true);
+        // @ts-ignore
+        const detector = new window.BarcodeDetector({ formats: ["qr_code","ean_13","ean_8","code_128","code_39","upc_a","upc_e"] });
+        const scan = async () => {
+          if (!videoRef.current) return;
+          try {
+            const codes = await detector.detect(videoRef.current);
+            if (codes.length > 0) { onDetect(codes[0].rawValue); return; }
+          } catch {}
+          rafRef.current = requestAnimationFrame(scan);
+        };
+        rafRef.current = requestAnimationFrame(scan);
+      } catch { setSupported(false); }
+    })();
+    return () => { cancelAnimationFrame(rafRef.current); stream?.getTracks().forEach(t => t.stop()); };
+  }, [onDetect]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl p-5" style={{ background: CARD }}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-base">Scan Product Barcode</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ background: "hsl(var(--muted))", color: MUTED }}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {supported === false ? (
+          <div className="space-y-3">
+            <p className="text-sm" style={{ color: MUTED }}>Camera scan not supported. Enter the barcode manually:</p>
+            <input value={manualCode} onChange={e => setManualCode(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && manualCode && onDetect(manualCode)}
+              placeholder="Type barcode / SKU"
+              className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none"
+              style={{ borderColor: BORDER, background: "hsl(var(--background))" }} />
+            <button onClick={() => manualCode && onDetect(manualCode)} disabled={!manualCode}
+              className="w-full py-3 rounded-xl font-bold text-white text-sm disabled:opacity-50"
+              style={{ background: PRIMARY }}>Search Product</button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="relative rounded-2xl overflow-hidden bg-black aspect-[4/3]">
+              <video ref={videoRef} muted playsInline className="w-full h-full object-cover" />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-52 h-32 border-2 border-white/70 rounded-2xl" />
+              </div>
+              {scanning && <div className="absolute top-3 left-3 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full">Scanning…</div>}
+            </div>
+            <p className="text-xs text-center" style={{ color: MUTED }}>Point camera at product barcode</p>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-px" style={{ background: BORDER }} />
+              <span className="text-xs" style={{ color: MUTED }}>or type manually</span>
+              <div className="flex-1 h-px" style={{ background: BORDER }} />
+            </div>
+            <div className="flex gap-2">
+              <input value={manualCode} onChange={e => setManualCode(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && manualCode && onDetect(manualCode)}
+                placeholder="Barcode / SKU" className="flex-1 px-3 py-2.5 rounded-xl border text-sm outline-none"
+                style={{ borderColor: BORDER, background: "hsl(var(--background))" }} />
+              <button onClick={() => manualCode && onDetect(manualCode)} disabled={!manualCode}
+                className="px-4 py-2 rounded-xl text-white text-sm font-bold disabled:opacity-50 flex-shrink-0"
+                style={{ background: PRIMARY }}>Go</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main POS Page ────────────────────────────────────────────────────────────
 export default function Pos() {
   const qc = useQueryClient();
@@ -202,6 +290,7 @@ export default function Pos() {
   const shopName = user?.shopName ?? user?.name ?? "My Shop";
 
   const [search,          setSearch]          = useState("");
+  const [showPosScanner,  setShowPosScanner]  = useState(false);
   const [cart,            setCart]            = useState<CartLine[]>([]);
   const [discount,        setDiscount]        = useState("0");
   const [paymentMethod,   setPaymentMethod]   = useState("Cash");
@@ -350,6 +439,23 @@ export default function Pos() {
 
   return (
     <ProtectedPage>
+      {showPosScanner && (
+        <PosBarcodeScanner
+          onClose={() => setShowPosScanner(false)}
+          onDetect={code => {
+            setShowPosScanner(false);
+            const match = list.find(i =>
+              i.barcode === code || i.sku === code ||
+              i.partName.toLowerCase() === code.toLowerCase()
+            );
+            if (match && match.quantity > 0) {
+              addToCart(match);
+            } else {
+              setSearch(code);
+            }
+          }}
+        />
+      )}
       <div className="space-y-3 pb-6">
         {/* Header */}
         <div className="flex items-center justify-between pt-1">
@@ -375,13 +481,21 @@ export default function Pos() {
           </button>
         </Link>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: MUTED }} />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search product to add…"
-            className="w-full pl-10 pr-4 py-3 rounded-2xl border text-sm outline-none"
-            style={{ borderColor: BORDER, background: CARD }} />
+        {/* Search + Barcode Scanner */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: MUTED }} />
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search product to add…"
+              className="w-full pl-10 pr-4 py-3 rounded-2xl border text-sm outline-none"
+              style={{ borderColor: BORDER, background: CARD }} />
+          </div>
+          <button onClick={() => setShowPosScanner(true)}
+            className="w-12 h-12 rounded-2xl border flex items-center justify-center flex-shrink-0 transition-colors"
+            title="Scan barcode"
+            style={{ borderColor: BORDER, background: CARD, color: PRIMARY }}>
+            <QrCode className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Product list */}
