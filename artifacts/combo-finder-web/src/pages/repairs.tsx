@@ -60,35 +60,12 @@ function CustomerSearchField({
 }: { value: string; phone: string; onChange: (name: string, phone: string, id?: number) => void }) {
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
-  const [showAdd, setShowAdd] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newPhone, setNewPhone] = useState("");
-  const qc = useQueryClient();
   const ref = useRef<HTMLDivElement>(null);
 
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["customers", "search", query],
     queryFn: () => fetch(`/api/customers?q=${encodeURIComponent(query)}`, { credentials: "include" }).then(r => r.json()),
     enabled: query.length > 0,
-  });
-
-  const addMut = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/customers", {
-        method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim(), phone: newPhone.trim() || null }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      return res.json() as Promise<Customer>;
-    },
-    onSuccess: (c) => {
-      qc.invalidateQueries({ queryKey: ["customers"] });
-      onChange(c.name, c.phone ?? "", c.id);
-      setQuery(c.name);
-      setShowAdd(false);
-      setOpen(false);
-    },
   });
 
   useEffect(() => {
@@ -103,26 +80,15 @@ function CustomerSearchField({
 
   return (
     <div ref={ref} className="relative">
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <input
-            value={query}
-            onChange={e => { setQuery(e.target.value); onChange(e.target.value, phone, undefined); setOpen(true); }}
-            onFocus={() => setOpen(true)}
-            placeholder="Search or type customer name"
-            className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none"
-            style={{ borderColor: BORDER, background: BG }}
-            
-            onBlur={e => { e.currentTarget.style.borderColor = BORDER; }}
-          />
-        </div>
-        <button type="button" onClick={() => { setShowAdd(true); setOpen(false); }}
-          className="px-3 py-2 rounded-xl border flex items-center gap-1 text-xs font-semibold flex-shrink-0"
-          style={{ borderColor: PRIMARY, color: PRIMARY, background: `${PRIMARY}10` }}>
-          <UserPlus className="w-3.5 h-3.5" />
-          Add
-        </button>
-      </div>
+      <input
+        value={query}
+        onChange={e => { setQuery(e.target.value); onChange(e.target.value, phone, undefined); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder="Search customer name"
+        className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none"
+        style={{ borderColor: BORDER, background: BG }}
+        onBlur={e => { e.currentTarget.style.borderColor = BORDER; }}
+      />
 
       {/* Dropdown */}
       {open && query.length > 0 && filtered.length > 0 && (
@@ -142,34 +108,6 @@ function CustomerSearchField({
               </div>
             </button>
           ))}
-        </div>
-      )}
-
-      {/* Add customer inline mini-form */}
-      {showAdd && (
-        <div className="mt-2 p-4 rounded-xl border" style={{ background: "hsl(var(--muted) / 0.5)", borderColor: BORDER }}>
-          <p className="text-xs font-bold mb-2">New Customer</p>
-          <div className="flex flex-col gap-2">
-            <input value={newName} onChange={e => setNewName(e.target.value)}
-              placeholder="Customer name *" autoFocus
-              className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none"
-              style={{ borderColor: BORDER, background: BG }} />
-            <input value={newPhone} onChange={e => setNewPhone(e.target.value)}
-              placeholder="Phone number" type="tel"
-              className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none"
-              style={{ borderColor: BORDER, background: BG }} />
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setShowAdd(false)}
-                className="flex-1 py-2 rounded-xl text-sm font-semibold border"
-                style={{ borderColor: BORDER, color: MUTED }}>Cancel</button>
-              <button type="button" disabled={!newName.trim() || addMut.isPending}
-                onClick={() => addMut.mutate()}
-                className="flex-1 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50"
-                style={{ background: PRIMARY }}>
-                {addMut.isPending ? "Saving…" : "Save & Use"}
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>
@@ -392,26 +330,28 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col"
+      <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden"
         style={{ background: CARD, maxHeight: "90vh" }}>
 
         {/* Gradient header */}
-        <div className="flex-shrink-0 px-5 pt-5 pb-4 rounded-t-3xl"
+        <div className="flex-shrink-0 px-5 pt-5 pb-4"
           style={{ background: `linear-gradient(135deg, ${PRIMARY}15 0%, transparent 100%)`, borderBottom: `1px solid ${BORDER}` }}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
                 style={{ background: `${PRIMARY}20` }}>
                 <Wrench className="w-5 h-5" style={{ color: PRIMARY }} />
               </div>
-              <div>
-                <h2 className="font-extrabold text-base">{existing ? "Edit Repair" : "New Repair Job"}</h2>
-                <p className="text-[10px]" style={{ color: MUTED }}>
+              <div className="min-w-0">
+                <h2 className="font-extrabold text-base truncate" style={{ color: "hsl(var(--foreground))" }}>
+                  {existing ? "Edit Repair" : "New Repair Job"}
+                </h2>
+                <p className="text-[10px] truncate" style={{ color: MUTED }}>
                   {existing ? `Repair #${existing.id}` : "Fill in the repair details below"}
                 </p>
               </div>
             </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center"
+            <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
               style={{ background: "hsl(var(--muted))", color: MUTED }}>
               <X className="w-4 h-4" />
             </button>

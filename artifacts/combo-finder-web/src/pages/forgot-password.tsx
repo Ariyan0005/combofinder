@@ -75,7 +75,7 @@ export default function ForgotPassword() {
 
       <AuthNavbar lang={lang} onLangChange={setLang} />
 
-      <div className="flex-1 p-5 pt-8">
+      <div className="flex-1 flex items-center justify-center p-5 pt-8">
       <div className="w-full max-w-sm">
 
         {step === "request" && (

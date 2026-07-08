@@ -136,7 +136,7 @@ export default function Login() {
     <div className="min-h-screen flex flex-col" style={{ background: "hsl(var(--background))", direction: isRtl ? "rtl" : "ltr" }}>
       <AuthNavbar lang={lang} onLangChange={setLang} supportLabel={t.support} />
 
-      <div className="flex-1 p-5 pt-4">
+      <div className="flex-1 flex items-center justify-center p-5 pt-4">
         <div className="w-full max-w-sm">
           <div className="mb-4">
             <h1 className="text-2xl font-extrabold">{t.welcome}</h1>
