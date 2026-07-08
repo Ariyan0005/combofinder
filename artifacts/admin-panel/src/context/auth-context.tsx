@@ -14,7 +14,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     fetch("/api/auth/me", { credentials: "include" })
       .then((r) => r.json())
-      .then((data: { authenticated: boolean }) => setAuthenticated(data.authenticated))
+      .then((data: { authenticated: boolean; user?: { role?: string } }) => {
+        // A session can be "authenticated" for a regular ComboFinder
+        // technician account (the login endpoint is shared). Only
+        // admin/superadmin roles may use the admin panel, otherwise the
+        // shell renders as logged-in but every mutation 403s.
+        const role = (data.user?.role ?? "").toLowerCase();
+        const isAdmin = data.authenticated && (role === "admin" || role === "superadmin");
+        setAuthenticated(isAdmin);
+      })
       .catch(() => setAuthenticated(false));
   }, []);
 
@@ -25,9 +33,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     });
+    const data = await res.json() as { error?: string; user?: { role?: string } };
     if (!res.ok) {
-      const data = await res.json() as { error: string };
       throw new Error(data.error ?? "Login failed");
+    }
+    // The shared /api/auth/login endpoint also authenticates regular
+    // ComboFinder technician accounts. Only admin/superadmin roles may
+    // use the admin panel — otherwise every admin action would silently
+    // 403 later even though "login" appeared to succeed.
+    const role = (data.user?.role ?? "").toLowerCase();
+    if (role !== "admin" && role !== "superadmin") {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      throw new Error("This account does not have admin access.");
     }
     setAuthenticated(true);
   }

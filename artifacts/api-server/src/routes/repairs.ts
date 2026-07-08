@@ -9,7 +9,9 @@ router.get("/", async (req, res) => {
     const userId: number | undefined = (req as any).userId;
     const q = req.query.q ? String(req.query.q) : null;
     const status = req.query.status ? String(req.query.status) : null;
+    const customerId = req.query.customerId ? Number(req.query.customerId) : null;
     const userFilter = userId ? eq(repairsTable.userId, userId) : undefined;
+    const customerFilter = customerId ? eq(repairsTable.customerId, customerId) : undefined;
 
     let query = db.select().from(repairsTable).$dynamic();
     if (q) {
@@ -19,9 +21,11 @@ router.get("/", async (req, res) => {
         ilike(repairsTable.phoneBrand, `%${q}%`),
         ilike(repairsTable.imei || sql`''`, `%${q}%`)
       );
-      query = query.where(userFilter ? and(userFilter, searchFilter) : searchFilter);
-    } else if (userFilter) {
-      query = query.where(userFilter);
+      const combined = [userFilter, customerFilter, searchFilter].filter(Boolean) as any[];
+      query = query.where(combined.length > 1 ? and(...combined) : combined[0]);
+    } else {
+      const combined = [userFilter, customerFilter].filter(Boolean) as any[];
+      if (combined.length > 0) query = query.where(combined.length > 1 ? and(...combined) : combined[0]);
     }
     const rows = await query.orderBy(desc(repairsTable.createdAt));
     const filtered = status ? rows.filter(r => r.status === status) : rows;

@@ -48,7 +48,18 @@ router.get("/:id", async (req, res) => {
         ? and(eq(customersTable.id, Number(req.params.id)), eq(customersTable.userId, userId))
         : eq(customersTable.id, Number(req.params.id)));
     if (!row) return res.status(404).json({ error: "Not found" });
-    res.json(row);
+
+    let creditDue = 0;
+    if (userId) {
+      const [dueRow] = await db.execute(sql`
+        SELECT GREATEST(0, SUM(total::numeric - COALESCE(advance_paid::numeric, 0))) AS credit_due
+        FROM sales
+        WHERE payment_method = 'Credit' AND customer_id = ${row.id} AND user_id = ${userId}
+      `).then(r => r.rows as any[]);
+      creditDue = Number(dueRow?.credit_due ?? 0);
+    }
+
+    res.json({ ...row, creditDue });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed" }); }
 });
 

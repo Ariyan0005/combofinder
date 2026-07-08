@@ -19,6 +19,7 @@ const CARD    = "hsl(var(--card))";
 
 type Repair = {
   id: number;
+  customerId?: number;
   customerName: string;
   customerPhone?: string;
   phoneBrand: string;
@@ -106,7 +107,7 @@ function CustomerSearchField({
         <div className="relative flex-1">
           <input
             value={query}
-            onChange={e => { setQuery(e.target.value); onChange(e.target.value, phone); setOpen(true); }}
+            onChange={e => { setQuery(e.target.value); onChange(e.target.value, phone, undefined); setOpen(true); }}
             onFocus={() => setOpen(true)}
             placeholder="Search or type customer name"
             className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none"
@@ -130,7 +131,7 @@ function CustomerSearchField({
           {filtered.map(c => (
             <button key={c.id} type="button"
               className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted/30 transition-colors"
-              onMouseDown={() => { onChange(c.name, c.phone ?? ""); setQuery(c.name); setOpen(false); }}>
+              onMouseDown={() => { onChange(c.name, c.phone ?? "", c.id); setQuery(c.name); setOpen(false); }}>
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
                 style={{ background: PRIMARY }}>
                 {c.name.charAt(0).toUpperCase()}
@@ -296,6 +297,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 // ─── Repair form (create / edit) ──────────────────────────────────────────────
 function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Repair }) {
   const qc = useQueryClient();
+  const [customerId, setCustomerId] = useState<number | undefined>(existing?.customerId ?? undefined);
   const [form, setForm] = useState({
     customerName:  existing?.customerName  ?? "",
     customerPhone: existing?.customerPhone ?? "",
@@ -327,6 +329,7 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
       const url = existing ? `/api/repairs/${existing.id}` : `/api/repairs`;
       const body = {
         ...form,
+        customerId: customerId ?? null,
         partsUsed: JSON.stringify(parts),
         partsCost: String(partsCost),
         totalCost: String(totalCost),
@@ -425,7 +428,10 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
               <CustomerSearchField
                 value={form.customerName}
                 phone={form.customerPhone}
-                onChange={(name, phone) => setForm(p => ({ ...p, customerName: name, customerPhone: phone }))}
+                onChange={(name, phone, id) => {
+                  setForm(p => ({ ...p, customerName: name, customerPhone: phone }));
+                  setCustomerId(id);
+                }}
               />
               {form.customerName && (
                 <input value={form.customerPhone}
@@ -442,16 +448,16 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
               <SectionLabel>📱 Device Information</SectionLabel>
               <div className="grid grid-cols-2 gap-2">
                 <input value={form.phoneBrand} onChange={e => set("phoneBrand", e.target.value)}
-                  placeholder="Brand (e.g. Samsung)"
+                  placeholder="Brand (e.g. Samsung) *" required
                   className="w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none"
                   style={{ borderColor: BORDER, background: CARD }} />
                 <input value={form.phoneModel} onChange={e => set("phoneModel", e.target.value)}
-                  placeholder="Model (e.g. A54)"
+                  placeholder="Model (e.g. A54) *" required
                   className="w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none"
                   style={{ borderColor: BORDER, background: CARD }} />
               </div>
               <textarea value={form.problem} onChange={e => set("problem", e.target.value)}
-                placeholder="Describe the problem / issue…" rows={2}
+                placeholder="Describe the problem / issue… *" rows={2} required
                 className="w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none resize-none"
                 style={{ borderColor: BORDER, background: CARD }} />
             </div>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Phone, MessageSquare, Wrench, DollarSign } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Phone, MessageSquare, Wrench, DollarSign, X } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 
 
@@ -16,9 +16,63 @@ const STATUS_COLOR: Record<string, { text: string; bg: string }> = {
   Delivered: { text: "#6B7280", bg: "#F3F4F6" },
 };
 
+function RecordPaymentModal({ customerId, due, onClose, onSaved }: { customerId: number; due: number; onClose: () => void; onSaved: () => void }) {
+  const [amount, setAmount] = useState(String(due));
+  const [error, setError] = useState("");
+
+  const mut = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/sales/customers/${customerId}/payment`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: Number(amount) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to record payment");
+      return data;
+    },
+    onSuccess: () => { onSaved(); onClose(); },
+    onError: (err: any) => setError(err.message),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative w-full max-w-sm rounded-t-3xl md:rounded-3xl shadow-2xl p-5 space-y-4"
+        style={{ background: "hsl(var(--card))" }}>
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-base">Record Payment</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ background: "hsl(var(--muted))" }}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+          Outstanding credit due: <strong>{due.toLocaleString()}</strong>
+        </p>
+        <div>
+          <label className="text-xs font-semibold block mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>Amount received</label>
+          <input type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
+            className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none"
+            style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--background))" }} />
+        </div>
+        {error && <p className="text-xs" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
+        <button onClick={() => mut.mutate()} disabled={mut.isPending || !Number(amount) || Number(amount) <= 0}
+          className="w-full py-3 rounded-xl text-sm font-bold text-white disabled:opacity-50"
+          style={{ background: "hsl(var(--primary))" }}>
+          {mut.isPending ? "Saving…" : "Record Payment"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function CustomerProfile() {
   const { id } = useParams<{ id: string }>();
   const customerId = Number(id);
+  const qc = useQueryClient();
+  const [showPayment, setShowPayment] = useState(false);
 
   const { data: customer, isLoading } = useQuery<any>({
     queryKey: ["customer", customerId],
@@ -127,6 +181,21 @@ export default function CustomerProfile() {
               </p>
             </div>
           </div>
+
+          {/* Credit due (POS credit sales) */}
+          {(customer.creditDue ?? 0) > 0 && (
+            <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-border">
+              <div>
+                <p className="text-xs font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>Credit Due (POS)</p>
+                <p className="text-lg font-extrabold" style={{ color: "#DC2626" }}>{Number(customer.creditDue).toLocaleString()}</p>
+              </div>
+              <button onClick={() => setShowPayment(true)}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold text-white flex-shrink-0"
+                style={{ background: "hsl(var(--primary))" }}>
+                <DollarSign className="w-4 h-4" /> Record Payment
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Repair history */}
@@ -168,6 +237,15 @@ export default function CustomerProfile() {
           )}
         </div>
       </div>
+
+      {showPayment && (
+        <RecordPaymentModal
+          customerId={customerId}
+          due={Number(customer.creditDue ?? 0)}
+          onClose={() => setShowPayment(false)}
+          onSaved={() => { qc.invalidateQueries({ queryKey: ["customer", customerId] }); qc.invalidateQueries({ queryKey: ["customers"] }); }}
+        />
+      )}
     </ProtectedPage>
   );
 }

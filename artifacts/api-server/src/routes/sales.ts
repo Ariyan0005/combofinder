@@ -226,6 +226,89 @@ router.post("/", async (req, res) => {
   }
 });
 
+// POST /api/sales/customers/:customerId/payment
+// Record a payment against a customer's outstanding POS credit-sale due.
+// Applies the payment across the customer's oldest unpaid Credit sales first
+// (FIFO), increasing advancePaid on each until the payment is exhausted.
+// This is separate from the standalone Ledger feature — it only clears the
+// "due" balance shown against POS credit sales for this customer.
+router.post("/customers/:customerId/payment", async (req, res) => {
+  try {
+    const userId: number = (req as any).userId;
+    const customerId = requireInt(req.params.customerId, "customerId");
+    let amount = round2(Number(req.body.amount));
+    if (!Number.isFinite(amount) || amount <= 0) throw Object.assign(new Error("amount must be a positive number"), { status: 400 });
+    const notes = req.body.notes ? String(req.body.notes).slice(0, 500) : null;
+
+    const result = await db.transaction(async (tx) => {
+      // Lock the candidate rows for the duration of this transaction so a
+      // second concurrent payment request can't read the same stale
+      // advancePaid values and clobber this update (lost-update race).
+      const openSales = await tx.select().from(salesTable)
+        .where(and(
+          eq(salesTable.userId, userId),
+          eq(salesTable.customerId, customerId),
+          eq(salesTable.paymentMethod, "Credit"),
+        ))
+        .orderBy(salesTable.id) // oldest first (FIFO)
+        .for("update");
+
+      let remaining = amount;
+      const updated: { id: number; invoiceNumber: string; applied: number }[] = [];
+
+      for (const sale of openSales) {
+        if (remaining <= 0) break;
+        const total = Number(sale.total);
+        const paidSoFar = Number(sale.advancePaid ?? 0);
+        const due = round2(Math.max(0, total - paidSoFar));
+        if (due <= 0) continue;
+
+        const applied = round2(Math.min(due, remaining));
+        const newAdvance = round2(paidSoFar + applied);
+        await tx.update(salesTable)
+          .set({ advancePaid: String(newAdvance) })
+          .where(eq(salesTable.id, sale.id));
+
+        remaining = round2(remaining - applied);
+        updated.push({ id: sale.id, invoiceNumber: sale.invoiceNumber, applied });
+      }
+
+      const appliedTotal = round2(amount - remaining);
+      if (appliedTotal <= 0) {
+        throw Object.assign(new Error("This customer has no outstanding credit due"), { status: 400 });
+      }
+
+      await tx.insert(transactionsTable).values({
+        type: "Income", category: "Sale",
+        amount: String(appliedTotal),
+        description: `Payment received against credit due (customer #${customerId})${notes ? ` — ${notes}` : ""}`,
+        relatedId: String(customerId), relatedType: "customer_payment",
+        paymentMethod: "Cash", status: "Completed", date: todayStr(),
+      });
+
+      const [dueRow] = await tx.execute(sql`
+        SELECT GREATEST(0, SUM(total::numeric - COALESCE(advance_paid::numeric, 0))) AS credit_due
+        FROM sales
+        WHERE payment_method = 'Credit' AND customer_id = ${customerId} AND user_id = ${userId}
+      `).then(r => r.rows as any[]);
+
+      return {
+        appliedTotal,
+        unapplied: remaining,
+        remainingDue: Number(dueRow?.credit_due ?? 0),
+        updatedSales: updated,
+      };
+    });
+
+    res.json(result);
+  } catch (err: any) {
+    const status = err.status ?? (err.message?.includes("must be") ? 400 : 500);
+    if (status < 500) return res.status(status).json({ error: err.message });
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to record payment" });
+  }
+});
+
 // POST /api/sales/:id/return  — process a return/refund for one or more line items
 router.post("/:id/return", async (req, res) => {
   try {
