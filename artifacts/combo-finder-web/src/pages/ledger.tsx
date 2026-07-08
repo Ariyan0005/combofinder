@@ -88,38 +88,45 @@ export default function Ledger() {
   function exportPdf() {
     const acc = selectedAccount;
     if (!acc) return;
+    const shopName = user?.shopName ?? user?.name ?? "My Shop";
 
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const pageW = doc.internal.pageSize.getWidth();
 
     // Header band
     doc.setFillColor(37, 99, 235);
-    doc.rect(0, 0, pageW, 28, "F");
+    doc.rect(0, 0, pageW, 32, "F");
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
+    doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.text(acc.name, 14, 12);
+    doc.text(shopName, 14, 10);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    if (acc.phone) doc.text(`Phone: ${acc.phone}`, 14, 19);
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageW - 14, 19, { align: "right" });
+    doc.text("Ledger Statement", 14, 16);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text(acc.name, 14, 24);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    if (acc.phone) doc.text(`Phone: ${acc.phone}`, 80, 24);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageW - 14, 24, { align: "right" });
 
     // Summary row
     doc.setTextColor(30, 30, 30);
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    doc.text(`Total Credit: ${sym}${(acc.creditSum ?? 0).toLocaleString()}`, 14, 36);
-    doc.text(`Total Debit: ${sym}${(acc.debitSum ?? 0).toLocaleString()}`, 80, 36);
+    doc.text(`Total Debit: ${sym}${(acc.debitSum ?? 0).toLocaleString()}`, 14, 42);
+    doc.text(`Total Credit: ${sym}${(acc.creditSum ?? 0).toLocaleString()}`, 80, 42);
     const balLabel = acc.balance > 0 ? `Balance Due: ${sym}${acc.balance.toLocaleString()} (Customer owes)`
       : acc.balance < 0 ? `Balance: ${sym}${Math.abs(acc.balance).toLocaleString()} (You owe)`
       : "Balance: Settled";
-    doc.text(balLabel, 14, 43);
+    doc.text(balLabel, 14, 49);
 
     // Table — sorted by date ascending
     const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
 
     autoTable(doc, {
-      startY: 50,
+      startY: 56,
       head: [["Date", "Product / Item", "Description", "Reference", `Credit (${sym})`, `Debit (${sym})`]],
       body: sorted.map(e => [
         fmtDate(e.date),
@@ -146,7 +153,7 @@ export default function Ledger() {
     const finalY = (doc as any).lastAutoTable?.finalY ?? 200;
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
-    doc.text("ComboFinder · Ledger Report", 14, finalY + 10);
+    doc.text(`${shopName} · Ledger Report`, 14, finalY + 10);
     doc.text(`Page 1`, pageW - 14, finalY + 10, { align: "right" });
 
     doc.save(`ledger-${acc.name.replace(/\s+/g, "-")}.pdf`);

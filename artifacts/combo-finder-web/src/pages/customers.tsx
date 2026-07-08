@@ -1,8 +1,15 @@
 import { useState, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Plus, ChevronRight, X, Users } from "lucide-react";
+import { Search, Plus, X, Users, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
+import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$", EUR: "€", GBP: "£", BDT: "৳", INR: "₹",
+  PKR: "₨", NPR: "रू", LKR: "Rs", AED: "د.إ", SAR: "﷼",
+  OMR: "OMR", KWD: "KD", QAR: "QR", MYR: "RM", SGD: "S$",
+};
 
 
 type Customer = {
@@ -12,6 +19,7 @@ type Customer = {
   whatsapp?: string;
   notes?: string;
   totalRepairs?: number;
+  creditDue?: number;
   createdAt: string;
 };
 
@@ -97,6 +105,8 @@ export default function Customers() {
   const [showForm, setShowForm] = useState(false);
   const [editCustomer, setEditCustomer] = useState<Customer | undefined>();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
 
   const { data: customers, isLoading } = useQuery<Customer[]>({
     queryKey: ["customers", searchQ],
@@ -160,9 +170,18 @@ export default function Customers() {
                   <div className="cursor-pointer">
                     <p className="text-sm font-semibold truncate">{c.name}</p>
                     {c.phone && <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{c.phone}</p>}
-                    <p className="text-xs mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>
-                      Total Repairs: {c.totalRepairs ?? 0}
-                    </p>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        Repairs: {c.totalRepairs ?? 0}
+                      </p>
+                      {(c.creditDue ?? 0) > 0 && (
+                        <span className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                          style={{ background: "#FEF2F2", color: "#DC2626" }}>
+                          <AlertCircle className="w-2.5 h-2.5" />
+                          Due: {sym}{Number(c.creditDue).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </Link>
                 <div className="flex flex-col items-end gap-2 flex-shrink-0">

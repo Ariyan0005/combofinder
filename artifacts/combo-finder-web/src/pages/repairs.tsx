@@ -3,12 +3,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, X, Wrench, UserPlus, Package, Trash2, ChevronDown, Check } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 
-const STATUSES = ["All", "Repairing", "Waiting", "Ready", "Delivered"];
+const STATUSES = ["All", "Repairing", "Ready", "Delivered", "Cancelled"];
 const STATUS_COLOR: Record<string, { text: string; bg: string }> = {
-  Waiting:   { text: "#F59E0B", bg: "#FFF7E6" },
   Repairing: { text: "hsl(var(--primary))", bg: "hsl(var(--primary) / 0.1)" },
   Ready:     { text: "#10B981", bg: "#ECFDF5" },
   Delivered: { text: "#6B7280", bg: "#F3F4F6" },
+  Cancelled: { text: "#EF4444", bg: "#FEF2F2" },
 };
 
 const PRIMARY = "hsl(var(--primary))";
@@ -284,6 +284,15 @@ function PartsSelector({ parts, onChange }: { parts: PartEntry[]; onChange: (p: 
   );
 }
 
+// ─── Section label helper ─────────────────────────────────────────────────────
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: MUTED }}>
+      {children}
+    </p>
+  );
+}
+
 // ─── Repair form (create / edit) ──────────────────────────────────────────────
 function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Repair }) {
   const qc = useQueryClient();
@@ -293,7 +302,7 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
     phoneBrand:    existing?.phoneBrand    ?? "",
     phoneModel:    existing?.phoneModel    ?? "",
     problem:       existing?.problem       ?? "",
-    status:        existing?.status        ?? "Waiting",
+    status:        existing?.status        ?? "Repairing",
     engineer:      existing?.engineer      ?? "",
     laborCost:     String(existing?.laborCost  ?? ""),
     advancePaid:   String(existing?.advancePaid ?? ""),
@@ -368,28 +377,51 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
     mut.mutate();
   }
 
+  const STATUS_OPTS = [
+    { val: "Repairing", color: PRIMARY,   bg: `${PRIMARY}18` },
+    { val: "Ready",     color: "#10B981", bg: "#ECFDF5" },
+    { val: "Delivered", color: "#6B7280", bg: "#F3F4F6" },
+    { val: "Cancelled", color: "#EF4444", bg: "#FEF2F2" },
+  ];
+  const advanceNum = Number(form.advancePaid) || 0;
+  const dueAmount  = Math.max(0, totalCost - advanceNum);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col"
-        style={{ background: CARD, maxHeight: "85vh" }}>
-        {/* Sticky header */}
-        <div className="flex-shrink-0 flex items-center justify-between px-5 pt-5 pb-4 border-b"
-          style={{ background: CARD, borderColor: BORDER, borderRadius: "1.5rem 1.5rem 0 0" }}>
-          <h2 className="font-bold text-base">{existing ? "Edit Repair" : "New Repair"}</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center"
-            style={{ background: "hsl(var(--muted))", color: MUTED }}>
-            <X className="w-4 h-4" />
-          </button>
+        style={{ background: CARD, maxHeight: "90vh" }}>
+
+        {/* Gradient header */}
+        <div className="flex-shrink-0 px-5 pt-5 pb-4 rounded-t-3xl"
+          style={{ background: `linear-gradient(135deg, ${PRIMARY}15 0%, transparent 100%)`, borderBottom: `1px solid ${BORDER}` }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ background: `${PRIMARY}20` }}>
+                <Wrench className="w-5 h-5" style={{ color: PRIMARY }} />
+              </div>
+              <div>
+                <h2 className="font-extrabold text-base">{existing ? "Edit Repair" : "New Repair Job"}</h2>
+                <p className="text-[10px]" style={{ color: MUTED }}>
+                  {existing ? `Repair #${existing.id}` : "Fill in the repair details below"}
+                </p>
+              </div>
+            </div>
+            <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center"
+              style={{ background: "hsl(var(--muted))", color: MUTED }}>
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto px-5 pb-6">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-4">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5 pt-4">
 
-            {/* Customer section */}
-            <div>
-              <label className="text-xs font-bold block mb-1.5 uppercase tracking-wide" style={{ color: MUTED }}>Customer</label>
+            {/* ── Customer ── */}
+            <div className="rounded-2xl border p-4 space-y-3" style={{ borderColor: BORDER, background: BG }}>
+              <SectionLabel>👤 Customer</SectionLabel>
               <CustomerSearchField
                 value={form.customerName}
                 phone={form.customerPhone}
@@ -400,153 +432,174 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
                   onChange={e => set("customerPhone", e.target.value)}
                   placeholder="Customer phone"
                   type="tel"
-                  className="w-full mt-2 px-3.5 py-3 rounded-xl border text-sm outline-none"
-                  style={{ borderColor: BORDER, background: BG }} />
+                  className="w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none"
+                  style={{ borderColor: BORDER, background: CARD }} />
               )}
             </div>
 
-            {/* Device info */}
-            <div>
-              <label className="text-xs font-bold block mb-1.5 uppercase tracking-wide" style={{ color: MUTED }}>Device</label>
+            {/* ── Device ── */}
+            <div className="rounded-2xl border p-4 space-y-3" style={{ borderColor: BORDER, background: BG }}>
+              <SectionLabel>📱 Device Information</SectionLabel>
               <div className="grid grid-cols-2 gap-2">
-                {[
-                  { key: "phoneBrand", placeholder: "Brand (e.g. Samsung)" },
-                  { key: "phoneModel", placeholder: "Model (e.g. S23)" },
-                ].map(({ key, placeholder }) => (
-                  <input key={key}
-                    value={(form as any)[key]}
-                    onChange={e => set(key, e.target.value)}
-                    placeholder={placeholder}
-                    className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none"
-                    style={{ borderColor: BORDER, background: BG }} />
+                <input value={form.phoneBrand} onChange={e => set("phoneBrand", e.target.value)}
+                  placeholder="Brand (e.g. Samsung)"
+                  className="w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none"
+                  style={{ borderColor: BORDER, background: CARD }} />
+                <input value={form.phoneModel} onChange={e => set("phoneModel", e.target.value)}
+                  placeholder="Model (e.g. A54)"
+                  className="w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none"
+                  style={{ borderColor: BORDER, background: CARD }} />
+              </div>
+              <textarea value={form.problem} onChange={e => set("problem", e.target.value)}
+                placeholder="Describe the problem / issue…" rows={2}
+                className="w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none resize-none"
+                style={{ borderColor: BORDER, background: CARD }} />
+            </div>
+
+            {/* ── Status ── */}
+            <div>
+              <SectionLabel>🔧 Repair Status</SectionLabel>
+              <div className="grid grid-cols-2 gap-2">
+                {STATUS_OPTS.map(s => (
+                  <button key={s.val} type="button"
+                    onClick={() => set("status", s.val)}
+                    className="py-2.5 px-3 rounded-xl text-xs font-bold border transition-all text-left"
+                    style={form.status === s.val
+                      ? { background: s.bg, color: s.color, borderColor: s.color }
+                      : { background: "transparent", color: MUTED, borderColor: BORDER }}>
+                    {form.status === s.val && "✓ "}{s.val}
+                  </button>
                 ))}
               </div>
             </div>
 
-            {/* Problem */}
+            {/* ── Technician ── */}
             <div>
-              <label className="text-xs font-bold block mb-1.5 uppercase tracking-wide" style={{ color: MUTED }}>Problem</label>
-              <textarea value={form.problem} onChange={e => set("problem", e.target.value)}
-                placeholder="Describe the issue…" rows={3}
-                className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none resize-none"
+              <SectionLabel>🛠 Technician</SectionLabel>
+              <input value={form.engineer} onChange={e => set("engineer", e.target.value)}
+                placeholder="Technician / engineer name (optional)"
+                className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none"
                 style={{ borderColor: BORDER, background: BG }} />
             </div>
 
-            {/* Status + Engineer */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs font-bold block mb-1.5 uppercase tracking-wide" style={{ color: MUTED }}>Status</label>
-                <select value={form.status} onChange={e => set("status", e.target.value)}
-                  className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none"
-                  style={{ borderColor: BORDER, background: BG }}>
-                  {["Waiting","Repairing","Ready","Delivered"].map(s => <option key={s}>{s}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-bold block mb-1.5 uppercase tracking-wide" style={{ color: MUTED }}>Technician</label>
-                <input value={form.engineer} onChange={e => set("engineer", e.target.value)}
-                  placeholder="Engineer name"
-                  className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none"
-                  style={{ borderColor: BORDER, background: BG }} />
-              </div>
-            </div>
-
-            {/* Parts from inventory */}
+            {/* ── Parts ── */}
             <div>
-              <label className="text-xs font-bold block mb-1.5 uppercase tracking-wide" style={{ color: MUTED }}>
-                Parts Used (from inventory)
-              </label>
+              <SectionLabel>📦 Parts Used (from inventory)</SectionLabel>
               <PartsSelector parts={parts} onChange={setParts} />
               {parts.length > 0 && (
                 <p className="text-xs mt-1.5 font-semibold" style={{ color: MUTED }}>
-                  Parts cost: {partsCost.toFixed(2)}
+                  Parts subtotal: {partsCost.toFixed(2)}
                 </p>
               )}
             </div>
 
-            {/* Costs */}
-            <div>
-              <label className="text-xs font-bold block mb-1.5 uppercase tracking-wide" style={{ color: MUTED }}>Labor Cost</label>
-              <input type="text" inputMode="decimal" value={form.laborCost}
-                onChange={e => set("laborCost", e.target.value)}
-                placeholder="0.00"
-                className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none"
-                style={{ borderColor: BORDER, background: BG }} />
-              {(Number(form.laborCost) > 0 || partsCost > 0) && (
-                <p className="text-xs mt-1.5 font-bold" style={{ color: PRIMARY }}>
-                  Total: {totalCost.toFixed(2)}
-                </p>
-              )}
+            {/* ── Billing ── */}
+            <div className="rounded-2xl border overflow-hidden" style={{ borderColor: BORDER }}>
+              <div className="px-4 py-2.5" style={{ background: `${PRIMARY}10`, borderBottom: `1px solid ${BORDER}` }}>
+                <SectionLabel>💰 Billing & Payment</SectionLabel>
+              </div>
+              <div className="p-4 space-y-3" style={{ background: BG }}>
+                {/* Labor cost */}
+                <div>
+                  <label className="text-xs font-semibold block mb-1" style={{ color: MUTED }}>Labor / Service Cost</label>
+                  <input type="text" inputMode="decimal" value={form.laborCost}
+                    onChange={e => set("laborCost", e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none font-semibold"
+                    style={{ borderColor: BORDER, background: CARD }} />
+                </div>
+
+                {/* Summary */}
+                {totalCost > 0 && (
+                  <div className="rounded-xl p-3 space-y-2" style={{ background: `${PRIMARY}08`, border: `1px solid ${PRIMARY}30` }}>
+                    {partsCost > 0 && (
+                      <div className="flex justify-between text-xs">
+                        <span style={{ color: MUTED }}>Parts</span>
+                        <span className="font-semibold">{partsCost.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {Number(form.laborCost) > 0 && (
+                      <div className="flex justify-between text-xs">
+                        <span style={{ color: MUTED }}>Labor</span>
+                        <span className="font-semibold">{Number(form.laborCost).toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm font-extrabold border-t pt-2" style={{ borderColor: `${PRIMARY}30` }}>
+                      <span>Total Bill</span>
+                      <span style={{ color: PRIMARY }}>{totalCost.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Advance */}
+                <div>
+                  <label className="text-xs font-semibold block mb-1" style={{ color: MUTED }}>Advance Received</label>
+                  <input type="text" inputMode="decimal" value={form.advancePaid}
+                    onChange={e => set("advancePaid", e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none"
+                    style={{ borderColor: BORDER, background: CARD }} />
+                </div>
+
+                {/* Due */}
+                {totalCost > 0 && (
+                  <div className="flex items-center justify-between rounded-xl px-3 py-2.5"
+                    style={{ background: dueAmount > 0 ? "#FEF2F2" : "#ECFDF5", border: `1px solid ${dueAmount > 0 ? "#FCA5A5" : "#6EE7B7"}` }}>
+                    <span className="text-xs font-bold" style={{ color: dueAmount > 0 ? "#DC2626" : "#059669" }}>
+                      {dueAmount > 0 ? "Amount Due" : "Fully Paid ✓"}
+                    </span>
+                    {dueAmount > 0 && (
+                      <span className="text-base font-extrabold" style={{ color: "#DC2626" }}>{dueAmount.toFixed(2)}</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Payment status */}
+                <div>
+                  <p className="text-xs font-semibold mb-1.5" style={{ color: MUTED }}>Payment Status</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { val: false, label: "Unpaid / Due",  color: "#EF4444" },
+                      { val: true,  label: "Fully Paid",    color: "#10B981" },
+                    ] as const).map(({ val, label, color }) => (
+                      <button key={String(val)} type="button"
+                        onClick={() => setForm(p => ({ ...p, isPaid: val }))}
+                        className="py-2 rounded-xl text-xs font-bold border transition-all"
+                        style={form.isPaid === val
+                          ? { background: color, color: "#fff", borderColor: color }
+                          : { background: "transparent", color: MUTED, borderColor: BORDER }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Billing & Payment */}
-            <div className="rounded-2xl border p-4 space-y-3" style={{ borderColor: BORDER, background: BG }}>
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: MUTED }}>Billing & Payment</p>
-
-              {/* Total summary row */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs" style={{ color: MUTED }}>Total Bill</span>
-                <span className="text-sm font-black" style={{ color: PRIMARY }}>{totalCost.toFixed(2)}</span>
-              </div>
-
-              {/* Advance paid */}
-              <div>
-                <label className="text-xs font-semibold block mb-1" style={{ color: MUTED }}>Advance Paid</label>
-                <input type="text" inputMode="decimal" value={form.advancePaid}
-                  onChange={e => set("advancePaid", e.target.value)}
-                  placeholder="0.00"
-                  className="w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none"
-                  style={{ borderColor: BORDER, background: CARD }} />
-              </div>
-
-              {/* Due amount */}
-              {totalCost > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold" style={{ color: MUTED }}>Due Amount</span>
-                  <span className="text-sm font-black"
-                    style={{ color: (totalCost - (Number(form.advancePaid) || 0)) > 0 ? "#EF4444" : "#10B981" }}>
-                    {Math.max(0, totalCost - (Number(form.advancePaid) || 0)).toFixed(2)}
-                  </span>
-                </div>
-              )}
-
-              {/* Payment status toggle */}
-              <div>
-                <p className="text-xs font-semibold mb-2" style={{ color: MUTED }}>Payment Status</p>
-                <div className="flex gap-2">
-                  {([{ val: false, label: "Due / Credit", color: "#EF4444" }, { val: true, label: "Paid", color: "#10B981" }] as const).map(({ val, label, color }) => (
-                    <button key={String(val)} type="button"
-                      onClick={() => setForm(p => ({ ...p, isPaid: val }))}
-                      className="flex-1 py-2 rounded-xl text-xs font-bold border transition-colors"
-                      style={form.isPaid === val
-                        ? { background: color, color: "#fff", borderColor: color }
-                        : { background: "transparent", color: MUTED, borderColor: BORDER }}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Notes */}
+            {/* ── Notes ── */}
             <div>
-              <label className="text-xs font-bold block mb-1.5 uppercase tracking-wide" style={{ color: MUTED }}>Notes</label>
+              <SectionLabel>📝 Internal Notes</SectionLabel>
               <input value={form.notes} onChange={e => set("notes", e.target.value)}
-                placeholder="Internal notes (optional)"
+                placeholder="Optional internal notes…"
                 className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none"
                 style={{ borderColor: BORDER, background: BG }} />
             </div>
 
-            {error && <p className="text-xs text-center" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
+            {error && (
+              <div className="text-xs text-center px-4 py-2.5 rounded-xl font-semibold"
+                style={{ background: "#FEF2F2", color: "#DC2626", border: "1px solid #FCA5A5" }}>
+                {error}
+              </div>
+            )}
 
-            <div className="flex gap-2 pb-2">
+            <div className="grid grid-cols-2 gap-2 pb-2">
               <button type="button" onClick={onClose}
-                className="flex-1 py-3.5 rounded-xl font-semibold text-sm border"
+                className="py-3.5 rounded-xl font-semibold text-sm border"
                 style={{ borderColor: BORDER, color: MUTED }}>
                 Cancel
               </button>
               <button type="submit" disabled={mut.isPending}
-                className="flex-1 py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-60"
+                className="py-3.5 rounded-xl font-extrabold text-white text-sm disabled:opacity-60"
                 style={{ background: PRIMARY }}>
                 {mut.isPending ? "Saving…" : existing ? "Save Changes" : "Create Repair"}
               </button>

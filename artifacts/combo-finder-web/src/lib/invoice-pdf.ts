@@ -20,6 +20,9 @@ export interface InvoiceData {
   total: number;
   paymentMethod: string;
   status: string;
+  // Credit sale fields
+  advancePaid?: number | null;
+  amountDue?: number | null;
   // Branding (passed from user context)
   shopName?: string | null;
   currencySymbol?: string | null;
@@ -152,6 +155,28 @@ export function generateInvoicePdf(invoice: InvoiceData) {
   doc.setTextColor(25, 50, 180);
   doc.text("TOTAL", labelX, ty);
   doc.text(`${sym}${invoice.total.toLocaleString()}`, valX, ty, { align: "right" });
+
+  // ── Credit sale details ───────────────────────────────────────────────────────
+  if (invoice.advancePaid != null && invoice.advancePaid > 0) {
+    ty += 7;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(22, 163, 74);
+    doc.text("Advance Paid", labelX, ty);
+    doc.text(`${sym}${invoice.advancePaid.toLocaleString()}`, valX, ty, { align: "right" });
+  }
+  if (invoice.amountDue != null && invoice.amountDue > 0) {
+    ty += 7;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(220, 38, 38);
+    doc.text("Amount Due", labelX, ty);
+    doc.text(`${sym}${invoice.amountDue.toLocaleString()}`, valX, ty, { align: "right" });
+    // Highlight box
+    doc.setDrawColor(220, 38, 38);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(labelX - 3, ty - 5, valX - labelX + 6, 8, 1, 1, "S");
+  }
 
   // ── Footer ───────────────────────────────────────────────────────────────────
   doc.setFontSize(8);

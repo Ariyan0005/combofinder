@@ -13,6 +13,7 @@ import { useAuth } from "@/context/auth-context";
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$", EUR: "€", GBP: "£", BDT: "৳", INR: "₹",
   PKR: "₨", NPR: "रू", LKR: "Rs", AED: "د.إ", SAR: "﷼",
+  OMR: "OMR", KWD: "KD", QAR: "QR", MYR: "RM", SGD: "S$",
 };
 
 const PRIMARY = "hsl(var(--primary))";
@@ -26,7 +27,7 @@ type Sale = {
 };
 
 type SaleItem = { id: number; partName: string; quantity: number; unitPrice: string; total: string; returnedQuantity: number; };
-type SaleDetail = Sale & { items: SaleItem[]; returns: any[] };
+type SaleDetail = Sale & { items: SaleItem[]; returns: any[]; advancePaid?: string; };
 
 const STATUS_COLOR: Record<string, { bg: string; color: string }> = {
   "Completed": { bg: "#ECFDF5", color: "#059669" },
@@ -61,7 +62,12 @@ export default function Invoices() {
 
   const { data: detail } = useQuery<SaleDetail>({
     queryKey: ["sale", selectedId],
-    queryFn: () => fetch(`/api/sales/${selectedId}`, { credentials: "include" }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/sales/${selectedId}`, { credentials: "include" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed to load invoice");
+      return d;
+    },
     enabled: selectedId != null,
   });
 
@@ -159,13 +165,39 @@ export default function Invoices() {
                   })}
                 </div>
 
-                <div className="mt-3 pt-3 border-t space-y-1" style={{ borderColor: BORDER }}>
+                <div className="mt-3 pt-3 border-t space-y-1.5" style={{ borderColor: BORDER }}>
                   <div className="flex justify-between text-xs"><span style={{ color: MUTED }}>Subtotal</span><span>{sym}{Number(detail.subtotal).toLocaleString()}</span></div>
                   {Number(detail.discount) > 0 && (
-                    <div className="flex justify-between text-xs"><span style={{ color: MUTED }}>Discount</span><span>-{sym}{Number(detail.discount).toLocaleString()}</span></div>
+                    <div className="flex justify-between text-xs"><span style={{ color: MUTED }}>Discount</span><span style={{ color: "#DC2626" }}>-{sym}{Number(detail.discount).toLocaleString()}</span></div>
                   )}
-                  <div className="flex justify-between text-sm font-bold"><span>Total</span><span style={{ color: PRIMARY }}>{sym}{Number(detail.total).toLocaleString()}</span></div>
-                  <div className="flex justify-between text-xs pt-1"><span style={{ color: MUTED }}>Payment</span><span>{detail.paymentMethod}</span></div>
+                  <div className="flex justify-between text-sm font-bold pt-1 border-t" style={{ borderColor: BORDER }}>
+                    <span>Total</span>
+                    <span style={{ color: PRIMARY }}>{sym}{Number(detail.total).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-xs pt-1"><span style={{ color: MUTED }}>Payment Method</span><span className="font-semibold">{detail.paymentMethod}</span></div>
+                  {/* Credit sale breakdown */}
+                  {detail.paymentMethod === "Credit" && (() => {
+                    const total = Number(detail.total);
+                    const advance = Number(detail.advancePaid ?? 0);
+                    const due = Math.max(0, total - advance);
+                    return (
+                      <div className="mt-2 p-3 rounded-xl space-y-1.5" style={{ background: "#FFF7E6", border: "1px solid #F59E0B60" }}>
+                        <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#D97706" }}>Credit Sale Details</p>
+                        {advance > 0 && (
+                          <div className="flex justify-between text-xs">
+                            <span style={{ color: "#92400E" }}>Advance Collected</span>
+                            <span className="font-bold" style={{ color: "#059669" }}>{sym}{advance.toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-sm font-bold">
+                          <span style={{ color: "#D97706" }}>Amount Due</span>
+                          <span style={{ color: due > 0 ? "#DC2626" : "#059669" }}>
+                            {due > 0 ? `${sym}${due.toLocaleString()}` : "Settled ✓"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {detail.returns?.length > 0 && (

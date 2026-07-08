@@ -38,13 +38,13 @@ router.get("/stats", async (req, res) => {
       .from(repairsTable)
       .where(userFilter ? and(userFilter, extra) : extra);
 
-    const [waiting] = await buildCount(eq(repairsTable.status, "Waiting"));
     const [repairing] = await buildCount(eq(repairsTable.status, "Repairing"));
     const [ready] = await buildCount(eq(repairsTable.status, "Ready"));
+    const [cancelled] = await buildCount(eq(repairsTable.status, "Cancelled"));
     const [total] = await db.select({ count: sql<number>`cast(count(*) as int)` })
       .from(repairsTable).where(userFilter);
 
-    res.json({ waiting: waiting?.count ?? 0, repairing: repairing?.count ?? 0, ready: ready?.count ?? 0, total: total?.count ?? 0 });
+    res.json({ repairing: repairing?.count ?? 0, ready: ready?.count ?? 0, cancelled: cancelled?.count ?? 0, total: total?.count ?? 0 });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed" }); }
 });
 

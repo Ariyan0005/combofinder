@@ -547,7 +547,7 @@ export default function Pos() {
                   )}
                   {/* Amount due */}
                   <div className="flex items-center justify-between border-t pt-2" style={{ borderColor: "#F59E0B60" }}>
-                    <span className="text-sm font-bold" style={{ color: "#D97706" }}>Amount Due (বাকি)</span>
+                    <span className="text-sm font-bold" style={{ color: "#D97706" }}>Amount Due (Remaining)</span>
                     <span className="text-lg font-black" style={{ color: "#DC2626" }}>
                       {sym}{amountDue.toLocaleString()}
                     </span>
@@ -570,6 +570,10 @@ export default function Pos() {
 }
 
 export function saleToInvoiceData(sale: any): InvoiceData {
+  const total = Number(sale.total);
+  const advancePaid = Number(sale.advancePaid ?? 0);
+  const isCredit = sale.paymentMethod === "Credit";
+  const amountDue = isCredit ? Math.max(0, total - advancePaid) : 0;
   return {
     invoiceNumber: sale.invoiceNumber,
     date: sale.date,
@@ -580,8 +584,10 @@ export function saleToInvoiceData(sale: any): InvoiceData {
       unitPrice: Number(it.unitPrice), total: Number(it.total),
       returnedQuantity: it.returnedQuantity ?? 0,
     })),
-    subtotal: Number(sale.subtotal), discount: Number(sale.discount), total: Number(sale.total),
+    subtotal: Number(sale.subtotal), discount: Number(sale.discount), total,
     paymentMethod: sale.paymentMethod, status: sale.status,
+    advancePaid: isCredit ? advancePaid : undefined,
+    amountDue: amountDue > 0 ? amountDue : undefined,
     // shopName and currencySymbol must be set by the caller from user context
   };
 }
