@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { pbkdf2Sync, randomBytes, timingSafeEqual } from "node:crypto";
+import { promises as dnsPromises } from "node:dns";
 import { db, usersTable, passwordResetTokensTable } from "@workspace/db";
 import { eq, and, gt } from "drizzle-orm";
 import nodemailer from "nodemailer";
@@ -29,6 +30,20 @@ function isDisposableEmail(email: string): boolean {
   const domain = email.toLowerCase().split("@")[1];
   if (!domain) return false;
   return DISPOSABLE_DOMAINS.has(domain);
+}
+
+// ---------------------------------------------------------------------------
+// MX record check — verify the email domain can actually receive mail
+// ---------------------------------------------------------------------------
+async function hasMxRecord(email: string): Promise<boolean> {
+  const domain = email.toLowerCase().split("@")[1];
+  if (!domain) return false;
+  try {
+    const records = await dnsPromises.resolveMx(domain);
+    return Array.isArray(records) && records.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -178,6 +193,12 @@ router.post("/auth/register", async (req, res) => {
   // Fake/disposable email check
   if (isDisposableEmail(normalizedEmail)) {
     res.status(400).json({ error: "Please use a real email address. Disposable/temporary emails are not allowed." }); return;
+  }
+
+  // MX record check — block domains that cannot receive email (random/made-up domains)
+  const mxValid = await hasMxRecord(normalizedEmail);
+  if (!mxValid) {
+    res.status(400).json({ error: "Please use a real email address. This email domain cannot receive emails." }); return;
   }
 
   try {
