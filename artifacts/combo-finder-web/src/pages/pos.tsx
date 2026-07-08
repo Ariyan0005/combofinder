@@ -231,12 +231,13 @@ export default function Pos() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const inStock = list.filter(i => i.quantity > 0);
-    if (!q) return inStock.slice(0, 30);
+    if (!q) return inStock;
     return inStock.filter(i =>
       i.partName.toLowerCase().includes(q) ||
+      (i.partType ?? "").toLowerCase().includes(q) ||
       (i.barcode ?? "").toLowerCase().includes(q) ||
       (i.sku ?? "").toLowerCase().includes(q)
-    ).slice(0, 30);
+    );
   }, [list, search]);
 
   function addToCart(item: Item) {
@@ -383,36 +384,53 @@ export default function Pos() {
             style={{ borderColor: BORDER, background: CARD }} />
         </div>
 
-        {/* Product grid */}
+        {/* Product list */}
         {isLoading ? (
-          <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-16 rounded-2xl animate-pulse" style={{ background: "hsl(var(--muted))" }} />)}</div>
+          <div className="space-y-2">{[1,2,3,4].map(i => <div key={i} className="h-16 rounded-2xl animate-pulse" style={{ background: "hsl(var(--muted))" }} />)}</div>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-1.5">
             {filtered.map(item => {
               const inCart = inCartQty(item.id);
               const maxed  = inCart >= item.quantity;
               return (
                 <button key={item.id} disabled={maxed} onClick={() => addToCart(item)}
-                  className="flex flex-col items-start gap-1 p-3 rounded-2xl border text-left disabled:opacity-40"
-                  style={{ borderColor: BORDER, background: CARD }}>
-                  <div className="flex items-center gap-1.5 w-full">
-                    <Package className="w-3.5 h-3.5 flex-shrink-0" style={{ color: MUTED }} />
-                    <p className="text-xs font-semibold truncate flex-1">{item.partName}</p>
+                  className="flex items-center gap-3 px-4 py-3 rounded-2xl border text-left transition-all active:scale-[0.99] disabled:opacity-40"
+                  style={{ borderColor: inCart > 0 ? PRIMARY : BORDER, background: CARD }}>
+                  {/* Icon */}
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: inCart > 0 ? `${PRIMARY}22` : "hsl(var(--muted))" }}>
+                    <Package className="w-4 h-4" style={{ color: inCart > 0 ? PRIMARY : MUTED }} />
                   </div>
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-[10px]" style={{ color: MUTED }}>Stock: {item.quantity}</span>
-                    <span className="text-xs font-bold" style={{ color: PRIMARY }}>{sym}{Number(item.sellingPrice ?? 0).toLocaleString()}</span>
+                  {/* Name + type */}
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className="text-sm font-semibold leading-snug">{item.partName}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {item.partType && (
+                        <span className="text-[10px]" style={{ color: MUTED }}>{item.partType}</span>
+                      )}
+                      <span className="text-[10px]" style={{ color: MUTED }}>Stock: {item.quantity}</span>
+                      {inCart > 0 && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#ECFDF5", color: "#059669" }}>
+                          {inCart} in cart
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  {inCart > 0 && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#ECFDF5", color: "#059669" }}>
-                      {inCart} in cart
+                  {/* Price + add button */}
+                  <div className="flex items-center gap-2.5 flex-shrink-0">
+                    <span className="text-sm font-bold" style={{ color: PRIMARY }}>
+                      {sym}{Number(item.sellingPrice ?? 0).toLocaleString()}
                     </span>
-                  )}
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center"
+                      style={{ background: maxed ? "hsl(var(--muted))" : PRIMARY }}>
+                      <Plus className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  </div>
                 </button>
               );
             })}
             {filtered.length === 0 && (
-              <div className="col-span-2 text-center py-10">
+              <div className="text-center py-10">
                 <Package className="w-8 h-8 mx-auto mb-2" style={{ color: MUTED }} />
                 <p className="text-sm" style={{ color: MUTED }}>No products found</p>
               </div>

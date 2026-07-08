@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Phone, MessageSquare, Wrench, DollarSign, X } from "lucide-react";
+import { ArrowLeft, Phone, MessageSquare, Wrench, DollarSign, X, Receipt } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 
 
@@ -87,7 +87,15 @@ export default function CustomerProfile() {
     enabled: !!customerId,
   });
 
+  const { data: customerSales } = useQuery<any[]>({
+    queryKey: ["sales", "customer", customerId],
+    queryFn: () =>
+      fetch(`/api/sales/customers/${customerId}`, { credentials: "include" }).then(r => r.json()),
+    enabled: !!customerId,
+  });
+
   const repairList = Array.isArray(repairs) ? repairs : [];
+  const saleList   = Array.isArray(customerSales) ? customerSales : [];
   const totalSpent = repairList.reduce((sum, r) => sum + (r.totalCost ?? 0), 0);
 
   if (isLoading) {
@@ -194,6 +202,46 @@ export default function CustomerProfile() {
                 style={{ background: "hsl(var(--primary))" }}>
                 <DollarSign className="w-4 h-4" /> Record Payment
               </button>
+            </div>
+          )}
+        </div>
+
+        {/* Sale History */}
+        <div>
+          <h2 className="font-bold text-base mb-3">Sale History</h2>
+          {saleList.length === 0 ? (
+            <div className="text-center py-8 bg-card rounded-2xl border border-border">
+              <Receipt className="w-8 h-8 mx-auto mb-2" style={{ color: "hsl(var(--muted-foreground))" }} />
+              <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>No purchases yet.</p>
+            </div>
+          ) : (
+            <div className="bg-card rounded-2xl border border-border divide-y divide-border overflow-hidden">
+              {saleList.map(s => (
+                <div key={s.id} className="flex items-center gap-3 px-4 py-3.5">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "hsl(var(--primary) / 0.1)" }}>
+                    <Receipt className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold">{s.invoiceNumber}</p>
+                    <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      {s.paymentMethod} · {new Date(s.date).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span className="text-sm font-bold" style={{ color: "hsl(var(--primary))" }}>
+                      {Number(s.total).toLocaleString()}
+                    </span>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{
+                        background: s.status === "Paid" ? "#ECFDF5" : s.status === "Credit" ? "#FEF3C7" : "#F3F4F6",
+                        color:      s.status === "Paid" ? "#059669" : s.status === "Credit" ? "#D97706" : "#6B7280",
+                      }}>
+                      {s.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

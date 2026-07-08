@@ -98,6 +98,20 @@ router.get("/export", async (req, res) => {
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to export sales" }); }
 });
 
+// GET /api/sales/customers/:customerId  — full purchase history for one customer
+router.get("/customers/:customerId", async (req, res) => {
+  try {
+    const userId: number = (req as any).userId;
+    const customerId = requireInt(req.params.customerId, "customerId");
+    const sales = await db
+      .select()
+      .from(salesTable)
+      .where(and(eq(salesTable.userId, userId), eq(salesTable.customerId, customerId)))
+      .orderBy(desc(salesTable.id));
+    res.json(sales);
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to fetch customer sales" }); }
+});
+
 // GET /api/sales/:id  — invoice detail with items + returns
 router.get("/:id", async (req, res) => {
   try {
