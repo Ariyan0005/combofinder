@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Search, Plus, X, Cpu, ExternalLink, ChevronDown, Trash2, ZoomIn,
+  Search, Plus, X, Cpu, ExternalLink, ArrowLeft, ZoomIn, ZoomOut, Trash2,
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/context/auth-context";
@@ -30,15 +30,13 @@ type Pinout = {
   title: string;
   deviceBrand?: string;
   deviceModel?: string;
-  fileUrl?: string;       // image url (cloudinary)
-  thumbnailUrl?: string;  // link url (optional)
+  fileUrl?: string;
+  thumbnailUrl?: string;
   tags?: string;
 };
 
 // ── Admin Add Form ────────────────────────────────────────────────────────────
-function AddPinoutSheet({
-  onClose, onSaved,
-}: { onClose: () => void; onSaved: () => void }) {
+function AddPinoutSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const [brand,  setBrand]  = useState("");
   const [model,  setModel]  = useState("");
   const [title,  setTitle]  = useState("");
@@ -52,7 +50,8 @@ function AddPinoutSheet({
     setSaving(true); setErr("");
     try {
       const res = await fetch("/api/schematics", {
-        method: "POST", credentials: "include",
+        method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
@@ -130,24 +129,118 @@ function AddPinoutSheet({
 
 // ── Image Zoom Modal ──────────────────────────────────────────────────────────
 function ImageModal({ src, title, link, onClose }: { src: string; title: string; link?: string; onClose: () => void }) {
+  const [scale, setScale] = useState(1);
+  const MIN = 0.5;
+  const MAX = 4;
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.88)" }}
-      onClick={onClose}>
-      <div className="w-full max-w-md space-y-3" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <p className="text-white font-semibold text-sm truncate flex-1">{title}</p>
-          <button onClick={onClose}><X className="w-5 h-5 text-white" /></button>
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "rgba(0,0,0,0.92)" }}>
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
+        <p className="text-white font-semibold text-sm truncate flex-1 pr-4">{title}</p>
+        <button onClick={onClose}><X className="w-5 h-5 text-white" /></button>
+      </div>
+
+      {/* Scrollable image area */}
+      <div className="flex-1 overflow-auto flex items-center justify-center px-4 pb-4">
+        <img
+          src={src}
+          alt={title}
+          style={{ transform: `scale(${scale})`, transformOrigin: "center center", transition: "transform 0.2s ease" }}
+          className="max-w-full rounded-2xl object-contain"
+        />
+      </div>
+
+      {/* Bottom controls */}
+      <div className="flex-shrink-0 pb-6 px-4 space-y-3">
+        {/* Zoom controls */}
+        <div className="flex items-center justify-center gap-4">
+          <button
+            onClick={() => setScale(s => Math.max(MIN, parseFloat((s - 0.25).toFixed(2))))}
+            disabled={scale <= MIN}
+            className="w-11 h-11 rounded-full flex items-center justify-center disabled:opacity-40"
+            style={{ background: "rgba(255,255,255,0.15)" }}>
+            <ZoomOut className="w-5 h-5 text-white" />
+          </button>
+          <span className="text-white text-sm font-bold w-12 text-center">{Math.round(scale * 100)}%</span>
+          <button
+            onClick={() => setScale(s => Math.min(MAX, parseFloat((s + 0.25).toFixed(2))))}
+            disabled={scale >= MAX}
+            className="w-11 h-11 rounded-full flex items-center justify-center disabled:opacity-40"
+            style={{ background: "rgba(255,255,255,0.15)" }}>
+            <ZoomIn className="w-5 h-5 text-white" />
+          </button>
         </div>
-        <img src={src} alt={title} className="w-full rounded-2xl object-contain max-h-[70vh]" />
-        {link && (
-          <a href={link} target="_blank" rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-semibold text-sm"
-            style={{ background: "#fff", color: "#111" }}
-            onClick={e => e.stopPropagation()}>
-            <ExternalLink className="w-4 h-4" /> Open Full Diagram
-          </a>
+
+        {/* Reset & External link */}
+        <div className="flex gap-2">
+          {scale !== 1 && (
+            <button onClick={() => setScale(1)}
+              className="flex-1 py-2.5 rounded-xl font-semibold text-sm"
+              style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}>
+              Reset
+            </button>
+          )}
+          {link && (
+            <a href={link} target="_blank" rel="noopener noreferrer"
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm"
+              style={{ background: "#fff", color: "#111" }}>
+              <ExternalLink className="w-4 h-4" /> Open Full Diagram
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Pinout Card ───────────────────────────────────────────────────────────────
+function PinoutCard({
+  p, palette, canAdd, deleting, onZoom, onDelete,
+}: {
+  p: Pinout;
+  palette: { bg: string; color: string };
+  canAdd: boolean;
+  deleting: number | null;
+  onZoom: (p: Pinout) => void;
+  onDelete: (id: number) => void;
+}) {
+  return (
+    <div className="rounded-2xl border overflow-hidden relative" style={{ borderColor: BORDER, background: CARD }}>
+      <button className="block w-full" onClick={() => onZoom(p)}>
+        {p.fileUrl ? (
+          <img src={p.fileUrl} alt={p.title} className="w-full h-36 object-cover" loading="lazy" />
+        ) : (
+          <div className="w-full h-36 flex items-center justify-center" style={{ background: palette.bg }}>
+            <Cpu className="w-10 h-10" style={{ color: palette.color }} />
+          </div>
         )}
+        {p.fileUrl && (
+          <div className="absolute inset-0 bg-black/0 hover:bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-all">
+            <ZoomIn className="w-7 h-7 text-white" />
+          </div>
+        )}
+      </button>
+      <div className="p-2.5 space-y-1">
+        <p className="text-xs font-bold leading-tight line-clamp-2">{p.title}</p>
+        {p.deviceModel && (
+          <p className="text-[10px] font-semibold" style={{ color: palette.color }}>{p.deviceModel}</p>
+        )}
+        <div className="flex items-center gap-1.5 pt-0.5">
+          {p.thumbnailUrl && (
+            <a href={p.thumbnailUrl} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1 text-[10px] font-semibold"
+              style={{ color: PRIMARY }}>
+              <ExternalLink className="w-3 h-3" /> Link
+            </a>
+          )}
+          {canAdd && (
+            <button onClick={() => onDelete(p.id)} disabled={deleting === p.id}
+              className="ml-auto disabled:opacity-40" style={{ color: "hsl(var(--destructive))" }}>
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -158,28 +251,46 @@ export default function IspPinout() {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [search, setSearch] = useState("");
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [zoomed, setZoomed] = useState<Pinout | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
 
   const { data: raw = [], isLoading } = useQuery<Pinout[]>({
     queryKey: ["isp-pinouts"],
-    queryFn: () => fetch("/api/schematics", { credentials: "include" })
-      .then(r => r.json())
-      .then((rows: any[]) => rows.filter(r => r.schematicType === "ISP Pinout")),
+    queryFn: () =>
+      fetch("/api/schematics", { credentials: "include" })
+        .then(r => r.json())
+        .then((rows: any[]) => rows.filter(r => r.schematicType === "ISP Pinout")),
   });
 
-  const pinouts = search.trim()
-    ? raw.filter(p =>
-        p.title.toLowerCase().includes(search.toLowerCase()) ||
-        (p.deviceModel ?? "").toLowerCase().includes(search.toLowerCase()) ||
-        (p.deviceBrand ?? "").toLowerCase().includes(search.toLowerCase())
-      )
-    : raw;
+  const canAdd = user?.role === "admin" || user?.role === "superadmin";
 
-  // Group by brand
+  // Unique brands from data
+  const allBrands = Array.from(
+    new Set(raw.map(p => p.deviceBrand ?? "Other").filter(Boolean))
+  ).sort();
+
+  // Filter logic
+  const displayList: Pinout[] = (() => {
+    let list = raw;
+    if (selectedBrand) {
+      list = list.filter(p => (p.deviceBrand ?? "Other") === selectedBrand);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(p =>
+        p.title.toLowerCase().includes(q) ||
+        (p.deviceModel ?? "").toLowerCase().includes(q) ||
+        (p.deviceBrand ?? "").toLowerCase().includes(q)
+      );
+    }
+    return list;
+  })();
+
+  // Group displayed list by brand
   const byBrand: Record<string, Pinout[]> = {};
-  for (const p of pinouts) {
+  for (const p of displayList) {
     const brand = p.deviceBrand ?? "Other";
     if (!byBrand[brand]) byBrand[brand] = [];
     byBrand[brand].push(p);
@@ -193,18 +304,32 @@ export default function IspPinout() {
     setDeleting(null);
   }
 
-  // Only show admin add button — simple check: user is authenticated (all users can add for now;
-  // refine with a role flag if needed in the future)
-  const canAdd = user?.role === "admin" || user?.role === "superadmin";
+  const isSearching = search.trim().length > 0;
 
   return (
     <ProtectedPage>
       <div className="space-y-4 pb-8">
+
         {/* Header */}
         <div className="flex items-center justify-between pt-1">
-          <div>
-            <h1 className="text-xl font-extrabold">ISP & Pinout</h1>
-            <p className="text-xs mt-0.5" style={{ color: MUTED }}>Mobile model-wise ISP pinout diagrams</p>
+          <div className="flex items-center gap-2">
+            {selectedBrand && (
+              <button onClick={() => { setSelectedBrand(null); setSearch(""); }}
+                className="w-8 h-8 flex items-center justify-center rounded-xl"
+                style={{ background: "hsl(var(--muted))" }}>
+                <ArrowLeft className="w-4 h-4" style={{ color: MUTED }} />
+              </button>
+            )}
+            <div>
+              <h1 className="text-xl font-extrabold">
+                {selectedBrand ? selectedBrand : "ISP & Pinout"}
+              </h1>
+              <p className="text-xs mt-0.5" style={{ color: MUTED }}>
+                {selectedBrand
+                  ? `${displayList.length} pinout${displayList.length !== 1 ? "s" : ""} for ${selectedBrand}`
+                  : "Mobile model-wise ISP pinout diagrams"}
+              </p>
+            </div>
           </div>
           {canAdd && (
             <button onClick={() => setShowAdd(true)}
@@ -218,13 +343,20 @@ export default function IspPinout() {
         {/* Search */}
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: MUTED }} />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search brand or model… e.g. Samsung A05s"
-            className="w-full pl-10 pr-4 py-3 rounded-2xl border text-sm outline-none"
-            style={{ borderColor: BORDER, background: CARD }} />
+          <input
+            value={search}
+            onChange={e => { setSearch(e.target.value); if (e.target.value) setSelectedBrand(null); }}
+            placeholder={selectedBrand ? `Search in ${selectedBrand}…` : "Search brand or model…"}
+            className="w-full pl-10 pr-10 py-3 rounded-2xl border text-sm outline-none"
+            style={{ borderColor: BORDER, background: CARD }}
+          />
+          {search && (
+            <button onClick={() => setSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2">
+              <X className="w-4 h-4" style={{ color: MUTED }} />
+            </button>
+          )}
         </div>
 
-        {/* Content */}
         {isLoading ? (
           <div className="grid grid-cols-2 gap-3">
             {[1,2,3,4].map(i => (
@@ -233,8 +365,7 @@ export default function IspPinout() {
           </div>
         ) : raw.length === 0 ? (
           <div className="text-center py-20 space-y-3">
-            <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center"
-              style={{ background: "#FFF7E6" }}>
+            <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center" style={{ background: "#FFF7E6" }}>
               <Cpu className="w-8 h-8" style={{ color: "#F59E0B" }} />
             </div>
             <p className="font-bold text-base">No pinouts yet</p>
@@ -242,82 +373,82 @@ export default function IspPinout() {
               {canAdd ? "Tap + Add to upload the first ISP pinout diagram." : "Admin will add pinout diagrams soon."}
             </p>
           </div>
-        ) : pinouts.length === 0 ? (
-          <p className="text-center py-10 text-sm" style={{ color: MUTED }}>No results for "{search}"</p>
         ) : (
           <div className="space-y-5">
-            {Object.entries(byBrand).map(([brand, items]) => {
-              const palette = brandPalette(brand);
-              return (
-                <div key={brand}>
-                  {/* Brand header */}
-                  <div className="flex items-center gap-2 mb-2.5">
-                    <div className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold flex-shrink-0"
-                      style={{ background: palette.bg, color: palette.color }}>
-                      {brand[0].toUpperCase()}
-                    </div>
-                    <span className="font-bold text-sm">{brand}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                      style={{ background: palette.bg, color: palette.color }}>
-                      {items.length}
-                    </span>
-                  </div>
 
-                  {/* Pinout grid */}
-                  <div className="grid grid-cols-2 gap-3">
-                    {items.map(p => (
-                      <div key={p.id} className="rounded-2xl border overflow-hidden relative group"
+            {/* Brand chips — only when not searching and no brand selected */}
+            {!isSearching && !selectedBrand && allBrands.length > 0 && (
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: MUTED }}>Browse by Brand</p>
+                <div className="flex gap-2 flex-wrap">
+                  {allBrands.map(brand => {
+                    const pal = brandPalette(brand);
+                    const initials = brand.split(/[\s/]/).map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+                    return (
+                      <button
+                        key={brand}
+                        onClick={() => setSelectedBrand(brand)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold transition-all hover:shadow-sm"
                         style={{ borderColor: BORDER, background: CARD }}>
-                        {/* Image */}
-                        <button className="block w-full" onClick={() => setZoomed(p)}>
-                          {p.fileUrl ? (
-                            <img src={p.fileUrl} alt={p.title}
-                              className="w-full h-36 object-cover"
-                              loading="lazy" />
-                          ) : (
-                            <div className="w-full h-36 flex items-center justify-center"
-                              style={{ background: palette.bg }}>
-                              <Cpu className="w-10 h-10" style={{ color: palette.color }} />
-                            </div>
-                          )}
-                          {/* Zoom overlay */}
-                          <div className="absolute inset-0 bg-black/0 hover:bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-all">
-                            <ZoomIn className="w-7 h-7 text-white" />
-                          </div>
-                        </button>
-
-                        {/* Info */}
-                        <div className="p-2.5 space-y-1">
-                          <p className="text-xs font-bold leading-tight line-clamp-2">{p.title}</p>
-                          {p.deviceModel && (
-                            <p className="text-[10px] font-semibold" style={{ color: palette.color }}>
-                              {p.deviceModel}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-1.5 pt-0.5">
-                            {p.thumbnailUrl && (
-                              <a href={p.thumbnailUrl} target="_blank" rel="noopener noreferrer"
-                                className="flex items-center gap-1 text-[10px] font-semibold"
-                                style={{ color: PRIMARY }}>
-                                <ExternalLink className="w-3 h-3" /> Link
-                              </a>
-                            )}
-                            {canAdd && (
-                              <button onClick={() => deletePinout(p.id)}
-                                disabled={deleting === p.id}
-                                className="ml-auto disabled:opacity-40"
-                                style={{ color: "hsl(var(--destructive))" }}>
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
+                        <div className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black flex-shrink-0"
+                          style={{ background: pal.bg, color: pal.color }}>
+                          {initials}
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                        <span className="text-sm font-semibold">{brand}</span>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                          style={{ background: pal.bg, color: pal.color }}>
+                          {raw.filter(p => (p.deviceBrand ?? "Other") === brand).length}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+            )}
+
+            {/* No results */}
+            {displayList.length === 0 ? (
+              <p className="text-center py-10 text-sm" style={{ color: MUTED }}>
+                {isSearching ? `No results for "${search}"` : `No pinouts for ${selectedBrand}`}
+              </p>
+            ) : (
+              /* Pinout groups */
+              Object.entries(byBrand).map(([brand, items]) => {
+                const palette = brandPalette(brand);
+                return (
+                  <div key={brand}>
+                    {/* Brand header (show when multiple brands visible) */}
+                    {(isSearching || !selectedBrand) && (
+                      <div className="flex items-center gap-2 mb-2.5">
+                        <div className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                          style={{ background: palette.bg, color: palette.color }}>
+                          {brand[0].toUpperCase()}
+                        </div>
+                        <span className="font-bold text-sm">{brand}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                          style={{ background: palette.bg, color: palette.color }}>
+                          {items.length}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {items.map(p => (
+                        <PinoutCard
+                          key={p.id}
+                          p={p}
+                          palette={brandPalette(p.deviceBrand ?? "Other")}
+                          canAdd={canAdd}
+                          deleting={deleting}
+                          onZoom={setZoomed}
+                          onDelete={deletePinout}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         )}
       </div>
