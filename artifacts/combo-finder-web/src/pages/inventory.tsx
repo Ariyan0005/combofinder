@@ -194,7 +194,7 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
 
   const [form, setForm] = useState({
     partName: existing?.partName ?? "",
-    quality: existing?.quality ?? "Original",
+    quality: existing?.quality ?? "",
     brand: existing?.brand ?? "",
     quantity: String(existing?.quantity ?? ""),
     minStock: String(existing?.minStock ?? "0"),
@@ -247,7 +247,13 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
 
   return (
     <ModalShell title={existing ? "Edit Product" : "Add Product"} onClose={onClose}>
-      <form onSubmit={e => { e.preventDefault(); if (!form.partName) { setError("Product name required"); return; } mut.mutate(); }}
+      <form onSubmit={e => {
+        e.preventDefault();
+        if (!form.partName) { setError("Product name required"); return; }
+        if (!form.purchasePrice || isNaN(Number(form.purchasePrice))) { setError("Purchase price is required"); return; }
+        if (!form.quality) { setError("Please select a quality"); return; }
+        mut.mutate();
+      }}
         className="flex flex-col gap-3">
         <Field label="Product Name *">
           <Input value={form.partName} onChange={e => set("partName", e.target.value)} placeholder="e.g. iPhone 13 Display" required />
@@ -272,9 +278,10 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
             {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </Select>
         </Field>
-        <Field label="Quality">
-          <Select value={form.quality} onChange={e => set("quality", e.target.value)}>
-            {["Original","OEM","Copy","Refurbished"].map(q => <option key={q}>{q}</option>)}
+        <Field label="Quality *">
+          <Select value={form.quality} onChange={e => set("quality", e.target.value)} required>
+            <option value="">— Select Quality —</option>
+            {["Original","OEM","Copy","Refurbished","Used","Reconditioned"].map(q => <option key={q} value={q}>{q}</option>)}
           </Select>
         </Field>
         <Field label="Brand / Company">
@@ -283,7 +290,7 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
         <div className="grid grid-cols-2 gap-3">
           <Field label="Quantity"><Input type="number" min="0" value={form.quantity} onChange={e => set("quantity", e.target.value)} placeholder="0" /></Field>
           <Field label="Min Stock Alert"><Input type="number" min="0" value={form.minStock} onChange={e => set("minStock", e.target.value)} placeholder="2" /></Field>
-          <Field label="Purchase Price"><Input type="text" inputMode="decimal" value={form.purchasePrice} onChange={e => set("purchasePrice", e.target.value)} placeholder="0.00" /></Field>
+          <Field label="Purchase Price *"><Input type="text" inputMode="decimal" value={form.purchasePrice} onChange={e => set("purchasePrice", e.target.value)} placeholder="0.00" required /></Field>
           <Field label="Selling Price"><Input type="text" inputMode="decimal" value={form.sellingPrice} onChange={e => set("sellingPrice", e.target.value)} placeholder="0.00" /></Field>
         </div>
         <Field label="Barcode / QR Code">

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, X, Wrench, UserPlus, Package, Trash2, ChevronDown, Check, Share2, Pencil, Phone } from "lucide-react";
+import { Plus, Search, X, Wrench, UserPlus, Package, Trash2, ChevronDown, Check, Share2, Pencil, Phone, MessageCircle } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 
 const STATUSES = ["All", "Repairing", "Ready", "Delivered", "Cancelled"];
@@ -285,18 +285,25 @@ function AddCustomerModal({ onClose, onAdded }: { onClose: () => void; onAdded: 
 function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClose: () => void; onEdit: () => void }) {
   const qc = useQueryClient();
   const [status, setStatus] = useState(repair.status);
+  const [cancelReason, setCancelReason] = useState(
+    repair.status === "Cancelled" ? (repair.notes ?? "") : ""
+  );
 
   const statusMut = useMutation({
-    mutationFn: async (newStatus: string) => {
+    mutationFn: async ({ newStatus, reason }: { newStatus: string; reason?: string }) => {
       const res = await fetch(`/api/repairs/${repair.id}`, {
         method: "PUT", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...repair, status: newStatus }),
+        body: JSON.stringify({
+          ...repair,
+          status: newStatus,
+          notes: newStatus === "Cancelled" && reason ? reason : repair.notes,
+        }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Failed"); }
       return res.json();
     },
-    onSuccess: (_: any, newStatus: string) => {
+    onSuccess: (_: any, { newStatus }: { newStatus: string }) => {
       setStatus(newStatus);
       qc.invalidateQueries({ queryKey: ["repairs"] });
     },
@@ -317,10 +324,60 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
   ].filter(Boolean).join("\n");
 
   async function handleShare() {
-    if (navigator.share) {
-      try { await navigator.share({ title: `Repair #${repair.id}`, text: shareText }); } catch {}
-    } else {
-      try { await navigator.clipboard.writeText(shareText); alert("Summary copied to clipboard!"); } catch {}
+    // Generate PDF via print dialog
+    const partsArr2: PartEntry[] = (() => { try { return repair.partsUsed ? JSON.parse(repair.partsUsed) : []; } catch { return []; } })();
+    const dueAmt = Math.max(0, Number(repair.totalCost ?? 0) - Number(repair.advancePaid ?? 0));
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>Repair #${repair.id}</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 0; padding: 24px; color: #111; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .badge { display:inline-block; padding:2px 10px; border-radius:99px; font-size:12px; font-weight:700; background:#e0e7ff; color:#4338ca; margin-bottom:16px; }
+  .section { margin-bottom:16px; padding:14px 16px; border:1px solid #e5e7eb; border-radius:12px; }
+  .section h2 { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:#9ca3af; margin:0 0 8px; }
+  .row { display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px; }
+  .total { font-size:15px; font-weight:800; color:#4f46e5; }
+  .due { color:#dc2626; font-weight:700; }
+  .paid { color:#059669; font-weight:700; }
+  .footer { margin-top:20px; font-size:11px; color:#9ca3af; text-align:center; }
+  @media print { button { display:none; } }
+</style></head>
+<body>
+<h1>🔧 Repair Job #${repair.id}</h1>
+<div class="badge">${status}</div>
+<div class="section">
+  <h2>👤 Customer</h2>
+  <div class="row"><span>${repair.customerName || "—"}</span></div>
+  ${repair.customerPhone ? `<div class="row"><span>📞 ${repair.customerPhone}</span></div>` : ""}
+</div>
+<div class="section">
+  <h2>📱 Device &amp; Problem</h2>
+  <div class="row"><b>${repair.phoneBrand} ${repair.phoneModel}</b></div>
+  <div class="row" style="color:#6b7280">${repair.problem}</div>
+</div>
+${Number(repair.totalCost) > 0 ? `<div class="section">
+  <h2>💰 Billing</h2>
+  ${Number(repair.laborCost) > 0 ? `<div class="row"><span>Labor</span><span>${Number(repair.laborCost).toFixed(2)}</span></div>` : ""}
+  ${partsArr2.length > 0 ? partsArr2.map(p => `<div class="row"><span>${p.name} ×${p.qty}</span><span>${(Number(p.unitPrice)*Number(p.qty)).toFixed(2)}</span></div>`).join("") : ""}
+  <div class="row total"><span>Total</span><span>${Number(repair.totalCost).toFixed(2)}</span></div>
+  ${Number(repair.advancePaid) > 0 ? `<div class="row paid"><span>Advance Paid</span><span>${Number(repair.advancePaid).toFixed(2)}</span></div>` : ""}
+  ${dueAmt > 0 ? `<div class="row due"><span>Amount Due</span><span>${dueAmt.toFixed(2)}</span></div>` : `<div class="row paid"><span>✓ Fully Paid</span></div>`}
+</div>` : ""}
+${repair.engineer ? `<div class="section"><h2>🛠 Technician</h2><div>${repair.engineer}</div></div>` : ""}
+${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${repair.notes}</div></div>` : ""}
+<div class="footer">Created ${new Date(repair.createdAt).toLocaleDateString()}</div>
+<script>window.onload=()=>{window.print();}<\/script>
+</body></html>`;
+    const win = window.open("", "_blank");
+    if (win) { win.document.write(html); win.document.close(); }
+    else {
+      // fallback: share text
+      if (navigator.share) {
+        try { await navigator.share({ title: `Repair #${repair.id}`, text: shareText }); } catch {}
+      } else {
+        try { await navigator.clipboard.writeText(shareText); alert("Summary copied to clipboard!"); } catch {}
+      }
     }
   }
 
@@ -339,11 +396,11 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
       <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col"
         style={{ background: CARD, maxHeight: "92vh" }}>
         {/* Drag handle */}
-        <div className="flex-shrink-0 flex justify-center pt-3 pb-1">
+        <div className="flex-shrink-0 flex justify-center pt-3 pb-2">
           <div className="w-12 h-1.5 rounded-full" style={{ background: BORDER }} />
         </div>
         {/* Header */}
-        <div className="flex-shrink-0 px-5 pb-4 pt-2" style={{ borderBottom: `1px solid ${BORDER}` }}>
+        <div className="flex-shrink-0 px-5 pb-4 pt-1" style={{ borderBottom: `1px solid ${BORDER}` }}>
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -374,15 +431,33 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
 
           {/* Customer */}
-          <div className="rounded-2xl p-4 space-y-1.5" style={{ background: BG, border: `1px solid ${BORDER}` }}>
+          <div className="rounded-2xl p-4" style={{ background: BG, border: `1px solid ${BORDER}` }}>
             <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: MUTED }}>👤 Customer</p>
-            <p className="font-semibold text-sm">{repair.customerName}</p>
-            {repair.customerPhone && (
-              <a href={`tel:${repair.customerPhone}`} className="flex items-center gap-1.5 text-sm font-medium"
-                style={{ color: PRIMARY }}>
-                <Phone className="w-3.5 h-3.5" /> {repair.customerPhone}
-              </a>
-            )}
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-semibold text-sm">{repair.customerName || "—"}</p>
+                {repair.customerPhone && (
+                  <p className="text-xs mt-0.5" style={{ color: MUTED }}>{repair.customerPhone}</p>
+                )}
+              </div>
+              {repair.customerPhone && (
+                <div className="flex flex-col gap-1.5 flex-shrink-0">
+                  <a href={`tel:${repair.customerPhone}`}
+                    className="w-9 h-9 rounded-xl flex items-center justify-center"
+                    style={{ background: "#ECFDF5", color: "#059669" }}
+                    title="Call customer">
+                    <Phone className="w-4 h-4" />
+                  </a>
+                  <a href={`https://wa.me/${repair.customerPhone.replace(/[^0-9]/g, "")}`}
+                    target="_blank" rel="noreferrer"
+                    className="w-9 h-9 rounded-xl flex items-center justify-center"
+                    style={{ background: "#ECFDF5", color: "#25D366" }}
+                    title="WhatsApp">
+                    <MessageCircle className="w-4 h-4" />
+                  </a>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Device & Problem */}
@@ -399,7 +474,7 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
               {STATUS_OPTS.map(s => (
                 <button key={s.val} type="button"
                   disabled={statusMut.isPending}
-                  onClick={() => { if (status !== s.val) statusMut.mutate(s.val); }}
+                  onClick={() => { if (status !== s.val) { setStatus(s.val); statusMut.mutate({ newStatus: s.val, reason: cancelReason }); } }}
                   className="py-2.5 px-3 rounded-xl text-xs font-bold border transition-all"
                   style={status === s.val
                     ? { background: s.bg, color: s.color, borderColor: s.color }
@@ -409,6 +484,22 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
               ))}
             </div>
           </div>
+
+          {/* Cancellation reason */}
+          {status === "Cancelled" && (
+            <div className="rounded-2xl p-4 space-y-2" style={{ background: "#FEF2F2", border: "1px solid #FCA5A5" }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#DC2626" }}>❌ Cancellation Reason</p>
+              <textarea
+                value={cancelReason}
+                onChange={e => setCancelReason(e.target.value)}
+                onBlur={() => { if (cancelReason !== repair.notes) statusMut.mutate({ newStatus: "Cancelled", reason: cancelReason }); }}
+                placeholder="Enter reason for cancellation…"
+                rows={2}
+                className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none resize-none"
+                style={{ borderColor: "#FCA5A5", background: "#fff", color: "#DC2626" }}
+              />
+            </div>
+          )}
 
           {/* Billing */}
           {Number(repair.totalCost) > 0 && (
@@ -476,7 +567,7 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
           <button onClick={handleShare}
             className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 border"
             style={{ borderColor: PRIMARY, color: PRIMARY }}>
-            <Share2 className="w-4 h-4" /> Share / Copy Summary
+            <Share2 className="w-4 h-4" /> Share as PDF
           </button>
 
           <p className="text-[10px] text-center pb-2" style={{ color: MUTED }}>
@@ -950,19 +1041,22 @@ export default function Repairs() {
                       )}
                     </p>
                   </div>
-                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                  <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                     <span className="text-xs font-bold px-2.5 py-1 rounded-full"
                       style={{ background: sc.bg, color: sc.text }}>{r.status}</span>
-                    <button
-                      onClick={() => { setEditRepair(r); setViewRepair(undefined); setShowForm(true); }}
-                      className="flex items-center gap-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-lg border"
-                      style={{ borderColor: BORDER, color: MUTED }}>
-                      <Pencil className="w-2.5 h-2.5" /> Edit
-                    </button>
-                    <button onClick={() => { if (confirm("Delete this repair?")) deleteMut.mutate(r.id); }}
-                      className="text-[10px] font-medium" style={{ color: "hsl(var(--destructive))" }}>
-                      Delete
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEditRepair(r); setViewRepair(undefined); setShowForm(true); }}
+                        className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-xl border"
+                        style={{ borderColor: PRIMARY, color: PRIMARY, background: `${PRIMARY}10` }}>
+                        <Pencil className="w-3 h-3" /> Edit
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); if (confirm("Delete this repair?")) deleteMut.mutate(r.id); }}
+                        className="p-1.5 rounded-xl border"
+                        style={{ borderColor: "hsl(var(--destructive) / 0.3)", color: "hsl(var(--destructive))", background: "hsl(var(--destructive) / 0.06)" }}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

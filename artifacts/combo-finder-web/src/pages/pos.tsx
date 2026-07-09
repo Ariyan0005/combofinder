@@ -502,7 +502,7 @@ export default function Pos() {
         {isLoading ? (
           <div className="space-y-2">{[1,2,3,4].map(i => <div key={i} className="h-16 rounded-2xl animate-pulse" style={{ background: "hsl(var(--muted))" }} />)}</div>
         ) : (
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 max-h-[42vh] overflow-y-auto pr-0.5">
             {filtered.map(item => {
               const inCart = inCartQty(item.id);
               const maxed  = inCart >= item.quantity;

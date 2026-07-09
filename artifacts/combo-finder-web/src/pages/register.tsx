@@ -4,96 +4,26 @@ import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { AuthNavbar, type Lang } from "@/components/auth-navbar";
 
-const T = {
-  en: {
-    title: "Account Information",
-    sub: "Enter your account details",
-    orContinue: "or sign up with",
-    emailLabel: "E-Mail",
-    emailPh: "Enter your email",
-    passLabel: "Password",
-    passPh: "Create a strong password",
-    confirmLabel: "Confirm Password",
-    confirmPh: "Repeat your password",
-    terms1: "I agree to the",
-    terms2: "Terms",
-    terms3: "&",
-    terms4: "Privacy Policy",
-    btn: "Create Account",
-    btnLoading: "Creating account…",
-    haveAccount: "Already have an account?",
-    login: "Sign in",
-    support: "Support",
-    dupEmail: "This email is already registered.",
-    dupCta: "Sign in instead →",
-  },
-  bn: {
-    title: "অ্যাকাউন্ট তথ্য",
-    sub: "আপনার অ্যাকাউন্টের বিবরণ দিন",
-    orContinue: "অথবা এর মাধ্যমে সাইন আপ করুন",
-    emailLabel: "ইমেইল",
-    emailPh: "ইমেইল লিখুন",
-    passLabel: "পাসওয়ার্ড",
-    passPh: "শক্তিশালী পাসওয়ার্ড তৈরি করুন",
-    confirmLabel: "পাসওয়ার্ড নিশ্চিত করুন",
-    confirmPh: "পাসওয়ার্ড আবার লিখুন",
-    terms1: "আমি সম্মত",
-    terms2: "শর্তাবলী",
-    terms3: "এবং",
-    terms4: "গোপনীয়তা নীতি",
-    btn: "অ্যাকাউন্ট তৈরি করুন",
-    btnLoading: "তৈরি হচ্ছে…",
-    haveAccount: "আগে থেকে অ্যাকাউন্ট আছে?",
-    login: "সাইন ইন",
-    support: "সাপোর্ট",
-    dupEmail: "এই ইমেইলে আগেই অ্যাকাউন্ট আছে।",
-    dupCta: "সাইন ইন করুন →",
-  },
-  ar: {
-    title: "معلومات الحساب",
-    sub: "أدخل تفاصيل حسابك",
-    orContinue: "أو سجّل بواسطة",
-    emailLabel: "البريد الإلكتروني",
-    emailPh: "أدخل بريدك الإلكتروني",
-    passLabel: "كلمة المرور",
-    passPh: "أنشئ كلمة مرور قوية",
-    confirmLabel: "تأكيد كلمة المرور",
-    confirmPh: "أعد إدخال كلمة المرور",
-    terms1: "أوافق على",
-    terms2: "الشروط",
-    terms3: "و",
-    terms4: "سياسة الخصوصية",
-    btn: "إنشاء حساب",
-    btnLoading: "جارٍ الإنشاء…",
-    haveAccount: "هل لديك حساب بالفعل؟",
-    login: "تسجيل الدخول",
-    support: "الدعم",
-    dupEmail: "هذا البريد الإلكتروني مسجل بالفعل.",
-    dupCta: "تسجيل الدخول →",
-  },
-  hi: {
-    title: "खाता जानकारी",
-    sub: "अपने खाते का विवरण दर्ज करें",
-    orContinue: "या इससे साइन अप करें",
-    emailLabel: "ईमेल",
-    emailPh: "अपना ईमेल दर्ज करें",
-    passLabel: "पासवर्ड",
-    passPh: "एक मजबूत पासवर्ड बनाएं",
-    confirmLabel: "पासवर्ड की पुष्टि करें",
-    confirmPh: "पासवर्ड दोबारा दर्ज करें",
-    terms1: "मैं सहमत हूं",
-    terms2: "शर्तें",
-    terms3: "और",
-    terms4: "गोपनीयता नीति",
-    btn: "अकाउंट बनाएं",
-    btnLoading: "बनाया जा रहा है…",
-    haveAccount: "पहले से खाता है?",
-    login: "साइन इन करें",
-    support: "सहायता",
-    dupEmail: "यह ईमेल पहले से पंजीकृत है।",
-    dupCta: "साइन इन करें →",
-  },
-} as const;
+const COUNTRY_CURRENCY: Record<string, string> = {
+  "Afghanistan": "AFN", "Argentina": "ARS", "Australia": "AUD",
+  "Bahrain": "BHD", "Bangladesh": "BDT", "Belgium": "EUR",
+  "Brazil": "BRL", "Canada": "CAD", "China": "CNY",
+  "Colombia": "COP", "Egypt": "EGP", "Ethiopia": "ETB",
+  "France": "EUR", "Germany": "EUR", "Ghana": "GHS",
+  "Greece": "EUR", "Hong Kong": "HKD", "India": "INR",
+  "Indonesia": "IDR", "Iraq": "IQD", "Italy": "EUR",
+  "Japan": "JPY", "Jordan": "JOD", "Kenya": "KES",
+  "Kuwait": "KWD", "Malaysia": "MYR", "Mexico": "MXN",
+  "Myanmar": "MMK", "Nepal": "NPR", "Netherlands": "EUR",
+  "Nigeria": "NGN", "Oman": "OMR", "Pakistan": "PKR",
+  "Philippines": "PHP", "Portugal": "EUR", "Qatar": "QAR",
+  "Russia": "RUB", "Saudi Arabia": "SAR", "Singapore": "SGD",
+  "South Africa": "ZAR", "South Korea": "KRW", "Spain": "EUR",
+  "Sri Lanka": "LKR", "Taiwan": "TWD", "Tanzania": "TZS",
+  "Thailand": "THB", "Turkey": "TRY", "UAE": "AED",
+  "Uganda": "UGX", "UK": "GBP", "Ukraine": "UAH",
+  "USA": "USD", "Vietnam": "VND", "Other": "USD",
+};
 
 function GoogleIcon() {
   return (
@@ -123,21 +53,24 @@ function AppleIcon() {
 }
 
 export default function Register() {
-  const { register } = useAuth();
+  const { register, refreshUser } = useAuth();
   const [, navigate] = useLocation();
   const [lang, setLang] = useState<Lang>("en");
-  const [form, setForm] = useState({ email: "", password: "", confirmPassword: "" });
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+    country: "",
+    shopName: "",
+  });
   const [showPass, setShowPass] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState("");
   const [dupEmail, setDupEmail] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const t = T[lang];
   const isRtl = lang === "ar";
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm(p => ({ ...p, [k]: e.target.value }));
     if (k === "email") setDupEmail(false);
   };
@@ -147,13 +80,22 @@ export default function Register() {
     setError(""); setDupEmail(false);
     if (!form.email || !form.password) { setError("Email and password are required"); return; }
     if (form.password.length < 6) { setError("Password must be at least 6 characters"); return; }
-    if (form.password !== form.confirmPassword) { setError("Passwords do not match"); return; }
+    if (!form.country) { setError("Please select your country"); return; }
+    if (!form.shopName.trim()) { setError("Shop name is required"); return; }
     if (!agreed) { setError("Please agree to the Terms and Privacy Policy"); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError("Enter a valid email address"); return; }
     setLoading(true);
     try {
       const name = form.email.split("@")[0];
       await register({ name, email: form.email, password: form.password });
+      // Set shop name + currency from country
+      const currency = COUNTRY_CURRENCY[form.country] ?? "USD";
+      await fetch("/api/auth/settings", {
+        method: "PUT", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shopName: form.shopName.trim(), currency }),
+      });
+      await refreshUser();
       navigate("/");
     } catch (err: any) {
       const msg: string = err.message ?? "Registration failed";
@@ -169,22 +111,22 @@ export default function Register() {
 
   const inputCls = "w-full px-4 py-3.5 rounded-xl border text-sm outline-none transition-colors";
   const iStyle = { borderColor: "hsl(var(--border))", background: "hsl(var(--card))", color: "hsl(var(--foreground))" };
-  const focIn = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; };
-  const focOut = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style.borderColor = "hsl(var(--border))"; };
+  const focIn = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; };
+  const focOut = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => { e.currentTarget.style.borderColor = "hsl(var(--border))"; };
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "hsl(var(--background))", direction: isRtl ? "rtl" : "ltr" }}>
-      <AuthNavbar lang={lang} onLangChange={setLang} supportLabel={t.support} />
+      <AuthNavbar lang={lang} onLangChange={setLang} supportLabel="Support" />
 
-      <div className="flex-1 flex items-start md:items-center justify-center p-5 pt-6 overflow-y-auto">
+      <div className="flex-1 flex items-start md:items-center justify-center px-5 py-6 overflow-y-auto">
         <div className="w-full max-w-sm">
-          <div className="mb-3">
-            <h1 className="text-2xl font-extrabold">{t.title}</h1>
-            <p className="text-sm mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>{t.sub}</p>
+          <div className="mb-5">
+            <h1 className="text-2xl font-extrabold">Create Account</h1>
+            <p className="text-sm mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>Set up your ComboFinder shop</p>
           </div>
 
           {/* Social buttons */}
-          <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="grid grid-cols-3 gap-2 mb-4">
             {[
               { icon: <GoogleIcon />, label: "Google", href: "/api/auth/google" },
               { icon: <AppleIcon />, label: "Apple", href: "/api/auth/apple" },
@@ -205,19 +147,19 @@ export default function Register() {
           </div>
 
           {/* Divider */}
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-3 mb-4">
             <div className="flex-1 h-px" style={{ background: "hsl(var(--border))" }} />
-            <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{t.orContinue}</span>
+            <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>or sign up with email</span>
             <div className="flex-1 h-px" style={{ background: "hsl(var(--border))" }} />
           </div>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
             {/* Email */}
             <div>
               <label className="text-sm font-semibold block mb-1.5">
-                {t.emailLabel} <span style={{ color: "hsl(var(--destructive))" }}>*</span>
+                Email <span style={{ color: "hsl(var(--destructive))" }}>*</span>
               </label>
-              <input type="email" placeholder={t.emailPh} value={form.email} onChange={set("email")}
+              <input type="email" placeholder="Enter your email" value={form.email} onChange={set("email")}
                 className={inputCls} dir="ltr"
                 style={{ ...iStyle, borderColor: dupEmail ? "hsl(var(--destructive))" : "hsl(var(--border))" }}
                 onFocus={e => { e.currentTarget.style.borderColor = dupEmail ? "hsl(var(--destructive))" : "hsl(var(--primary))"; }}
@@ -226,9 +168,9 @@ export default function Register() {
               {dupEmail && (
                 <div className="mt-2 px-3 py-2.5 rounded-xl text-sm"
                   style={{ background: "hsl(var(--destructive) / 0.08)", color: "hsl(var(--destructive))" }}>
-                  {t.dupEmail}{" "}
+                  This email is already registered.{" "}
                   <Link href="/login">
-                    <span className="font-bold underline cursor-pointer">{t.dupCta}</span>
+                    <span className="font-bold underline cursor-pointer">Sign in instead →</span>
                   </Link>
                 </div>
               )}
@@ -237,11 +179,12 @@ export default function Register() {
             {/* Password */}
             <div>
               <label className="text-sm font-semibold block mb-1.5">
-                {t.passLabel} <span style={{ color: "hsl(var(--destructive))" }}>*</span>
+                Password <span style={{ color: "hsl(var(--destructive))" }}>*</span>
               </label>
               <div className="relative">
-                <input type={showPass ? "text" : "password"} placeholder={t.passPh} value={form.password}
-                  onChange={set("password")} className={`${inputCls} pr-12`} style={iStyle}
+                <input type={showPass ? "text" : "password"} placeholder="Create a strong password (min 6 chars)"
+                  value={form.password} onChange={set("password")}
+                  className={`${inputCls} pr-12`} style={iStyle}
                   onFocus={focIn} onBlur={focOut} dir="ltr" />
                 <button type="button" onClick={() => setShowPass(p => !p)}
                   className="absolute right-4 top-1/2 -translate-y-1/2" style={{ color: "hsl(var(--muted-foreground))" }}>
@@ -250,20 +193,29 @@ export default function Register() {
               </div>
             </div>
 
-            {/* Confirm Password */}
+            {/* Country */}
             <div>
               <label className="text-sm font-semibold block mb-1.5">
-                {t.confirmLabel} <span style={{ color: "hsl(var(--destructive))" }}>*</span>
+                Country <span style={{ color: "hsl(var(--destructive))" }}>*</span>
               </label>
-              <div className="relative">
-                <input type={showConfirm ? "text" : "password"} placeholder={t.confirmPh} value={form.confirmPassword}
-                  onChange={set("confirmPassword")} className={`${inputCls} pr-12`} style={iStyle}
-                  onFocus={focIn} onBlur={focOut} dir="ltr" />
-                <button type="button" onClick={() => setShowConfirm(p => !p)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2" style={{ color: "hsl(var(--muted-foreground))" }}>
-                  {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
+              <select value={form.country} onChange={set("country")}
+                className={inputCls + " appearance-none"} style={iStyle}
+                onFocus={focIn} onBlur={focOut}>
+                <option value="">— Select your country —</option>
+                {Object.keys(COUNTRY_CURRENCY).sort().map(c => (
+                  <option key={c} value={c}>{c}{COUNTRY_CURRENCY[c] !== "USD" || c === "USA" ? ` (${COUNTRY_CURRENCY[c]})` : ""}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Shop Name */}
+            <div>
+              <label className="text-sm font-semibold block mb-1.5">
+                Shop Name <span style={{ color: "hsl(var(--destructive))" }}>*</span>
+              </label>
+              <input type="text" placeholder="e.g. My Mobile Shop" value={form.shopName}
+                onChange={set("shopName")} className={inputCls} style={iStyle}
+                onFocus={focIn} onBlur={focOut} />
             </div>
 
             {/* Terms */}
@@ -271,10 +223,10 @@ export default function Register() {
               <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)}
                 className="mt-0.5 shrink-0" style={{ accentColor: "hsl(var(--primary))" }} />
               <span className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
-                {t.terms1}{" "}
-                <span className="font-semibold" style={{ color: "hsl(var(--primary))" }}>{t.terms2}</span>
-                {" "}{t.terms3}{" "}
-                <span className="font-semibold" style={{ color: "hsl(var(--primary))" }}>{t.terms4}</span>
+                I agree to the{" "}
+                <span className="font-semibold" style={{ color: "hsl(var(--primary))" }}>Terms</span>
+                {" "}&amp;{" "}
+                <span className="font-semibold" style={{ color: "hsl(var(--primary))" }}>Privacy Policy</span>
               </span>
             </label>
 
@@ -288,14 +240,14 @@ export default function Register() {
             <button type="submit" disabled={loading}
               className="w-full py-4 rounded-xl font-bold text-white text-sm transition-opacity disabled:opacity-60"
               style={{ background: "hsl(var(--primary))" }}>
-              {loading ? t.btnLoading : t.btn}
+              {loading ? "Creating account…" : "Create Account"}
             </button>
           </form>
 
-          <p className="text-sm text-center mt-3" style={{ color: "hsl(var(--muted-foreground))" }}>
-            {t.haveAccount}{" "}
+          <p className="text-sm text-center mt-4" style={{ color: "hsl(var(--muted-foreground))" }}>
+            Already have an account?{" "}
             <Link href="/login">
-              <span className="font-bold cursor-pointer" style={{ color: "hsl(var(--primary))" }}>{t.login}</span>
+              <span className="font-bold cursor-pointer" style={{ color: "hsl(var(--primary))" }}>Sign in</span>
             </Link>
           </p>
         </div>
