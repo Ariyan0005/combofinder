@@ -436,7 +436,7 @@ ${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${escHtml(repair.
 
           {/* Customer */}
           <div className="rounded-2xl px-3.5 py-2.5" style={{ background: BG, border: `1px solid ${BORDER}` }}>
-            <p className="text-[9px] font-bold uppercase tracking-widest mb-1.5" style={{ color: MUTED }}>👤 Customer</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: MUTED }}>👤 Customer</p>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-semibold text-sm leading-tight">{repair.customerName || "—"}</p>
@@ -472,14 +472,14 @@ ${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${escHtml(repair.
 
           {/* Device & Problem */}
           <div className="rounded-2xl px-3.5 py-2.5 space-y-1.5" style={{ background: BG, border: `1px solid ${BORDER}` }}>
-            <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: MUTED }}>📱 Device & Problem</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: MUTED }}>📱 Device & Problem</p>
             <p className="font-semibold text-sm">{repair.phoneBrand} {repair.phoneModel}</p>
             <p className="text-sm" style={{ color: MUTED }}>{repair.problem}</p>
           </div>
 
           {/* Update Status */}
           <div>
-            <p className="text-[9px] font-bold uppercase tracking-widest mb-1.5" style={{ color: MUTED }}>🔧 Update Status</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: MUTED }}>🔧 Update Status</p>
             <div className="grid grid-cols-2 gap-2">
               {STATUS_OPTS.map(s => (
                 <button key={s.val} type="button"
@@ -498,7 +498,7 @@ ${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${escHtml(repair.
           {/* Cancellation reason */}
           {status === "Cancelled" && (
             <div className="rounded-2xl px-3.5 py-2.5 space-y-1.5" style={{ background: "#FEF2F2", border: "1px solid #FCA5A5" }}>
-              <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "#DC2626" }}>❌ Cancellation Reason</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#DC2626" }}>❌ Cancellation Reason</p>
               <textarea
                 value={cancelReason}
                 onChange={e => setCancelReason(e.target.value)}
@@ -514,7 +514,7 @@ ${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${escHtml(repair.
           {/* Billing */}
           {Number(repair.totalCost) > 0 && (
             <div className="rounded-2xl px-3.5 py-2.5 space-y-1.5" style={{ background: BG, border: `1px solid ${BORDER}` }}>
-              <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: MUTED }}>💰 Billing</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: MUTED }}>💰 Billing</p>
               {Number(repair.partsCost) > 0 && (
                 <div className="flex justify-between text-xs">
                   <span style={{ color: MUTED }}>Parts</span>
@@ -549,7 +549,7 @@ ${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${escHtml(repair.
           {/* Parts used */}
           {partsArr.length > 0 && (
             <div className="rounded-2xl px-3.5 py-2.5 space-y-1.5" style={{ background: BG, border: `1px solid ${BORDER}` }}>
-              <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: MUTED }}>📦 Parts Used</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: MUTED }}>📦 Parts Used</p>
               {partsArr.map((p, i) => (
                 <div key={i} className="flex justify-between text-xs">
                   <span>{p.name} × {p.qty}</span>
@@ -561,14 +561,14 @@ ${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${escHtml(repair.
 
           {repair.engineer && (
             <div className="rounded-2xl px-3.5 py-2.5" style={{ background: BG, border: `1px solid ${BORDER}` }}>
-              <p className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: MUTED }}>🛠 Technician</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: MUTED }}>🛠 Technician</p>
               <p className="text-sm font-semibold">{repair.engineer}</p>
             </div>
           )}
 
           {repair.notes && (
             <div className="rounded-2xl px-3.5 py-2.5" style={{ background: BG, border: `1px solid ${BORDER}` }}>
-              <p className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: MUTED }}>📝 Notes</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: MUTED }}>📝 Notes</p>
               <p className="text-sm" style={{ color: MUTED }}>{repair.notes}</p>
             </div>
           )}
