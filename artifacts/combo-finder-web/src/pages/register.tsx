@@ -88,13 +88,17 @@ export default function Register() {
     try {
       const name = form.email.split("@")[0];
       await register({ name, email: form.email, password: form.password });
-      // Set shop name + currency from country
+      // Set shop name + currency from country selection
       const currency = COUNTRY_CURRENCY[form.country] ?? "USD";
-      await fetch("/api/auth/settings", {
+      const settingsRes = await fetch("/api/auth/settings", {
         method: "PUT", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ shopName: form.shopName.trim(), currency }),
       });
+      // Settings failure is non-fatal — user can update in Settings later
+      if (!settingsRes.ok) {
+        console.warn("Could not save shop settings after registration; user can update in Settings.");
+      }
       await refreshUser();
       navigate("/");
     } catch (err: any) {

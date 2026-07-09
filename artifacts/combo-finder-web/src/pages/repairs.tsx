@@ -323,6 +323,10 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
     `📅 Date: ${new Date(repair.createdAt).toLocaleDateString()}`,
   ].filter(Boolean).join("\n");
 
+  function escHtml(s: string | null | undefined): string {
+    return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
   async function handleShare() {
     // Generate PDF via print dialog
     const partsArr2: PartEntry[] = (() => { try { return repair.partsUsed ? JSON.parse(repair.partsUsed) : []; } catch { return []; } })();
@@ -345,28 +349,28 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
 </style></head>
 <body>
 <h1>🔧 Repair Job #${repair.id}</h1>
-<div class="badge">${status}</div>
+<div class="badge">${escHtml(status)}</div>
 <div class="section">
   <h2>👤 Customer</h2>
-  <div class="row"><span>${repair.customerName || "—"}</span></div>
-  ${repair.customerPhone ? `<div class="row"><span>📞 ${repair.customerPhone}</span></div>` : ""}
+  <div class="row"><span>${escHtml(repair.customerName || "—")}</span></div>
+  ${repair.customerPhone ? `<div class="row"><span>📞 ${escHtml(repair.customerPhone ?? "")}</span></div>` : ""}
 </div>
 <div class="section">
   <h2>📱 Device &amp; Problem</h2>
-  <div class="row"><b>${repair.phoneBrand} ${repair.phoneModel}</b></div>
-  <div class="row" style="color:#6b7280">${repair.problem}</div>
+  <div class="row"><b>${escHtml(repair.phoneBrand)} ${escHtml(repair.phoneModel)}</b></div>
+  <div class="row" style="color:#6b7280">${escHtml(repair.problem)}</div>
 </div>
 ${Number(repair.totalCost) > 0 ? `<div class="section">
   <h2>💰 Billing</h2>
   ${Number(repair.laborCost) > 0 ? `<div class="row"><span>Labor</span><span>${Number(repair.laborCost).toFixed(2)}</span></div>` : ""}
-  ${partsArr2.length > 0 ? partsArr2.map(p => `<div class="row"><span>${p.name} ×${p.qty}</span><span>${(Number(p.unitPrice)*Number(p.qty)).toFixed(2)}</span></div>`).join("") : ""}
+  ${partsArr2.length > 0 ? partsArr2.map(p => `<div class="row"><span>${escHtml(p.name)} ×${p.qty}</span><span>${(Number(p.unitPrice)*Number(p.qty)).toFixed(2)}</span></div>`).join("") : ""}
   <div class="row total"><span>Total</span><span>${Number(repair.totalCost).toFixed(2)}</span></div>
   ${Number(repair.advancePaid) > 0 ? `<div class="row paid"><span>Advance Paid</span><span>${Number(repair.advancePaid).toFixed(2)}</span></div>` : ""}
   ${dueAmt > 0 ? `<div class="row due"><span>Amount Due</span><span>${dueAmt.toFixed(2)}</span></div>` : `<div class="row paid"><span>✓ Fully Paid</span></div>`}
 </div>` : ""}
-${repair.engineer ? `<div class="section"><h2>🛠 Technician</h2><div>${repair.engineer}</div></div>` : ""}
-${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${repair.notes}</div></div>` : ""}
-<div class="footer">Created ${new Date(repair.createdAt).toLocaleDateString()}</div>
+${repair.engineer ? `<div class="section"><h2>🛠 Technician</h2><div>${escHtml(repair.engineer ?? "")}</div></div>` : ""}
+${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${escHtml(repair.notes ?? "")}</div></div>` : ""}
+<div class="footer">Created ${escHtml(new Date(repair.createdAt).toLocaleDateString())}</div>
 <script>window.onload=()=>{window.print();}<\/script>
 </body></html>`;
     const win = window.open("", "_blank");
