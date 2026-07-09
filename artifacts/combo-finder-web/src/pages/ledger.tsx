@@ -48,6 +48,17 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
+function localDateStr(d = new Date()) {
+  const tzOffsetMs = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 10);
+}
+
+function escapeHtml(v: unknown) {
+  return String(v ?? "").replace(/[&<>"']/g, c => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string
+  ));
+}
+
 export default function Ledger() {
   const { user } = useAuth();
   const currency = user?.currency ?? "USD";
@@ -79,7 +90,7 @@ export default function Ledger() {
   const [entryItemName, setEntryItemName] = useState("");
   const [entryDesc, setEntryDesc] = useState("");
   const [entryRef, setEntryRef] = useState("");
-  const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 10));
+  const [entryDate, setEntryDate] = useState(localDateStr());
   const [entrySaving, setEntrySaving] = useState(false);
   const [entryError, setEntryError] = useState("");
   const [entryOk, setEntryOk] = useState(false);
@@ -103,7 +114,8 @@ export default function Ledger() {
   const rangeTotals = useMemo(() => {
     const creditSum = filteredEntries.filter(e => e.type === "credit").reduce((s, e) => s + Number(e.amount), 0);
     const debitSum = filteredEntries.filter(e => e.type === "debit").reduce((s, e) => s + Number(e.amount), 0);
-    return { creditSum, debitSum, balance: debitSum - creditSum };
+    // Matches API semantics (routes/ledger.ts): balance = creditSum - debitSum; positive = customer owes.
+    return { creditSum, debitSum, balance: creditSum - debitSum };
   }, [filteredEntries]);
 
   const isFiltered = !!(dateFrom || dateTo);
@@ -248,7 +260,7 @@ export default function Ledger() {
   function openAddEntry(type: "credit" | "debit" = "debit") {
     setEntryType(type);
     setEntryAmount(""); setEntryItemName(""); setEntryDesc(""); setEntryRef(""); setEntryOk(false);
-    setEntryDate(new Date().toISOString().slice(0, 10));
+    setEntryDate(localDateStr());
     setEntryError("");
     setEntryOpen(true);
   }
@@ -282,8 +294,8 @@ export default function Ledger() {
     if (!acc) return;
     const rows = filteredEntries;
     const totals = isFiltered ? rangeTotals : { creditSum: acc.creditSum ?? 0, debitSum: acc.debitSum ?? 0, balance: acc.balance };
-    const periodLabel = isFiltered ? `<p style="color:#2563eb;font-weight:600">Period: ${dateFrom || "…"} → ${dateTo || "…"}</p>` : "";
-    const html = `<!DOCTYPE html><html><head><title>Ledger - ${acc.name}</title>
+    const periodLabel = isFiltered ? `<p style="color:#2563eb;font-weight:600">Period: ${escapeHtml(dateFrom || "…")} → ${escapeHtml(dateTo || "…")}</p>` : "";
+    const html = `<!DOCTYPE html><html><head><title>Ledger - ${escapeHtml(acc.name)}</title>
     <style>body{font-family:Arial,sans-serif;padding:24px;max-width:700px;margin:auto;color:#111}
     h2{margin-bottom:4px}p{color:#555;font-size:13px;margin:2px 0}
     table{width:100%;border-collapse:collapse;margin-top:16px}
@@ -292,17 +304,17 @@ export default function Ledger() {
     .credit{color:#16a34a}.debit{color:#dc2626}
     .balance{background:#f9fafb;padding:12px;border-radius:8px;margin-top:16px}
     @media print{button{display:none}}</style></head><body>
-    <h2>${acc.name}</h2>
-    ${acc.phone ? `<p>📞 ${acc.phone}</p>` : ""}
-    ${acc.email ? `<p>✉ ${acc.email}</p>` : ""}
-    ${acc.address ? `<p>📍 ${acc.address}</p>` : ""}
+    <h2>${escapeHtml(acc.name)}</h2>
+    ${acc.phone ? `<p>📞 ${escapeHtml(acc.phone)}</p>` : ""}
+    ${acc.email ? `<p>✉ ${escapeHtml(acc.email)}</p>` : ""}
+    ${acc.address ? `<p>📍 ${escapeHtml(acc.address)}</p>` : ""}
     ${periodLabel}
     <table><thead><tr><th>Date</th><th>Product/Item</th><th>Description</th><th>Ref</th><th>Credit</th><th>Debit</th></tr></thead>
     <tbody>${rows.map(e => `<tr>
-      <td>${fmtDate(e.date)}</td>
-      <td>${(e as any).itemName ?? ""}</td>
-      <td>${e.description ?? ""}</td>
-      <td>${e.reference ?? ""}</td>
+      <td>${escapeHtml(fmtDate(e.date))}</td>
+      <td>${escapeHtml((e as any).itemName ?? "")}</td>
+      <td>${escapeHtml(e.description ?? "")}</td>
+      <td>${escapeHtml(e.reference ?? "")}</td>
       <td class="credit">${e.type === "credit" ? sym + Number(e.amount).toLocaleString() : ""}</td>
       <td class="debit">${e.type === "debit" ? sym + Number(e.amount).toLocaleString() : ""}</td>
     </tr>`).join("")}</tbody></table>
@@ -311,7 +323,7 @@ export default function Ledger() {
       <strong>Total Debit: <span class="debit">${sym}${totals.debitSum.toLocaleString()}</span></strong><br/>
       <strong style="font-size:16px">Balance${isFiltered ? " (period)" : ""}: ${totals.balance >= 0 ? `<span class="debit">${sym}${totals.balance.toLocaleString()} (Customer owes)</span>` : `<span class="credit">${sym}${Math.abs(totals.balance).toLocaleString()} (You owe)</span>`}</strong>
     </div>
-    <p style="margin-top:20px;font-size:11px;color:#9ca3af">Generated by ComboFinder · ${new Date().toLocaleString()}</p>
+    <p style="margin-top:20px;font-size:11px;color:#9ca3af">Generated by ComboFinder · ${escapeHtml(new Date().toLocaleString())}</p>
     </body></html>`;
     const w = window.open("", "_blank");
     if (w) { w.document.write(html); w.document.close(); w.print(); }
