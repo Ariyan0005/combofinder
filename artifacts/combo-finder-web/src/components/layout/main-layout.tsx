@@ -18,16 +18,20 @@ const BOTTOM_NAV = [
 ];
 
 const MORE_ITEMS = [
-  { label: "Point of Sale", icon: ShoppingCart, href: "/pos" },
-  { label: "Invoices", icon: FileText, href: "/invoices" },
-  { label: "Customers", icon: Users, href: "/customers" },
-  { label: "Ledger / Credit", icon: BookMarked, href: "/ledger" },
-  { label: "Knowledge Base", icon: BookOpen, href: "/knowledge-base" },
-  { label: "Reports", icon: BarChart2, href: "/reports" },
-  { label: "Unlock Services", icon: Unlock, href: "/unlock-services" },
-  { label: "Expenses", icon: Receipt, href: "/expenses" },
-  { label: "Subscription", icon: CreditCard, href: "/subscription" },
-  { label: "Settings", icon: Settings, href: "/settings" },
+  // ── Daily use ──
+  { label: "Customers",      icon: Users,        href: "/customers" },
+  { label: "Point of Sale",  icon: ShoppingCart, href: "/pos" },
+  { label: "Invoices",       icon: FileText,     href: "/invoices" },
+  { label: "Ledger / Credit",icon: BookMarked,   href: "/ledger" },
+  { label: "Expenses",       icon: Receipt,      href: "/expenses" },
+  // ── Analysis ──
+  { label: "Reports",        icon: BarChart2,    href: "/reports" },
+  // ── Tools / Reference ──
+  { label: "Knowledge Base", icon: BookOpen,     href: "/knowledge-base" },
+  { label: "Unlock Services",icon: Unlock,       href: "/unlock-services" },
+  // ── Account ──
+  { label: "Subscription",   icon: CreditCard,   href: "/subscription" },
+  { label: "Settings",       icon: Settings,     href: "/settings" },
 ];
 
 export default function MainLayout({ children }: { children: ReactNode }) {
