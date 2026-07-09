@@ -547,7 +547,7 @@ ${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${escHtml(repair.
               <div className="flex items-center justify-between mb-1">
                 <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: MUTED }}>💰 Billing</p>
                 {!showPayment && (
-                  <button type="button" onClick={() => { setAdvancePaid(String(repair.advancePaid ?? "")); setIsPaid(!!repair.isPaid); setShowPayment(true); }}
+                  <button type="button" onClick={() => { setAdvancePaid(String(repair.advancePaid ?? "")); setIsPaid(!!repair.isPaid); setPaymentError(""); setShowPayment(true); }}
                     className="text-[11px] font-bold px-2 py-1 rounded-lg"
                     style={{ color: PRIMARY, background: `${PRIMARY}12` }}>
                     Update Payment
@@ -619,7 +619,14 @@ ${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${escHtml(repair.
                       Cancel
                     </button>
                     <button type="button" disabled={paymentMut.isPending}
-                      onClick={() => paymentMut.mutate({ newAdvance: advancePaid, newIsPaid: isPaid })}
+                      onClick={() => {
+                        const trimmed = advancePaid.trim();
+                        if (trimmed && (isNaN(Number(trimmed)) || Number(trimmed) < 0)) {
+                          setPaymentError("Enter a valid non-negative amount");
+                          return;
+                        }
+                        paymentMut.mutate({ newAdvance: trimmed, newIsPaid: isPaid });
+                      }}
                       className="py-2.5 rounded-xl text-xs font-extrabold text-white disabled:opacity-60"
                       style={{ background: PRIMARY }}>
                       {paymentMut.isPending ? "Saving…" : "Save Payment"}
