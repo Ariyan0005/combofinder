@@ -113,7 +113,7 @@ export default function Register() {
     }
   }
 
-  const inputCls = "w-full px-4 py-3.5 rounded-xl border text-sm outline-none transition-colors";
+  const inputCls = "w-full px-4 py-3 rounded-xl border text-sm outline-none transition-colors";
   const iStyle = { borderColor: "hsl(var(--border))", background: "hsl(var(--card))", color: "hsl(var(--foreground))" };
   const focIn = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; };
   const focOut = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => { e.currentTarget.style.borderColor = "hsl(var(--border))"; };
@@ -122,15 +122,15 @@ export default function Register() {
     <div className="min-h-screen flex flex-col" style={{ background: "hsl(var(--background))", direction: isRtl ? "rtl" : "ltr" }}>
       <AuthNavbar lang={lang} onLangChange={setLang} supportLabel="Support" />
 
-      <div className="flex-1 flex items-start md:items-center justify-center px-5 py-6 overflow-y-auto">
+      <div className="flex-1 flex items-start md:items-center justify-center px-5 py-3 overflow-y-auto">
         <div className="w-full max-w-sm">
-          <div className="mb-5">
-            <h1 className="text-2xl font-extrabold">Create Account</h1>
+          <div className="mb-3">
+            <h1 className="text-xl font-extrabold">Create Account</h1>
             <p className="text-sm mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>Set up your ComboFinder shop</p>
           </div>
 
           {/* Social buttons */}
-          <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="grid grid-cols-3 gap-2 mb-2">
             {[
               { icon: <GoogleIcon />, label: "Google", href: "/api/auth/google" },
               { icon: <AppleIcon />, label: "Apple", href: "/api/auth/apple" },
@@ -139,7 +139,7 @@ export default function Register() {
               <a
                 key={label}
                 href={href}
-                className="flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl border text-xs font-semibold transition-colors"
+                className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl border text-xs font-semibold transition-colors"
                 style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))", color: "hsl(var(--foreground))" }}
                 onMouseEnter={e => { e.currentTarget.style.background = "hsl(var(--muted))"; }}
                 onMouseLeave={e => { e.currentTarget.style.background = "hsl(var(--card))"; }}
@@ -151,16 +151,16 @@ export default function Register() {
           </div>
 
           {/* Divider */}
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3 mb-2">
             <div className="flex-1 h-px" style={{ background: "hsl(var(--border))" }} />
             <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>or sign up with email</span>
             <div className="flex-1 h-px" style={{ background: "hsl(var(--border))" }} />
           </div>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
             {/* Email */}
             <div>
-              <label className="text-sm font-semibold block mb-1.5">
+              <label className="text-sm font-semibold block mb-1">
                 Email <span style={{ color: "hsl(var(--destructive))" }}>*</span>
               </label>
               <input type="email" placeholder="Enter your email" value={form.email} onChange={set("email")}
@@ -182,7 +182,7 @@ export default function Register() {
 
             {/* Password */}
             <div>
-              <label className="text-sm font-semibold block mb-1.5">
+              <label className="text-sm font-semibold block mb-1">
                 Password <span style={{ color: "hsl(var(--destructive))" }}>*</span>
               </label>
               <div className="relative">
@@ -199,7 +199,7 @@ export default function Register() {
 
             {/* Country */}
             <div>
-              <label className="text-sm font-semibold block mb-1.5">
+              <label className="text-sm font-semibold block mb-1">
                 Country <span style={{ color: "hsl(var(--destructive))" }}>*</span>
               </label>
               <select value={form.country} onChange={set("country")}
@@ -214,7 +214,7 @@ export default function Register() {
 
             {/* Shop Name */}
             <div>
-              <label className="text-sm font-semibold block mb-1.5">
+              <label className="text-sm font-semibold block mb-1">
                 Shop Name <span style={{ color: "hsl(var(--destructive))" }}>*</span>
               </label>
               <input type="text" placeholder="e.g. My Mobile Shop" value={form.shopName}
@@ -242,13 +242,13 @@ export default function Register() {
             )}
 
             <button type="submit" disabled={loading}
-              className="w-full py-4 rounded-xl font-bold text-white text-sm transition-opacity disabled:opacity-60"
+              className="w-full py-3.5 rounded-xl font-bold text-white text-sm transition-opacity disabled:opacity-60"
               style={{ background: "hsl(var(--primary))" }}>
               {loading ? "Creating account…" : "Create Account"}
             </button>
           </form>
 
-          <p className="text-sm text-center mt-4" style={{ color: "hsl(var(--muted-foreground))" }}>
+          <p className="text-sm text-center mt-3" style={{ color: "hsl(var(--muted-foreground))" }}>
             Already have an account?{" "}
             <Link href="/login">
               <span className="font-bold cursor-pointer" style={{ color: "hsl(var(--primary))" }}>Sign in</span>
