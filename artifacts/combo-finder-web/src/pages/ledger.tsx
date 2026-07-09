@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   BookMarked, Plus, X, FileDown, Search, ChevronLeft,
   ArrowUpCircle, ArrowDownCircle, Trash2, Edit2, Phone, Check,
+  Printer, CalendarRange, RotateCcw,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -83,12 +84,38 @@ export default function Ledger() {
   const [entryError, setEntryError] = useState("");
   const [entryOk, setEntryOk] = useState(false);
 
+  // Date range filter (account detail view)
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
   const printRef = useRef<HTMLDivElement>(null);
+
+  const filteredEntries = useMemo(() => {
+    if (!dateFrom && !dateTo) return entries;
+    return entries.filter(e => {
+      const d = e.date.slice(0, 10);
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+      return true;
+    });
+  }, [entries, dateFrom, dateTo]);
+
+  const rangeTotals = useMemo(() => {
+    const creditSum = filteredEntries.filter(e => e.type === "credit").reduce((s, e) => s + Number(e.amount), 0);
+    const debitSum = filteredEntries.filter(e => e.type === "debit").reduce((s, e) => s + Number(e.amount), 0);
+    return { creditSum, debitSum, balance: debitSum - creditSum };
+  }, [filteredEntries]);
+
+  const isFiltered = !!(dateFrom || dateTo);
+
+  function clearDateFilter() { setDateFrom(""); setDateTo(""); }
 
   function exportPdf() {
     const acc = selectedAccount;
     if (!acc) return;
     const shopName = user?.shopName ?? user?.name ?? "My Shop";
+    const rows = filteredEntries;
+    const totals = isFiltered ? rangeTotals : { creditSum: acc.creditSum ?? 0, debitSum: acc.debitSum ?? 0, balance: acc.balance };
 
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const pageW = doc.internal.pageSize.getWidth();
@@ -102,7 +129,7 @@ export default function Ledger() {
     doc.text(shopName, 14, 10);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text("Ledger Statement", 14, 16);
+    doc.text(isFiltered ? `Ledger Statement · ${dateFrom || "…"} to ${dateTo || "…"}` : "Ledger Statement", 14, 16);
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
     doc.text(acc.name, 14, 24);
@@ -115,15 +142,15 @@ export default function Ledger() {
     doc.setTextColor(30, 30, 30);
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    doc.text(`Total Debit: ${sym}${(acc.debitSum ?? 0).toLocaleString()}`, 14, 42);
-    doc.text(`Total Credit: ${sym}${(acc.creditSum ?? 0).toLocaleString()}`, 80, 42);
-    const balLabel = acc.balance > 0 ? `Balance Due: ${sym}${acc.balance.toLocaleString()} (Customer owes)`
-      : acc.balance < 0 ? `Balance: ${sym}${Math.abs(acc.balance).toLocaleString()} (You owe)`
+    doc.text(`Total Debit: ${sym}${totals.debitSum.toLocaleString()}`, 14, 42);
+    doc.text(`Total Credit: ${sym}${totals.creditSum.toLocaleString()}`, 80, 42);
+    const balLabel = totals.balance > 0 ? `Balance Due: ${sym}${totals.balance.toLocaleString()} (Customer owes)`
+      : totals.balance < 0 ? `Balance: ${sym}${Math.abs(totals.balance).toLocaleString()} (You owe)`
       : "Balance: Settled";
-    doc.text(balLabel, 14, 49);
+    doc.text(isFiltered ? `${balLabel} (for selected period)` : balLabel, 14, 49);
 
     // Table — sorted by date ascending
-    const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+    const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date));
 
     autoTable(doc, {
       startY: 56,
@@ -156,7 +183,7 @@ export default function Ledger() {
     doc.text(`${shopName} · Ledger Report`, 14, finalY + 10);
     doc.text(`Page 1`, pageW - 14, finalY + 10, { align: "right" });
 
-    doc.save(`ledger-${acc.name.replace(/\s+/g, "-")}.pdf`);
+    doc.save(`ledger-${acc.name.replace(/\s+/g, "-")}${isFiltered ? `-${dateFrom || "start"}_to_${dateTo || "end"}` : ""}.pdf`);
   }
 
   async function loadAccounts() {
@@ -171,6 +198,7 @@ export default function Ledger() {
 
   async function loadEntries(accountId: number) {
     setLoadingEntries(true);
+    setDateFrom(""); setDateTo("");
     try {
       const r = await apiFetch(`${BASE}/accounts/${accountId}`);
       const data = await safeJson(r) as Account & { entries: Entry[] };
@@ -252,6 +280,9 @@ export default function Ledger() {
   function handlePrint() {
     const acc = selectedAccount;
     if (!acc) return;
+    const rows = filteredEntries;
+    const totals = isFiltered ? rangeTotals : { creditSum: acc.creditSum ?? 0, debitSum: acc.debitSum ?? 0, balance: acc.balance };
+    const periodLabel = isFiltered ? `<p style="color:#2563eb;font-weight:600">Period: ${dateFrom || "…"} → ${dateTo || "…"}</p>` : "";
     const html = `<!DOCTYPE html><html><head><title>Ledger - ${acc.name}</title>
     <style>body{font-family:Arial,sans-serif;padding:24px;max-width:700px;margin:auto;color:#111}
     h2{margin-bottom:4px}p{color:#555;font-size:13px;margin:2px 0}
@@ -265,8 +296,9 @@ export default function Ledger() {
     ${acc.phone ? `<p>📞 ${acc.phone}</p>` : ""}
     ${acc.email ? `<p>✉ ${acc.email}</p>` : ""}
     ${acc.address ? `<p>📍 ${acc.address}</p>` : ""}
+    ${periodLabel}
     <table><thead><tr><th>Date</th><th>Product/Item</th><th>Description</th><th>Ref</th><th>Credit</th><th>Debit</th></tr></thead>
-    <tbody>${entries.map(e => `<tr>
+    <tbody>${rows.map(e => `<tr>
       <td>${fmtDate(e.date)}</td>
       <td>${(e as any).itemName ?? ""}</td>
       <td>${e.description ?? ""}</td>
@@ -275,9 +307,9 @@ export default function Ledger() {
       <td class="debit">${e.type === "debit" ? sym + Number(e.amount).toLocaleString() : ""}</td>
     </tr>`).join("")}</tbody></table>
     <div class="balance">
-      <strong>Total Credit: <span class="credit">${sym}${(acc.creditSum ?? 0).toLocaleString()}</span></strong><br/>
-      <strong>Total Debit: <span class="debit">${sym}${(acc.debitSum ?? 0).toLocaleString()}</span></strong><br/>
-      <strong style="font-size:16px">Balance: ${acc.balance >= 0 ? `<span class="debit">${sym}${acc.balance.toLocaleString()} (Customer owes)</span>` : `<span class="credit">${sym}${Math.abs(acc.balance).toLocaleString()} (You owe)</span>`}</strong>
+      <strong>Total Credit: <span class="credit">${sym}${totals.creditSum.toLocaleString()}</span></strong><br/>
+      <strong>Total Debit: <span class="debit">${sym}${totals.debitSum.toLocaleString()}</span></strong><br/>
+      <strong style="font-size:16px">Balance${isFiltered ? " (period)" : ""}: ${totals.balance >= 0 ? `<span class="debit">${sym}${totals.balance.toLocaleString()} (Customer owes)</span>` : `<span class="credit">${sym}${Math.abs(totals.balance).toLocaleString()} (You owe)</span>`}</strong>
     </div>
     <p style="margin-top:20px;font-size:11px;color:#9ca3af">Generated by ComboFinder · ${new Date().toLocaleString()}</p>
     </body></html>`;
@@ -288,15 +320,17 @@ export default function Ledger() {
   function exportCSV() {
     if (!selectedAccount) return;
     const rows = [["Date", "Type", "Amount", "Product/Item", "Description", "Reference"]];
-    entries.forEach(e => rows.push([fmtDate(e.date), e.type, e.amount, (e as any).itemName ?? "", e.description ?? "", e.reference ?? ""]));
+    filteredEntries.forEach(e => rows.push([fmtDate(e.date), e.type, e.amount, (e as any).itemName ?? "", e.description ?? "", e.reference ?? ""]));
     rows.push(["", "", "", "", ""]);
-    rows.push(["Total Credit", String(selectedAccount.creditSum ?? 0), "", "", ""]);
-    rows.push(["Total Debit", String(selectedAccount.debitSum ?? 0), "", "", ""]);
-    rows.push(["Balance", String(selectedAccount.balance), "", "", ""]);
+    const totals = isFiltered ? rangeTotals : { creditSum: selectedAccount.creditSum ?? 0, debitSum: selectedAccount.debitSum ?? 0, balance: selectedAccount.balance };
+    if (isFiltered) rows.push([`Period: ${dateFrom || "…"} to ${dateTo || "…"}`, "", "", "", "", ""]);
+    rows.push(["Total Credit", String(totals.creditSum), "", "", ""]);
+    rows.push(["Total Debit", String(totals.debitSum), "", "", ""]);
+    rows.push(["Balance", String(totals.balance), "", "", ""]);
     const csv = rows.map(r => r.map(c => `"${c}"`).join(",")).join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    a.download = `ledger-${selectedAccount.name.replace(/\s+/g, "-")}.csv`;
+    a.download = `ledger-${selectedAccount.name.replace(/\s+/g, "-")}${isFiltered ? `-${dateFrom || "start"}_to_${dateTo || "end"}` : ""}.csv`;
     a.click();
   }
 
@@ -308,8 +342,7 @@ export default function Ledger() {
   // Detailed account view
   if (selectedAccount) {
     const acc = selectedAccount;
-    const creditEntries = entries.filter(e => e.type === "credit");
-    const debitEntries = entries.filter(e => e.type === "debit");
+    const displayTotals = isFiltered ? rangeTotals : { creditSum: acc.creditSum ?? 0, debitSum: acc.debitSum ?? 0, balance: acc.balance };
 
     return (
       <ProtectedPage>
@@ -317,19 +350,19 @@ export default function Ledger() {
           {/* Back + header */}
           <div className="flex items-center gap-3 pt-1">
             <button onClick={() => { setSelectedAccount(null); setEntries([]); loadAccounts(); }}
-              className="w-8 h-8 rounded-xl flex items-center justify-center border border-border hover:border-primary transition-colors">
+              className="w-8 h-8 rounded-xl flex items-center justify-center border border-border hover:border-primary transition-colors flex-shrink-0">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <div className="flex-1">
-              <h1 className="text-xl font-extrabold">{acc.name}</h1>
-              {acc.phone && <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}><Phone className="w-3 h-3 inline mr-1" />{acc.phone}</p>}
+            <div className="w-11 h-11 rounded-full flex items-center justify-center text-base font-bold text-white flex-shrink-0"
+              style={{ background: "hsl(var(--primary))" }}>
+              {acc.name.charAt(0).toUpperCase()}
             </div>
-            <button onClick={exportPdf}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border hover:border-primary transition-colors text-xs font-bold">
-              <FileDown className="w-4 h-4" /> Export PDF
-            </button>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg font-extrabold truncate">{acc.name}</h1>
+              {acc.phone && <p className="text-xs flex items-center gap-1" style={{ color: "hsl(var(--muted-foreground))" }}><Phone className="w-3 h-3" />{acc.phone}</p>}
+            </div>
             <button onClick={() => openAddAccount(acc)}
-              className="p-2 rounded-xl border border-border hover:border-primary transition-colors">
+              className="p-2 rounded-xl border border-border hover:border-primary transition-colors flex-shrink-0">
               <Edit2 className="w-4 h-4" />
             </button>
           </div>
@@ -337,34 +370,36 @@ export default function Ledger() {
           {/* Balance summary */}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-card rounded-2xl border border-border p-3 text-center">
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>Credit</p>
-              <p className="font-bold text-sm" style={{ color: "#16a34a" }}>{sym}{(acc.creditSum ?? 0).toLocaleString()}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>Credit{isFiltered && " *"}</p>
+              <p className="font-bold text-sm" style={{ color: "#16a34a" }}>{sym}{displayTotals.creditSum.toLocaleString()}</p>
             </div>
             <div className="bg-card rounded-2xl border border-border p-3 text-center">
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>Debit</p>
-              <p className="font-bold text-sm" style={{ color: "#dc2626" }}>{sym}{(acc.debitSum ?? 0).toLocaleString()}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>Debit{isFiltered && " *"}</p>
+              <p className="font-bold text-sm" style={{ color: "#dc2626" }}>{sym}{displayTotals.debitSum.toLocaleString()}</p>
             </div>
             <div className="bg-card rounded-2xl border border-border p-3 text-center"
-              style={{ background: acc.balance > 0 ? "rgba(220,38,38,0.05)" : acc.balance < 0 ? "rgba(22,163,74,0.05)" : undefined }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>Balance</p>
-              <p className="font-bold text-sm" style={{ color: acc.balance > 0 ? "#dc2626" : acc.balance < 0 ? "#16a34a" : undefined }}>
-                {sym}{Math.abs(acc.balance).toLocaleString()}
+              style={{ background: displayTotals.balance > 0 ? "rgba(220,38,38,0.05)" : displayTotals.balance < 0 ? "rgba(22,163,74,0.05)" : undefined }}>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>{isFiltered ? "Period Bal. *" : "Balance"}</p>
+              <p className="font-bold text-sm" style={{ color: displayTotals.balance > 0 ? "#dc2626" : displayTotals.balance < 0 ? "#16a34a" : undefined }}>
+                {sym}{Math.abs(displayTotals.balance).toLocaleString()}
               </p>
-              {acc.balance > 0 && <p className="text-[9px]" style={{ color: "#dc2626" }}>Customer owes</p>}
-              {acc.balance < 0 && <p className="text-[9px]" style={{ color: "#16a34a" }}>You owe</p>}
+              {displayTotals.balance > 0 && <p className="text-[9px]" style={{ color: "#dc2626" }}>Customer owes</p>}
+              {displayTotals.balance < 0 && <p className="text-[9px]" style={{ color: "#16a34a" }}>You owe</p>}
+              {displayTotals.balance === 0 && <p className="text-[9px]" style={{ color: "hsl(var(--muted-foreground))" }}>Settled</p>}
             </div>
           </div>
+          {isFiltered && <p className="text-[10px] -mt-2" style={{ color: "hsl(var(--muted-foreground))" }}>* figures reflect the selected date range only — overall balance is {sym}{Math.abs(acc.balance).toLocaleString()} {acc.balance > 0 ? "(customer owes)" : acc.balance < 0 ? "(you owe)" : "(settled)"}</p>}
 
           {/* Add entry buttons */}
           <div className="grid grid-cols-2 gap-3">
             <button onClick={() => openAddEntry("debit")}
-              className="flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white"
+              className="flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white shadow-sm active:scale-[0.98] transition-transform"
               style={{ background: "#dc2626" }}>
               <ArrowDownCircle className="w-4 h-4" />
               Add Debit (sale / receive)
             </button>
             <button onClick={() => openAddEntry("credit")}
-              className="flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white"
+              className="flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white shadow-sm active:scale-[0.98] transition-transform"
               style={{ background: "#16a34a" }}>
               <ArrowUpCircle className="w-4 h-4" />
               Add Credit (payment)
@@ -373,10 +408,47 @@ export default function Ledger() {
 
           {/* Entries list */}
           <div className="bg-card rounded-2xl border border-border overflow-hidden">
-            <div className="px-4 py-3 border-b border-border">
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "hsl(var(--muted-foreground))" }}>
-                Transaction History ({entries.length})
-              </p>
+            <div className="px-4 py-3 border-b border-border space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-wide flex items-center gap-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+                  <CalendarRange className="w-3.5 h-3.5" />
+                  Transaction History ({filteredEntries.length}{isFiltered ? ` of ${entries.length}` : ""})
+                </p>
+                <div className="flex items-center gap-1">
+                  <button onClick={exportCSV} title="Export CSV"
+                    className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-border hover:border-primary transition-colors text-[11px] font-bold">
+                    <FileDown className="w-3.5 h-3.5" /> CSV
+                  </button>
+                  <button onClick={exportPdf} title="Export PDF"
+                    className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-border hover:border-primary transition-colors text-[11px] font-bold">
+                    <FileDown className="w-3.5 h-3.5" /> PDF
+                  </button>
+                  <button onClick={handlePrint} title="Print"
+                    className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-border hover:border-primary transition-colors text-[11px] font-bold">
+                    <Printer className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <label className="text-[9px] font-semibold block mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>From</label>
+                  <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                    max={dateTo || undefined}
+                    className="w-full px-2.5 py-1.5 rounded-lg border text-xs outline-none" style={INPUT_STYLE} />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[9px] font-semibold block mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>To</label>
+                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                    min={dateFrom || undefined}
+                    className="w-full px-2.5 py-1.5 rounded-lg border text-xs outline-none" style={INPUT_STYLE} />
+                </div>
+                {isFiltered && (
+                  <button onClick={clearDateFilter} title="Clear date filter"
+                    className="mt-4 p-2 rounded-lg border border-border hover:border-primary transition-colors flex-shrink-0">
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
             {loadingEntries ? (
               <div className="p-8 flex justify-center">
@@ -387,9 +459,14 @@ export default function Ledger() {
               <div className="p-8 text-center text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
                 No transactions yet. Add a debit or credit entry above.
               </div>
+            ) : filteredEntries.length === 0 ? (
+              <div className="p-8 text-center text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
+                No transactions in this date range.
+                <button onClick={clearDateFilter} className="block mx-auto mt-2 text-xs font-bold" style={{ color: "hsl(var(--primary))" }}>Clear filter</button>
+              </div>
             ) : (
               <div className="divide-y divide-border">
-                {entries.map(entry => (
+                {filteredEntries.map(entry => (
                   <div key={entry.id} className="flex items-center gap-3 px-4 py-3">
                     <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                       style={{ background: entry.type === "credit" ? "rgba(22,163,74,0.1)" : "rgba(220,38,38,0.1)" }}>

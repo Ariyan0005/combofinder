@@ -254,13 +254,21 @@ export default function Invoices() {
   }
 
   // ── Invoice list view ────────────────────────────────────────────────────
+  const isRangeFiltered = !!(from || to);
+  const rangeTotal = sales.reduce((s, sale) => s + Number(sale.total), 0);
+  const rangeCreditDue = sales.reduce((s, sale) => {
+    if (sale.paymentMethod !== "Credit") return s;
+    const due = Number(sale.total) - Number(sale.advancePaid ?? 0);
+    return s + (due > 0.005 ? due : 0);
+  }, 0);
+
   return (
     <ProtectedPage>
       <div className="space-y-3 pb-6">
         <div className="flex items-center justify-between pt-1">
           <div>
             <h1 className="text-xl font-extrabold">Invoices</h1>
-            <p className="text-xs" style={{ color: MUTED }}>{sales.length} invoice{sales.length !== 1 ? "s" : ""}</p>
+            <p className="text-xs" style={{ color: MUTED }}>{sales.length} invoice{sales.length !== 1 ? "s" : ""}{isRangeFiltered ? " in selected range" : ""}</p>
           </div>
           <Link href="/pos">
             <button className="px-3.5 py-2 rounded-xl text-xs font-bold text-white" style={{ background: PRIMARY }}>
@@ -268,6 +276,20 @@ export default function Invoices() {
             </button>
           </Link>
         </div>
+
+        {/* Summary */}
+        {sales.length > 0 && (
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-2xl border p-3" style={{ borderColor: BORDER, background: CARD }}>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: MUTED }}>Total Value</p>
+              <p className="font-bold text-base">{sym}{rangeTotal.toLocaleString()}</p>
+            </div>
+            <div className="rounded-2xl border p-3" style={{ borderColor: BORDER, background: rangeCreditDue > 0 ? "#FEF2F2" : CARD }}>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: rangeCreditDue > 0 ? "#DC2626" : MUTED }}>Credit Due</p>
+              <p className="font-bold text-base" style={{ color: rangeCreditDue > 0 ? "#DC2626" : undefined }}>{sym}{rangeCreditDue.toLocaleString()}</p>
+            </div>
+          </div>
+        )}
 
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: MUTED }} />
@@ -277,16 +299,26 @@ export default function Invoices() {
             style={{ borderColor: BORDER, background: CARD }} />
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-[10px] font-semibold block mb-1" style={{ color: MUTED }}>From</label>
-            <input type="date" value={from} onChange={e => setFrom(e.target.value)}
-              className="w-full px-2.5 py-2 rounded-lg border text-xs outline-none" style={{ borderColor: BORDER, background: CARD }} />
+        <div className="rounded-2xl border p-3 space-y-2" style={{ borderColor: BORDER, background: CARD }}>
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: MUTED }}>Date Range</p>
+            {isRangeFiltered && (
+              <button onClick={() => { setFrom(""); setTo(""); }} className="text-[11px] font-bold" style={{ color: PRIMARY }}>
+                Clear
+              </button>
+            )}
           </div>
-          <div>
-            <label className="text-[10px] font-semibold block mb-1" style={{ color: MUTED }}>To</label>
-            <input type="date" value={to} onChange={e => setTo(e.target.value)}
-              className="w-full px-2.5 py-2 rounded-lg border text-xs outline-none" style={{ borderColor: BORDER, background: CARD }} />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] font-semibold block mb-1" style={{ color: MUTED }}>From</label>
+              <input type="date" value={from} onChange={e => setFrom(e.target.value)} max={to || undefined}
+                className="w-full px-2.5 py-2 rounded-lg border text-xs outline-none" style={{ borderColor: BORDER, background: "hsl(var(--background))" }} />
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold block mb-1" style={{ color: MUTED }}>To</label>
+              <input type="date" value={to} onChange={e => setTo(e.target.value)} min={from || undefined}
+                className="w-full px-2.5 py-2 rounded-lg border text-xs outline-none" style={{ borderColor: BORDER, background: "hsl(var(--background))" }} />
+            </div>
           </div>
         </div>
 
