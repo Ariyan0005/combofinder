@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, X, Wrench, UserPlus, Package, Trash2, ChevronDown, Check, Share2, Pencil, Phone, MessageCircle } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
@@ -309,6 +310,7 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
     },
     onSuccess: (_, { newStatus }) => {
       setStatus(newStatus);
+      repair.status = newStatus;
       qc.invalidateQueries({ queryKey: ["repairs"] });
     },
   });
@@ -424,7 +426,7 @@ ${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${escHtml(repair.
 
   const sc = STATUS_COLOR[status] ?? { text: "#9CA3AF", bg: "#F3F4F6" };
 
-  return (
+  return createPortal((
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col"
@@ -544,16 +546,7 @@ ${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${escHtml(repair.
           {/* Billing */}
           {Number(repair.totalCost) > 0 && (
             <div className="rounded-2xl px-3.5 py-2.5 space-y-1.5" style={{ background: BG, border: `1px solid ${BORDER}` }}>
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: MUTED }}>💰 Billing</p>
-                {!showPayment && (
-                  <button type="button" onClick={() => { setAdvancePaid(String(repair.advancePaid ?? "")); setIsPaid(!!repair.isPaid); setPaymentError(""); setShowPayment(true); }}
-                    className="text-[11px] font-bold px-2 py-1 rounded-lg"
-                    style={{ color: PRIMARY, background: `${PRIMARY}12` }}>
-                    Update Payment
-                  </button>
-                )}
-              </div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: MUTED }}>💰 Billing</p>
               {Number(repair.partsCost) > 0 && (
                 <div className="flex justify-between text-xs">
                   <span style={{ color: MUTED }}>Parts</span>
@@ -582,6 +575,14 @@ ${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${escHtml(repair.
                   {repair.isPaid ? "✓ Fully Paid" : `Amount Due: ${Math.max(0, Number(repair.totalCost) - Number(repair.advancePaid ?? 0)).toFixed(2)}`}
                 </span>
               </div>
+
+              {!showPayment && (
+                <button type="button" onClick={() => { setAdvancePaid(String(repair.advancePaid ?? "")); setIsPaid(!!repair.isPaid); setPaymentError(""); setShowPayment(true); }}
+                  className="w-full py-3 rounded-xl text-sm font-extrabold border-2 flex items-center justify-center gap-2 mt-1"
+                  style={{ borderColor: PRIMARY, color: PRIMARY, background: `${PRIMARY}12` }}>
+                  💵 Update Payment
+                </button>
+              )}
 
               {/* Inline payment editor */}
               {showPayment && (
@@ -678,7 +679,7 @@ ${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${escHtml(repair.
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }
 
 // ─── Section label helper ─────────────────────────────────────────────────────
