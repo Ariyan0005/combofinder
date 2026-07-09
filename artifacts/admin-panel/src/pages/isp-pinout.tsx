@@ -4,6 +4,7 @@ import {
   Plus, Search, Trash2, X, ExternalLink, ZoomIn, Cpu, RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SingleModelPicker } from "@/components/brand-model-picker";
 
 type Pinout = {
   id: number;
@@ -41,6 +42,7 @@ function AddPinoutModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
   const [saving, setSaving] = useState(false);
 
   async function save() {
+    if (!brand.trim() || !model.trim()) { setErr("Pick a brand and model"); return; }
     if (!title.trim() || !imgUrl.trim()) { setErr("Title and Image URL are required"); return; }
     setSaving(true); setErr("");
     try {
@@ -75,18 +77,15 @@ function AddPinoutModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground block mb-1">Brand</label>
-            <input value={brand} onChange={e => setBrand(e.target.value)} placeholder="Samsung"
-              className="w-full px-3 py-2 rounded-lg border border-border bg-input text-sm text-foreground outline-none focus:ring-1 focus:ring-primary" />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground block mb-1">Model</label>
-            <input value={model} onChange={e => setModel(e.target.value)} placeholder="A05s"
-              className="w-full px-3 py-2 rounded-lg border border-border bg-input text-sm text-foreground outline-none focus:ring-1 focus:ring-primary" />
-          </div>
-        </div>
+        <SingleModelPicker
+          brandName={brand}
+          modelName={model}
+          onChange={(b, m) => {
+            setBrand(b); setModel(m);
+            if (b && m && !title.trim()) setTitle(`${b} ${m} ISP Pinout`);
+          }}
+        />
+        <p className="text-xs text-muted-foreground -mt-2">Picked from your Brands &amp; Models list, so it always matches correctly.</p>
 
         <div>
           <label className="text-xs font-semibold text-muted-foreground block mb-1">Title *</label>
@@ -116,7 +115,7 @@ function AddPinoutModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
 
         <div className="flex gap-3">
           <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
-          <Button onClick={save} disabled={saving} className="flex-1">
+          <Button onClick={save} disabled={saving || !brand.trim() || !model.trim() || !title.trim() || !imgUrl.trim()} className="flex-1">
             {saving ? "Saving…" : "Save Pinout"}
           </Button>
         </div>
