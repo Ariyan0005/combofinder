@@ -288,9 +288,13 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
   const [cancelReason, setCancelReason] = useState(
     repair.status === "Cancelled" ? (repair.notes ?? "") : ""
   );
+  const [showPayment, setShowPayment] = useState(false);
+  const [advancePaid, setAdvancePaid] = useState(String(repair.advancePaid ?? ""));
+  const [isPaid, setIsPaid] = useState(!!repair.isPaid);
+  const [paymentError, setPaymentError] = useState("");
 
-  const statusMut = useMutation({
-    mutationFn: async ({ newStatus, reason }: { newStatus: string; reason?: string }) => {
+  const statusMut = useMutation<Repair, Error, { newStatus: string; reason?: string }>({
+    mutationFn: async ({ newStatus, reason }) => {
       const res = await fetch(`/api/repairs/${repair.id}`, {
         method: "PUT", credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -303,10 +307,36 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Failed"); }
       return res.json();
     },
-    onSuccess: (_: any, { newStatus }: { newStatus: string }) => {
+    onSuccess: (_, { newStatus }) => {
       setStatus(newStatus);
       qc.invalidateQueries({ queryKey: ["repairs"] });
     },
+  });
+
+  const paymentMut = useMutation<Repair, Error, { newAdvance: string; newIsPaid: boolean }>({
+    mutationFn: async ({ newAdvance, newIsPaid }) => {
+      const res = await fetch(`/api/repairs/${repair.id}`, {
+        method: "PUT", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...repair,
+          status,
+          advancePaid: newAdvance || null,
+          isPaid: newIsPaid,
+        }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Failed"); }
+      return res.json();
+    },
+    onSuccess: (saved: Repair) => {
+      repair.advancePaid = saved.advancePaid;
+      repair.isPaid = saved.isPaid;
+      setPaymentError("");
+      setShowPayment(false);
+      qc.invalidateQueries({ queryKey: ["repairs"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+    },
+    onError: (err: any) => setPaymentError(err.message ?? "Failed to update payment"),
   });
 
   const partsArr: PartEntry[] = (() => { try { return repair.partsUsed ? JSON.parse(repair.partsUsed) : []; } catch { return []; } })();
@@ -514,7 +544,16 @@ ${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${escHtml(repair.
           {/* Billing */}
           {Number(repair.totalCost) > 0 && (
             <div className="rounded-2xl px-3.5 py-2.5 space-y-1.5" style={{ background: BG, border: `1px solid ${BORDER}` }}>
-              <p className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: MUTED }}>💰 Billing</p>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: MUTED }}>💰 Billing</p>
+                {!showPayment && (
+                  <button type="button" onClick={() => { setAdvancePaid(String(repair.advancePaid ?? "")); setIsPaid(!!repair.isPaid); setShowPayment(true); }}
+                    className="text-[11px] font-bold px-2 py-1 rounded-lg"
+                    style={{ color: PRIMARY, background: `${PRIMARY}12` }}>
+                    Update Payment
+                  </button>
+                )}
+              </div>
               {Number(repair.partsCost) > 0 && (
                 <div className="flex justify-between text-xs">
                   <span style={{ color: MUTED }}>Parts</span>
@@ -543,6 +582,51 @@ ${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${escHtml(repair.
                   {repair.isPaid ? "✓ Fully Paid" : `Amount Due: ${Math.max(0, Number(repair.totalCost) - Number(repair.advancePaid ?? 0)).toFixed(2)}`}
                 </span>
               </div>
+
+              {/* Inline payment editor */}
+              {showPayment && (
+                <div className="rounded-xl p-3 space-y-2.5 mt-1" style={{ background: CARD, border: `1px solid ${PRIMARY}40` }}>
+                  <div>
+                    <label className="text-[11px] font-semibold block mb-1" style={{ color: MUTED }}>Advance / Amount Paid</label>
+                    <input type="text" inputMode="decimal" value={advancePaid}
+                      onChange={e => setAdvancePaid(e.target.value)}
+                      placeholder="0.00" autoFocus
+                      className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none font-semibold"
+                      style={{ borderColor: BORDER, background: BG }} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { val: false, label: "Unpaid / Due", color: "#EF4444" },
+                      { val: true,  label: "Fully Paid",   color: "#10B981" },
+                    ] as const).map(({ val, label, color }) => (
+                      <button key={String(val)} type="button"
+                        onClick={() => setIsPaid(val)}
+                        className="py-2 rounded-xl text-xs font-bold border transition-all"
+                        style={isPaid === val
+                          ? { background: color, color: "#fff", borderColor: color }
+                          : { background: "transparent", color: MUTED, borderColor: BORDER }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {paymentError && (
+                    <p className="text-[11px] font-semibold" style={{ color: "#DC2626" }}>{paymentError}</p>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => { setShowPayment(false); setPaymentError(""); }}
+                      className="py-2.5 rounded-xl text-xs font-bold border"
+                      style={{ borderColor: BORDER, color: MUTED }}>
+                      Cancel
+                    </button>
+                    <button type="button" disabled={paymentMut.isPending}
+                      onClick={() => paymentMut.mutate({ newAdvance: advancePaid, newIsPaid: isPaid })}
+                      className="py-2.5 rounded-xl text-xs font-extrabold text-white disabled:opacity-60"
+                      style={{ background: PRIMARY }}>
+                      {paymentMut.isPending ? "Saving…" : "Save Payment"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -5,10 +5,6 @@ version = "1.0.0"
 id = "artifacts/combo-finder-web"
 router = "path"
 
-[[integratedSkills]]
-name = "react-vite"
-version = "1.0.0"
-
 [[services]]
 name = "web"
 paths = [ "/combo-finder-web/" ]
@@ -19,8 +15,8 @@ run = "pnpm --filter @workspace/combo-finder-web run dev"
 
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/combo-finder-web", "run", "build" ]
-publicDir = "artifacts/combo-finder-web/dist/public"
 serve = "static"
+publicDir = "artifacts/combo-finder-web/dist/public"
 
 [[services.production.rewrites]]
 from = "/*"

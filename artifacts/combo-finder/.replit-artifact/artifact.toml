@@ -5,13 +5,9 @@ version = "1.0.0"
 id = "artifacts/combo-finder"
 router = "expo-domain"
 
-[[integratedSkills]]
-name = "expo"
-version = "1.0.0"
-
 [[services]]
-ensurePreviewReachable = "/status"
 name = "expo"
+ensurePreviewReachable = "/status"
 paths = [ "/mobile/" ]
 localPort = 20397
 
