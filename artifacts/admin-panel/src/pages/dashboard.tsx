@@ -208,7 +208,7 @@ export default function Dashboard() {
                 { label: "Add User", icon: UserPlus, color: "text-violet-400", href: "/users" },
                 { label: "Add Brand", icon: Layers, color: "text-purple-400", href: "/brands" },
                 { label: "Add Model", icon: Smartphone, color: "text-emerald-400", href: "/brands" },
-                { label: "Add Part", icon: Wrench, color: "text-amber-400", href: "/compatibility" },
+                { label: "Add Part", icon: Wrench, color: "text-amber-400", href: "/parts" },
                 { label: "Add Issue", icon: FileText, color: "text-red-400", href: "/issues-fixes" },
                 { label: "Add Document", icon: FileText, color: "text-sky-400", href: "/documents" },
                 { label: "Upload Video", icon: Video, color: "text-orange-400", href: "/videos" },
