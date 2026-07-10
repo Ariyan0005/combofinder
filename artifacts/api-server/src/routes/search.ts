@@ -46,8 +46,7 @@ router.get("/search", async (req, res): Promise<void> => {
         .where(
           or(
             ilike(modelsTable.name, `%${q}%`),
-            ilike(brandsTable.name, `%${q}%`),
-            ilike(combosTable.name, `%${q}%`)
+            ilike(brandsTable.name, `%${q}%`)
           )
         )
         .groupBy(modelsTable.id, brandsTable.name),
