@@ -122,7 +122,7 @@ export default function Dashboard() {
 
       {/* Stats Grid — real data */}
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
-        <StatCard label="Total Users" value={userStats?.total ?? 0} icon={Users} iconColor="from-blue-500 to-blue-700" isLoading={userStatsLoading} />
+        <StatCard label="Total Users" value={userStats?.total ?? 0} icon={Users} iconColor="from-violet-500 to-violet-700" isLoading={userStatsLoading} />
         <StatCard label="Active Users" value={userStats?.active ?? 0} icon={UserCheck} iconColor="from-emerald-400 to-emerald-600" isLoading={userStatsLoading} />
         <StatCard label="Pending Approval" value={userStats?.pending ?? 0} icon={UserPlus} iconColor="from-violet-500 to-violet-700" isLoading={userStatsLoading} />
         <StatCard label="Total Revenue" value={`$${(revenue?.total ?? 0).toLocaleString()}`} icon={DollarSign} iconColor="from-amber-400 to-amber-600" isLoading={revenueLoading} />
@@ -187,7 +187,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                      u.subscriptionPlan === "Pro" ? "bg-blue-500/10 text-blue-400" :
+                      u.subscriptionPlan === "Pro" ? "bg-violet-500/10 text-violet-400" :
                       u.subscriptionPlan === "Business" ? "bg-purple-500/10 text-purple-400" :
                       u.subscriptionPlan === "Lifetime" ? "bg-yellow-500/10 text-yellow-400" :
                       "bg-slate-500/10 text-slate-400"
@@ -205,7 +205,7 @@ export default function Dashboard() {
             <h2 className="text-base font-semibold mb-4">Quick Actions</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: "Add User", icon: UserPlus, color: "text-blue-400", href: "/users" },
+                { label: "Add User", icon: UserPlus, color: "text-violet-400", href: "/users" },
                 { label: "Add Brand", icon: Layers, color: "text-purple-400", href: "/brands" },
                 { label: "Add Model", icon: Smartphone, color: "text-emerald-400", href: "/brands" },
                 { label: "Add Part", icon: Wrench, color: "text-amber-400", href: "/parts" },

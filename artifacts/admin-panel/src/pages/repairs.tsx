@@ -35,7 +35,7 @@ interface Repair {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: ElementType; dot: string }> = {
   Waiting:   { label: "Waiting",   color: "bg-amber-100 text-amber-700 border-amber-200",    icon: Clock,         dot: "bg-amber-400" },
-  Repairing: { label: "Repairing", color: "bg-blue-100 text-blue-700 border-blue-200",       icon: Wrench,        dot: "bg-blue-500" },
+  Repairing: { label: "Repairing", color: "bg-violet-100 text-violet-700 border-violet-200", icon: Wrench,        dot: "bg-violet-500" },
   Ready:     { label: "Ready",     color: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: CheckCircle2, dot: "bg-emerald-500" },
   Delivered: { label: "Delivered", color: "bg-slate-100 text-slate-600 border-slate-200",    icon: Truck,         dot: "bg-slate-400" },
 };

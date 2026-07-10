@@ -20,7 +20,7 @@ interface User {
 
 const PLAN_COLORS: Record<string, string> = {
   Free: "bg-gray-500/10 text-gray-400",
-  Pro: "bg-blue-500/10 text-blue-400",
+  Pro: "bg-violet-500/10 text-violet-400",
   Business: "bg-purple-500/10 text-purple-400",
   Lifetime: "bg-yellow-500/10 text-yellow-400",
 };

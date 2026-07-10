@@ -92,9 +92,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
         {/* Top Header */}
         <div className="h-16 flex items-center justify-between px-5" style={{ borderBottom: "1px solid hsl(var(--sidebar-border))" }}>
           <div className="flex items-center gap-3">
-            <Menu className="h-5 w-5 text-muted-foreground cursor-pointer" />
             <Link href="/">
-              <div className="flex items-center gap-2 cursor-pointer group">
+              <div className="flex items-center gap-2.5 cursor-pointer group">
+                <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30 flex-shrink-0">
+                  <Smartphone className="h-4 w-4 text-white" />
+                </div>
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-white tracking-tight">ComboFinder</span>
                   <span className="text-[10px] font-medium text-muted-foreground">Admin Panel</span>
