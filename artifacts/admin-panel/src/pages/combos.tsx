@@ -105,7 +105,7 @@ function AddComboForm({
 function EditComboForm({
   combo, comboType, setComboType,
 }: {
-  combo: Combo & { brandName: string; modelName: string };
+  combo: Combo;
   comboType: CreateComboInputComboType;
   setComboType: (v: CreateComboInputComboType) => void;
 }) {
@@ -142,7 +142,7 @@ export default function Combos() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [editingCombo, setEditingCombo] = useState<(Combo & { brandName: string; modelName: string }) | null>(null);
+  const [editingCombo, setEditingCombo] = useState<Combo | null>(null);
 
   // create form state
   const [createBrandId, setCreateBrandId] = useState<number | null>(null);
@@ -326,7 +326,7 @@ export default function Combos() {
                       <Button
                         variant="ghost" size="icon" className="h-7 w-7"
                         onClick={() => {
-                          setEditingCombo(combo as Combo & { brandName: string; modelName: string });
+                          setEditingCombo(combo);
                           setEditType(combo.comboType as CreateComboInputComboType);
                         }}
                       >
