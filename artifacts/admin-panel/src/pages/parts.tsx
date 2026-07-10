@@ -3,257 +3,335 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Edit2, Trash2, Search, Wrench } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Plus, Edit2, Trash2, Search, Settings2, Layers, X, Wrench } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MultiModelPicker } from "@/components/brand-model-picker";
+import { SingleModelPicker } from "@/components/brand-model-picker";
 
-const PART_TYPES = [
-  "Battery",
-  "Display Compatible",
-  "Display OEM",
-  "Charging Sub Board",
-  "IC Compatible",
-  "Cover Glass",
-  "Back Cover",
-  "Frame / Housing",
-  "Flex Cable",
-  "Speaker",
-  "Mic / Receiver",
-  "Camera",
-  "Other",
-];
+const API = "/api";
 
+/* ── Types ─────────────────────────────────────────────────── */
+interface Category { id: number; name: string; partCount: number; createdAt: string; }
 interface Part {
-  id: number;
-  partName: string;
-  partType: string;
-  compatibleModels: string;
-  description: string | null;
-  createdAt: string;
+  id: number; categoryId: number; categoryName: string;
+  modelId: number; modelName: string; brandId: number; brandName: string;
+  partName: string; description: string | null; createdAt: string;
 }
 
-const API_BASE = "/api";
+/* ── API helpers ────────────────────────────────────────────── */
+const fetchCategories = (): Promise<Category[]> =>
+  fetch(`${API}/part-categories`, { credentials: "include" }).then(r => r.json());
 
-async function fetchParts(): Promise<Part[]> {
-  const r = await fetch(`${API_BASE}/parts`);
-  if (!r.ok) throw new Error("Failed to fetch parts");
-  return r.json();
-}
-async function createPart(d: Omit<Part, "id" | "createdAt">): Promise<Part> {
-  const r = await fetch(`${API_BASE}/parts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d), credentials: "include" });
-  if (!r.ok) throw new Error("Failed to create part");
-  return r.json();
-}
-async function updatePart(id: number, d: Partial<Omit<Part, "id" | "createdAt">>): Promise<Part> {
-  const r = await fetch(`${API_BASE}/parts/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d), credentials: "include" });
-  if (!r.ok) throw new Error("Failed to update part");
-  return r.json();
-}
-async function deletePart(id: number): Promise<void> {
-  const r = await fetch(`${API_BASE}/parts/${id}`, { method: "DELETE", credentials: "include" });
-  if (!r.ok) throw new Error("Failed to delete part");
-}
-
-const TYPE_COLORS: Record<string, string> = {
-  "Battery": "bg-emerald-500/10 text-emerald-400",
-  "Display Compatible": "bg-blue-500/10 text-blue-400",
-  "Display OEM": "bg-sky-500/10 text-sky-400",
-  "Charging Sub Board": "bg-violet-500/10 text-violet-400",
-  "IC Compatible": "bg-purple-500/10 text-purple-400",
-  "Cover Glass": "bg-cyan-500/10 text-cyan-400",
-  "Back Cover": "bg-teal-500/10 text-teal-400",
-  "Frame / Housing": "bg-orange-500/10 text-orange-400",
-  "Flex Cable": "bg-yellow-500/10 text-yellow-600",
-  "Speaker": "bg-pink-500/10 text-pink-400",
-  "Mic / Receiver": "bg-rose-500/10 text-rose-400",
-  "Camera": "bg-indigo-500/10 text-indigo-400",
-  "Other": "bg-slate-500/10 text-slate-400",
+const fetchParts = (categoryId?: number): Promise<Part[]> => {
+  const url = categoryId ? `${API}/parts?categoryId=${categoryId}` : `${API}/parts`;
+  return fetch(url, { credentials: "include" }).then(r => r.json());
 };
 
-function PartForm({
-  def, pt, onPt, models, onModels,
-}: {
-  def?: Part; pt: string; onPt: (v: string) => void;
-  models: string[]; onModels: (v: string[]) => void;
-}) {
-  return (
-    <div className="space-y-4 py-4">
-      <div className="space-y-1.5">
-        <Label>Part Type *</Label>
-        <Select value={pt} onValueChange={onPt}>
-          <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-          <SelectContent>
-            {PART_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-1.5">
-        <Label>Part Name *</Label>
-        <Input name="partName" required defaultValue={def?.partName} placeholder="e.g. BLP727, Samsung A15 OEM Display" autoFocus />
-      </div>
-      <div className="space-y-1.5">
-        <Label>Compatible Models *</Label>
-        <MultiModelPicker selected={models} onChange={onModels} />
-        <p className="text-xs text-muted-foreground">Select from Brands &amp; Models — ensures exact match in search.</p>
-      </div>
-      <div className="space-y-1.5">
-        <Label>Notes <span className="text-muted-foreground">(optional)</span></Label>
-        <Textarea name="description" defaultValue={def?.description || ""} placeholder="Capacity, specs, colour, grade..." rows={3} />
-      </div>
-    </div>
-  );
-}
+/* ── Category CHIP colors (cycles) ─────────────────────────── */
+const CHIP_PALETTES = [
+  "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  "bg-violet-500/10 text-violet-400 border-violet-500/20",
+  "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  "bg-orange-500/10 text-orange-400 border-orange-500/20",
+  "bg-rose-500/10 text-rose-400 border-rose-500/20",
+  "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+  "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
+  "bg-pink-500/10 text-pink-400 border-pink-500/20",
+];
 
+/* ══════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+══════════════════════════════════════════════════════════════ */
 export default function Parts() {
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [editingPart, setEditingPart] = useState<Part | null>(null);
-  const [createPartType, setCreatePartType] = useState("");
-  const [editPartType, setEditPartType] = useState("");
-  const [createModels, setCreateModels] = useState<string[]>([]);
-  const [editModels, setEditModels] = useState<string[]>([]);
-
   const qc = useQueryClient();
   const { toast } = useToast();
 
-  const { data: parts = [], isLoading } = useQuery({ queryKey: ["parts"], queryFn: fetchParts });
+  /* selected category filter */
+  const [activeCatId, setActiveCatId] = useState<number | null>(null);
 
+  /* search */
+  const [search, setSearch] = useState("");
+
+  /* dialogs */
+  const [isAddPartOpen, setIsAddPartOpen] = useState(false);
+  const [editingPart, setEditingPart] = useState<Part | null>(null);
+  const [isManageCatsOpen, setIsManageCatsOpen] = useState(false);
+
+  /* add-part form state */
+  const [addCatId, setAddCatId] = useState<number | null>(null);
+  const [addModelId, setAddModelId] = useState<number | null>(null);
+
+  /* manage-categories form state */
+  const [newCatName, setNewCatName] = useState("");
+  const [editCat, setEditCat] = useState<Category | null>(null);
+  const [editCatName, setEditCatName] = useState("");
+
+  /* ── Queries ────────────────────────────────────────────── */
+  const { data: categories = [], isLoading: catsLoading } = useQuery({
+    queryKey: ["part-categories"],
+    queryFn: fetchCategories,
+  });
+
+  const { data: parts = [], isLoading: partsLoading } = useQuery({
+    queryKey: ["parts", activeCatId],
+    queryFn: () => fetchParts(activeCatId ?? undefined),
+  });
+
+  /* ── Filtered parts (client search) ─────────────────────── */
   const filtered = parts.filter(p =>
-    (!search || p.partName.toLowerCase().includes(search.toLowerCase()) || p.compatibleModels.toLowerCase().includes(search.toLowerCase())) &&
-    (typeFilter === "all" || p.partType === typeFilter)
+    !search ||
+    p.partName.toLowerCase().includes(search.toLowerCase()) ||
+    p.modelName.toLowerCase().includes(search.toLowerCase()) ||
+    p.brandName.toLowerCase().includes(search.toLowerCase())
   );
 
-  const cm = useMutation({
-    mutationFn: createPart,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["parts"] }); setIsCreateOpen(false); setCreatePartType(""); setCreateModels([]); toast({ title: "Part created" }); },
-    onError: () => toast({ title: "Failed to create part", variant: "destructive" }),
+  /* ── Part mutations ──────────────────────────────────────── */
+  const createPart = useMutation({
+    mutationFn: (body: object) =>
+      fetch(`${API}/parts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), credentials: "include" }).then(r => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["parts"] });
+      qc.invalidateQueries({ queryKey: ["part-categories"] });
+      setIsAddPartOpen(false); setAddCatId(null); setAddModelId(null);
+      toast({ title: "Part added" });
+    },
+    onError: () => toast({ title: "Failed to add part", variant: "destructive" }),
   });
-  const um = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updatePart>[1] }) => updatePart(id, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["parts"] }); setEditingPart(null); setEditModels([]); toast({ title: "Part updated" }); },
+
+  const updatePart = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: object }) =>
+      fetch(`${API}/parts/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), credentials: "include" }).then(r => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["parts"] });
+      setEditingPart(null);
+      toast({ title: "Part updated" });
+    },
     onError: () => toast({ title: "Failed to update part", variant: "destructive" }),
   });
-  const dm = useMutation({
-    mutationFn: deletePart,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["parts"] }); toast({ title: "Part deleted" }); },
+
+  const deletePart = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`${API}/parts/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["parts"] });
+      qc.invalidateQueries({ queryKey: ["part-categories"] });
+      toast({ title: "Part deleted" });
+    },
     onError: () => toast({ title: "Failed to delete part", variant: "destructive" }),
   });
 
-  const handleCreate = (e: FormEvent<HTMLFormElement>) => {
+  /* ── Category mutations ──────────────────────────────────── */
+  const createCat = useMutation({
+    mutationFn: (name: string) =>
+      fetch(`${API}/part-categories`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }), credentials: "include" }).then(r => r.json()),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["part-categories"] }); setNewCatName(""); toast({ title: "Category created" }); },
+    onError: () => toast({ title: "Failed to create category", variant: "destructive" }),
+  });
+
+  const updateCat = useMutation({
+    mutationFn: ({ id, name }: { id: number; name: string }) =>
+      fetch(`${API}/part-categories/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }), credentials: "include" }).then(r => r.json()),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["part-categories"] }); setEditCat(null); toast({ title: "Category updated" }); },
+    onError: () => toast({ title: "Failed to update category", variant: "destructive" }),
+  });
+
+  const deleteCat = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`${API}/part-categories/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: ["part-categories"] });
+      qc.invalidateQueries({ queryKey: ["parts"] });
+      if (activeCatId === id) setActiveCatId(null);
+      toast({ title: "Category deleted" });
+    },
+    onError: () => toast({ title: "Failed to delete category", variant: "destructive" }),
+  });
+
+  /* ── Handlers ────────────────────────────────────────────── */
+  const handleAddPart = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!addCatId || !addModelId) return;
     const fd = new FormData(e.currentTarget);
-    cm.mutate({ partName: (fd.get("partName") as string).trim(), partType: createPartType, compatibleModels: createModels.join(", "), description: (fd.get("description") as string).trim() || null });
+    createPart.mutate({
+      categoryId: addCatId,
+      modelId: addModelId,
+      partName: (fd.get("partName") as string).trim(),
+      description: (fd.get("description") as string).trim() || null,
+    });
   };
-  const handleUpdate = (e: FormEvent<HTMLFormElement>) => {
+
+  const handleUpdatePart = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingPart) return;
     const fd = new FormData(e.currentTarget);
-    um.mutate({ id: editingPart.id, data: { partName: (fd.get("partName") as string).trim(), partType: editPartType, compatibleModels: editModels.join(", "), description: (fd.get("description") as string).trim() || null } });
+    updatePart.mutate({
+      id: editingPart.id,
+      body: {
+        categoryId: editingPart.categoryId,
+        modelId: editingPart.modelId,
+        partName: (fd.get("partName") as string).trim(),
+        description: (fd.get("description") as string).trim() || null,
+      },
+    });
   };
 
-  // group by type for stats strip
-  const typeCounts = PART_TYPES.reduce<Record<string, number>>((acc, t) => {
-    acc[t] = parts.filter(p => p.partType === t).length;
-    return acc;
-  }, {});
+  /* ── Render ──────────────────────────────────────────────── */
+  const activeCat = categories.find(c => c.id === activeCatId);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Header */}
+
+      {/* ── Header ─────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Spare Parts</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Battery, Display, IC Compatible, Sub Board & more.</p>
+          <h1 className="text-2xl font-bold tracking-tight">Parts Compatibility</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {activeCat ? `${activeCat.name} — ${activeCat.partCount} compatible entries` : "Select a category to filter, or view all parts."}
+          </p>
         </div>
-        <Button onClick={() => { setCreatePartType(""); setCreateModels([]); setIsCreateOpen(true); }} className="gap-2 h-9 text-sm">
-          <Plus className="h-4 w-4" /> Add Part
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => setIsManageCatsOpen(true)}>
+            <Settings2 className="h-3.5 w-3.5" /> Manage Categories
+          </Button>
+          <Button size="sm" className="gap-1.5 h-9" onClick={() => { setIsAddPartOpen(true); setAddCatId(activeCatId); setAddModelId(null); }}>
+            <Plus className="h-4 w-4" /> Add Compatible
+          </Button>
+        </div>
       </div>
 
-      {/* Type filter chips */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => setTypeFilter("all")}
-          className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${typeFilter === "all" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"}`}
-        >
-          All ({parts.length})
-        </button>
-        {PART_TYPES.filter(t => typeCounts[t] > 0).map(t => (
+      {/* ── Category Cards ──────────────────────────────── */}
+      {catsLoading ? (
+        <div className="flex gap-3 flex-wrap">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-16 w-32 rounded-xl bg-muted animate-pulse" />
+          ))}
+        </div>
+      ) : categories.length === 0 ? (
+        <div className="border border-dashed border-border rounded-xl p-8 text-center">
+          <Layers className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-40" />
+          <p className="text-sm text-muted-foreground mb-3">No categories yet. Create one to start adding parts.</p>
+          <Button size="sm" variant="outline" onClick={() => setIsManageCatsOpen(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" /> Create First Category
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {/* All */}
           <button
-            key={t}
-            onClick={() => setTypeFilter(typeFilter === t ? "all" : t)}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${typeFilter === t ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"}`}
+            onClick={() => setActiveCatId(null)}
+            className={`flex flex-col items-start px-4 py-2.5 rounded-xl border text-left transition-all ${
+              activeCatId === null
+                ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20"
+                : "bg-card border-border hover:border-primary/40 hover:bg-muted/40"
+            }`}
           >
-            {t} ({typeCounts[t]})
+            <span className="text-xs font-bold uppercase tracking-wider opacity-70">All</span>
+            <span className="text-lg font-bold leading-tight">{parts.length || categories.reduce((s, c) => s + c.partCount, 0)}</span>
           </button>
-        ))}
-      </div>
 
-      {/* Search */}
+          {categories.map((cat, idx) => {
+            const palette = CHIP_PALETTES[idx % CHIP_PALETTES.length];
+            const isActive = activeCatId === cat.id;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCatId(isActive ? null : cat.id)}
+                className={`flex flex-col items-start px-4 py-2.5 rounded-xl border text-left transition-all ${
+                  isActive
+                    ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20"
+                    : `${palette} hover:opacity-90`
+                }`}
+              >
+                <span className="text-xs font-bold uppercase tracking-wider opacity-70 truncate max-w-[110px]">{cat.name}</span>
+                <span className="text-lg font-bold leading-tight">{cat.partCount}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Search ──────────────────────────────────────── */}
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search by part name or model..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 bg-card" />
+        <Input
+          placeholder="Search by brand, model, or part name…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="pl-9 h-9 bg-card"
+        />
       </div>
 
-      {!isLoading && (
+      {!partsLoading && (
         <p className="text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">{filtered.length}</span> of{" "}
-          <span className="font-semibold text-foreground">{parts.length}</span> parts
+          <span className="font-semibold text-foreground">{filtered.length}</span> entries
+          {activeCatId && <span> in <span className="font-semibold text-foreground">{activeCat?.name}</span></span>}
         </p>
       )}
 
-      {/* Table */}
+      {/* ── Table ───────────────────────────────────────── */}
       <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="font-semibold text-xs uppercase tracking-wider">Part Name</TableHead>
-              <TableHead className="font-semibold text-xs uppercase tracking-wider">Type</TableHead>
-              <TableHead className="font-semibold text-xs uppercase tracking-wider hidden md:table-cell">Compatible Models</TableHead>
-              <TableHead className="font-semibold text-xs uppercase tracking-wider hidden sm:table-cell">Added</TableHead>
-              <TableHead className="text-right font-semibold text-xs uppercase tracking-wider">Actions</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider">Category</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider">Brand</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider">Model</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider">Part Name</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider hidden md:table-cell">Notes</TableHead>
+              <TableHead className="text-right text-xs font-semibold uppercase tracking-wider">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
+            {partsLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}><TableCell colSpan={5} className="h-11"><div className="h-4 bg-muted animate-pulse rounded w-52" /></TableCell></TableRow>
+                <TableRow key={i}>
+                  <TableCell colSpan={6} className="h-11">
+                    <div className="h-4 bg-muted animate-pulse rounded w-56" />
+                  </TableCell>
+                </TableRow>
               ))
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-32 text-center">
+                <TableCell colSpan={6} className="h-36 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <Wrench className="h-8 w-8 text-muted-foreground opacity-30" />
-                    <span className="text-sm text-muted-foreground">No parts found</span>
+                    <span className="text-sm text-muted-foreground">
+                      {categories.length === 0
+                        ? "Create a category first, then add parts."
+                        : "No parts found. Click \"Add Compatible\" to get started."}
+                    </span>
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
               filtered.map(p => (
                 <TableRow key={p.id} className="group hover:bg-muted/30 transition-colors">
-                  <TableCell className="font-medium text-sm">{p.partName}</TableCell>
                   <TableCell>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${TYPE_COLORS[p.partType] || TYPE_COLORS["Other"]}`}>
-                      {p.partType}
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">
+                      {p.categoryName}
                     </span>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate hidden md:table-cell" title={p.compatibleModels}>
-                    {p.compatibleModels}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">
-                    {new Date(p.createdAt).toLocaleDateString()}
+                  <TableCell className="text-sm text-muted-foreground">{p.brandName}</TableCell>
+                  <TableCell className="text-sm font-medium">{p.modelName}</TableCell>
+                  <TableCell className="text-sm font-semibold">{p.partName}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground hidden md:table-cell max-w-[160px] truncate" title={p.description || ""}>
+                    {p.description || "—"}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditPartType(p.partType); setEditModels(p.compatibleModels ? p.compatibleModels.split(",").map(s => s.trim()).filter(Boolean) : []); setEditingPart(p); }}>
+                      <Button
+                        variant="ghost" size="icon" className="h-7 w-7"
+                        onClick={() => setEditingPart(p)}
+                      >
                         <Edit2 className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => { if (confirm("Delete this part?")) dm.mutate(p.id); }}>
+                      <Button
+                        variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => { if (confirm("Delete this part entry?")) deletePart.mutate(p.id); }}
+                      >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -265,31 +343,178 @@ export default function Parts() {
         </Table>
       </div>
 
-      {/* Create Dialog */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+      {/* ══ ADD PART DIALOG ══════════════════════════════════ */}
+      <Dialog open={isAddPartOpen} onOpenChange={o => { if (!o) { setIsAddPartOpen(false); setAddCatId(null); setAddModelId(null); } }}>
         <DialogContent className="max-w-lg">
-          <form onSubmit={handleCreate}>
-            <DialogHeader><DialogTitle>Add New Part</DialogTitle></DialogHeader>
-            <PartForm pt={createPartType} onPt={setCreatePartType} models={createModels} onModels={setCreateModels} />
+          <form onSubmit={handleAddPart}>
+            <DialogHeader><DialogTitle>Add Compatible Entry</DialogTitle></DialogHeader>
+            <div className="space-y-4 py-4">
+
+              {/* Category */}
+              <div className="space-y-1.5">
+                <Label>Category *</Label>
+                <Select
+                  value={addCatId ? String(addCatId) : undefined}
+                  onValueChange={v => setAddCatId(Number(v))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectContent>
+                    {categories.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                    {categories.length === 0 && (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">No categories — create one first.</div>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Brand → Model picker */}
+              <div className="space-y-1.5">
+                <Label>Brand → Model *</Label>
+                <SingleModelPicker
+                  selected={addModelId}
+                  onChange={setAddModelId}
+                />
+              </div>
+
+              {/* Part name */}
+              <div className="space-y-1.5">
+                <Label>Part Name *</Label>
+                <Input name="partName" required placeholder="e.g. BLP727, A15 OEM Display, 500mAh Battery" autoFocus />
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-1.5">
+                <Label>Notes <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Textarea name="description" placeholder="Capacity, grade, colour, specs…" rows={2} />
+              </div>
+            </div>
             <DialogFooter>
-              <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-              <Button type="submit" size="sm" disabled={!createPartType || createModels.length === 0 || cm.isPending}>{cm.isPending ? "Saving..." : "Save Part"}</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsAddPartOpen(false)}>Cancel</Button>
+              <Button
+                type="submit" size="sm"
+                disabled={!addCatId || !addModelId || createPart.isPending}
+              >
+                {createPart.isPending ? "Saving…" : "Save"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
-      <Dialog open={!!editingPart} onOpenChange={o => !o && setEditingPart(null)}>
+      {/* ══ EDIT PART DIALOG ═════════════════════════════════ */}
+      <Dialog open={!!editingPart} onOpenChange={o => { if (!o) setEditingPart(null); }}>
         <DialogContent className="max-w-lg">
-          <form onSubmit={handleUpdate}>
-            <DialogHeader><DialogTitle>Edit Part</DialogTitle></DialogHeader>
-            <PartForm def={editingPart ?? undefined} pt={editPartType} onPt={setEditPartType} models={editModels} onModels={setEditModels} />
+          <form onSubmit={handleUpdatePart}>
+            <DialogHeader><DialogTitle>Edit Part Entry</DialogTitle></DialogHeader>
+            {editingPart && (
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Category</Label>
+                    <div className="h-9 px-3 flex items-center rounded-md border border-border bg-muted/40 text-sm text-muted-foreground">{editingPart.categoryName}</div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Model</Label>
+                    <div className="h-9 px-3 flex items-center rounded-md border border-border bg-muted/40 text-sm text-muted-foreground">{editingPart.brandName} — {editingPart.modelName}</div>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Part Name *</Label>
+                  <Input name="partName" required defaultValue={editingPart.partName} key={editingPart.id} autoFocus />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Notes <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                  <Textarea name="description" defaultValue={editingPart.description || ""} rows={2} />
+                </div>
+              </div>
+            )}
             <DialogFooter>
               <Button type="button" variant="outline" size="sm" onClick={() => setEditingPart(null)}>Cancel</Button>
-              <Button type="submit" size="sm" disabled={!editPartType || editModels.length === 0 || um.isPending}>{um.isPending ? "Saving..." : "Save Changes"}</Button>
+              <Button type="submit" size="sm" disabled={updatePart.isPending}>
+                {updatePart.isPending ? "Saving…" : "Save Changes"}
+              </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ══ MANAGE CATEGORIES DIALOG ═════════════════════════ */}
+      <Dialog open={isManageCatsOpen} onOpenChange={setIsManageCatsOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Manage Part Categories</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+
+            {/* Add new category */}
+            <div className="flex gap-2">
+              <Input
+                placeholder="New category name…"
+                value={newCatName}
+                onChange={e => setNewCatName(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); if (newCatName.trim()) createCat.mutate(newCatName.trim()); } }}
+                className="flex-1 h-9"
+              />
+              <Button
+                size="sm" className="h-9 px-3"
+                disabled={!newCatName.trim() || createCat.isPending}
+                onClick={() => { if (newCatName.trim()) createCat.mutate(newCatName.trim()); }}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Category list */}
+            <div className="space-y-1 max-h-72 overflow-y-auto">
+              {catsLoading ? (
+                <div className="h-24 flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+              ) : categories.length === 0 ? (
+                <div className="h-16 flex items-center justify-center text-sm text-muted-foreground">No categories yet.</div>
+              ) : (
+                categories.map(cat => (
+                  <div key={cat.id} className="flex items-center gap-2 group px-2 py-1.5 rounded-lg hover:bg-muted/40">
+                    {editCat?.id === cat.id ? (
+                      <>
+                        <Input
+                          value={editCatName}
+                          onChange={e => setEditCatName(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") { e.preventDefault(); if (editCatName.trim()) updateCat.mutate({ id: cat.id, name: editCatName.trim() }); }
+                            if (e.key === "Escape") setEditCat(null);
+                          }}
+                          className="flex-1 h-8 text-sm"
+                          autoFocus
+                        />
+                        <Button size="icon" className="h-7 w-7" disabled={!editCatName.trim() || updateCat.isPending} onClick={() => { if (editCatName.trim()) updateCat.mutate({ id: cat.id, name: editCatName.trim() }); }}>
+                          <Plus className="h-3.5 w-3.5 rotate-45" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditCat(null)}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 text-sm font-medium">{cat.name}</span>
+                        <span className="text-xs text-muted-foreground mr-1">{cat.partCount} parts</span>
+                        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditCat(cat); setEditCatName(cat.name); }}>
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => { if (confirm(`Delete "${cat.name}"? This will also delete all ${cat.partCount} parts in it.`)) deleteCat.mutate(cat.id); }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsManageCatsOpen(false)}>Done</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
