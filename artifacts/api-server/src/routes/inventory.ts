@@ -4,11 +4,17 @@ import { eq, ilike, or, lte, sql, and } from "drizzle-orm";
 
 const router = Router();
 
+function getUid(req: any, res: any): number | null {
+  const uid: number | undefined = req.userId;
+  if (!uid) { res.status(403).json({ error: "User session invalid" }); return null; }
+  return uid;
+}
+
 router.get("/", async (req, res) => {
   try {
-    const userId: number | undefined = (req as any).userId;
+    const userId = getUid(req, res); if (!userId) return;
     const q = req.query.q ? String(req.query.q) : null;
-    const userFilter = userId ? eq(inventoryTable.userId, userId) : undefined;
+    const userFilter = eq(inventoryTable.userId, userId);
     let rows;
     if (q) {
       const searchFilter = or(
@@ -19,7 +25,7 @@ router.get("/", async (req, res) => {
         ilike(inventoryTable.model || sql`''`, `%${q}%`),
       );
       rows = await db.select().from(inventoryTable)
-        .where(userFilter ? and(userFilter, searchFilter) : searchFilter)
+        .where(and(userFilter, searchFilter))
         .orderBy(inventoryTable.partName);
     } else {
       rows = await db.select().from(inventoryTable).where(userFilter).orderBy(inventoryTable.partName);
@@ -30,10 +36,9 @@ router.get("/", async (req, res) => {
 
 router.get("/low-stock", async (req, res) => {
   try {
-    const userId: number | undefined = (req as any).userId;
-    const userFilter = userId ? eq(inventoryTable.userId, userId) : undefined;
+    const userId = getUid(req, res); if (!userId) return;
     const rows = await db.select().from(inventoryTable)
-      .where(userFilter ? and(userFilter, lte(inventoryTable.quantity, inventoryTable.minStock)) : lte(inventoryTable.quantity, inventoryTable.minStock))
+      .where(and(eq(inventoryTable.userId, userId), lte(inventoryTable.quantity, inventoryTable.minStock)))
       .orderBy(inventoryTable.quantity);
     res.json(rows);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed" }); }
@@ -41,11 +46,11 @@ router.get("/low-stock", async (req, res) => {
 
 router.get("/barcode/:code", async (req, res) => {
   try {
-    const userId: number | undefined = (req as any).userId;
+    const userId = getUid(req, res); if (!userId) return;
     const code = req.params.code.trim();
     const barcodeFilter = or(eq(inventoryTable.barcode, code), eq(inventoryTable.sku, code));
     const [row] = await db.select().from(inventoryTable)
-      .where(userId ? and(eq(inventoryTable.userId, userId), barcodeFilter) : barcodeFilter);
+      .where(and(eq(inventoryTable.userId, userId), barcodeFilter));
     if (!row) return res.status(404).json({ error: "No item found for this barcode" });
     res.json(row);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed" }); }
@@ -53,11 +58,9 @@ router.get("/barcode/:code", async (req, res) => {
 
 router.get("/:id", async (req, res) => {
   try {
-    const userId: number | undefined = (req as any).userId;
+    const userId = getUid(req, res); if (!userId) return;
     const [row] = await db.select().from(inventoryTable)
-      .where(userId
-        ? and(eq(inventoryTable.id, Number(req.params.id)), eq(inventoryTable.userId, userId))
-        : eq(inventoryTable.id, Number(req.params.id)));
+      .where(and(eq(inventoryTable.id, Number(req.params.id)), eq(inventoryTable.userId, userId)));
     if (!row) return res.status(404).json({ error: "Not found" });
     res.json(row);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed" }); }
@@ -69,11 +72,11 @@ function toInt(v: any, field: string): number {
   return n;
 }
 
-function bodyToRow(b: Record<string, any>, userId?: number) {
+function bodyToRow(b: Record<string, any>, userId: number) {
   const partName = (b.partName ?? b.name ?? "").toString().trim();
   if (!partName) throw new Error("Item name is required");
   return {
-    userId: userId ?? null,
+    userId,
     partName,
     partType: b.partType ?? "Other",
     brand: b.brand ? String(b.brand) : null,
@@ -95,7 +98,7 @@ function bodyToRow(b: Record<string, any>, userId?: number) {
 }
 
 router.post("/", async (req, res) => {
-  const userId: number | undefined = (req as any).userId;
+  const userId = getUid(req, res); if (!userId) return;
   let values: ReturnType<typeof bodyToRow>;
   try { values = bodyToRow(req.body, userId); }
   catch (err: any) { return res.status(400).json({ error: err.message }); }
@@ -106,27 +109,24 @@ router.post("/", async (req, res) => {
 });
 
 router.put("/:id", async (req, res) => {
-  const userId: number | undefined = (req as any).userId;
+  const userId = getUid(req, res); if (!userId) return;
   let values: ReturnType<typeof bodyToRow>;
   try { values = bodyToRow(req.body, userId); }
   catch (err: any) { return res.status(400).json({ error: err.message }); }
   try {
-    const whereClause = userId
-      ? and(eq(inventoryTable.id, Number(req.params.id)), eq(inventoryTable.userId, userId))
-      : eq(inventoryTable.id, Number(req.params.id));
-    const [row] = await db.update(inventoryTable).set(values as any).where(whereClause).returning();
+    const [row] = await db.update(inventoryTable).set(values as any)
+      .where(and(eq(inventoryTable.id, Number(req.params.id)), eq(inventoryTable.userId, userId)))
+      .returning();
     if (!row) return res.status(404).json({ error: "Not found" });
     res.json(row);
   } catch (err: any) { req.log.error(err); res.status(500).json({ error: "Failed to update item" }); }
 });
 
 router.delete("/:id", async (req, res) => {
-  const userId: number | undefined = (req as any).userId;
+  const userId = getUid(req, res); if (!userId) return;
   try {
-    const whereClause = userId
-      ? and(eq(inventoryTable.id, Number(req.params.id)), eq(inventoryTable.userId, userId))
-      : eq(inventoryTable.id, Number(req.params.id));
-    await db.delete(inventoryTable).where(whereClause);
+    await db.delete(inventoryTable)
+      .where(and(eq(inventoryTable.id, Number(req.params.id)), eq(inventoryTable.userId, userId)));
     res.json({ success: true });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to delete item" }); }
 });

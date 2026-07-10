@@ -47,8 +47,10 @@ function requireAuth(req: any, res: any, next: any) {
 }
 
 // Requires auth for ALL methods — used for user-scoped data
+// IMPORTANT: also requires session.userId to be set (admin-only sessions without
+// a userId must not access user-scoped routes — they would see ALL users' data)
 function requireUserAuth(req: any, res: any, next: any) {
-  if (req.session?.authenticated) {
+  if (req.session?.authenticated && req.session?.userId) {
     req.userId = req.session.userId;
     next();
   } else {
