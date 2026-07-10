@@ -18,10 +18,10 @@ function MobileLcdIcon({ className }: { className?: string }) {
 }
 
 const SHORTCUTS = [
-  { label: "LCD / Display", icon: MobileLcdIcon, color: "bg-blue-500", href: "/" },
-  { label: "Battery", icon: Battery, color: "bg-emerald-500", href: "/parts?cat=Battery" },
-  { label: "IC Compatible", icon: Cpu, color: "bg-violet-500", href: "/parts?cat=IC+Compatible" },
-  { label: "More Parts", icon: MoreHorizontal, color: "bg-slate-500", href: "/parts" },
+  { label: "LCD / Display", icon: MobileLcdIcon, color: "bg-blue-500", href: "/compatibility" },
+  { label: "Battery", icon: Battery, color: "bg-emerald-500", href: "/compatibility" },
+  { label: "IC Compatible", icon: Cpu, color: "bg-violet-500", href: "/compatibility" },
+  { label: "More Parts", icon: MoreHorizontal, color: "bg-slate-500", href: "/compatibility" },
 ];
 
 export default function Home() {
@@ -147,7 +147,7 @@ export default function Home() {
           <div>
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm font-bold text-foreground">Spare Parts</p>
-              <Link href="/parts" className="text-xs text-primary font-semibold hover:underline">View all →</Link>
+              <Link href="/compatibility" className="text-xs text-primary font-semibold hover:underline">View all →</Link>
             </div>
             <div className="grid grid-cols-2 gap-2.5">
               {SHORTCUTS.map(({ label, icon: Icon, color, href }) => (
