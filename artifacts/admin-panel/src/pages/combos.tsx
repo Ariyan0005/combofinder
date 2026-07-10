@@ -217,8 +217,8 @@ export default function Combos() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Compatibility Database</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">All display combos — OEM, Compatible, Refurbished.</p>
+          <h1 className="text-2xl font-bold tracking-tight">Repair Listings</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">OEM / Compatible / Refurbished parts with price &amp; stock for repairs.</p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)} className="gap-2 h-9 text-sm">
           <Plus className="h-4 w-4" /> Add Combo
