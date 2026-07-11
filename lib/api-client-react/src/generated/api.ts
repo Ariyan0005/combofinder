@@ -1194,7 +1194,7 @@ export const getGetCombosUrl = (params?: GetCombosParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/combos?${stringifiedParams}` : `/api/combos`
+  return stringifiedParams.length > 0 ? `/api/compatibilities?${stringifiedParams}` : `/api/compatibilities`
 }
 
 /**
@@ -1217,7 +1217,7 @@ export const getCombos = async (params?: GetCombosParams, options?: RequestInit)
 
 export const getGetCombosQueryKey = (params?: GetCombosParams,) => {
     return [
-    `/api/combos`, ...(params ? [params] : [])
+    `/api/compatibilities`, ...(params ? [params] : [])
     ] as const;
     }
 
@@ -1271,7 +1271,7 @@ export const getCreateComboUrl = () => {
 
 
 
-  return `/api/combos`
+  return `/api/compatibilities`
 }
 
 /**
@@ -1342,7 +1342,7 @@ export const getGetComboUrl = (id: number,) => {
 
 
 
-  return `/api/combos/${id}`
+  return `/api/compatibilities/${id}`
 }
 
 /**
@@ -1365,7 +1365,7 @@ export const getCombo = async (id: number, options?: RequestInit): Promise<Combo
 
 export const getGetComboQueryKey = (id: number,) => {
     return [
-    `/api/combos/${id}`
+    `/api/compatibilities/${id}`
     ] as const;
     }
 
@@ -1419,7 +1419,7 @@ export const getUpdateComboUrl = (id: number,) => {
 
 
 
-  return `/api/combos/${id}`
+  return `/api/compatibilities/${id}`
 }
 
 /**
@@ -1491,7 +1491,7 @@ export const getDeleteComboUrl = (id: number,) => {
 
 
 
-  return `/api/combos/${id}`
+  return `/api/compatibilities/${id}`
 }
 
 /**

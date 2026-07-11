@@ -1,9 +1,10 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import authRouter from "./auth";
+import categoriesRouter from "./categories";
 import brandsRouter from "./brands";
 import modelsRouter from "./models";
-import combosRouter from "./combos";
+import compatibilitiesRouter from "./compatibilities";
 import statsRouter from "./stats";
 import searchRouter from "./search";
 import partsRouter from "./parts";
@@ -47,8 +48,7 @@ function requireAuth(req: any, res: any, next: any) {
 }
 
 // Requires auth for ALL methods — used for user-scoped data
-// IMPORTANT: also requires session.userId to be set (admin-only sessions without
-// a userId must not access user-scoped routes — they would see ALL users' data)
+// IMPORTANT: also requires session.userId to be set
 function requireUserAuth(req: any, res: any, next: any) {
   if (req.session?.authenticated && req.session?.userId) {
     req.userId = req.session.userId;
@@ -61,9 +61,10 @@ function requireUserAuth(req: any, res: any, next: any) {
 router.use(requireAuth);
 
 // Public / shared data routes (no user scope needed)
+router.use(categoriesRouter);
 router.use(brandsRouter);
 router.use(modelsRouter);
-router.use(combosRouter);
+router.use(compatibilitiesRouter);
 router.use(requireUserAuth, statsRouter);
 router.use(monthlyStatsRouter);
 router.use(searchRouter);

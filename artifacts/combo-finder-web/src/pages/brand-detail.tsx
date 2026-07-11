@@ -47,7 +47,7 @@ export default function BrandDetail() {
                   <div>
                     <p className="font-medium text-sm">{model.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {model.releaseYear ? `${model.releaseYear} · ` : ""}{model.comboCount} combos
+                      {model.releaseYear ? `${model.releaseYear} · ` : ""}{model.comboCount} entries
                     </p>
                   </div>
                 </div>
