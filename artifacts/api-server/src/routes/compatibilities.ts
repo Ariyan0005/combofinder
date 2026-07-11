@@ -1,12 +1,13 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, brandsTable, modelsTable, compatibilitiesTable } from "@workspace/db";
+import { db, brandsTable, modelsTable, compatibilitiesTable, categoriesTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
-// GET /compatibilities?model_id=
+// GET /compatibilities?model_id=&category_id=
 router.get("/compatibilities", async (req, res): Promise<void> => {
   const modelId = req.query.model_id ? Number(req.query.model_id) : undefined;
+  const categoryId = req.query.category_id ? Number(req.query.category_id) : undefined;
 
   const baseQuery = db
     .select({
@@ -14,6 +15,8 @@ router.get("/compatibilities", async (req, res): Promise<void> => {
       modelId: compatibilitiesTable.modelId,
       modelName: modelsTable.name,
       brandName: brandsTable.name,
+      categoryId: brandsTable.categoryId,
+      categoryName: categoriesTable.name,
       name: compatibilitiesTable.name,
       comboType: compatibilitiesTable.comboType,
       qualityGrade: compatibilitiesTable.qualityGrade,
@@ -22,10 +25,15 @@ router.get("/compatibilities", async (req, res): Promise<void> => {
     })
     .from(compatibilitiesTable)
     .innerJoin(modelsTable, eq(modelsTable.id, compatibilitiesTable.modelId))
-    .innerJoin(brandsTable, eq(brandsTable.id, modelsTable.brandId));
+    .innerJoin(brandsTable, eq(brandsTable.id, modelsTable.brandId))
+    .innerJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId));
 
   if (modelId) {
     const rows = await baseQuery.where(eq(compatibilitiesTable.modelId, modelId)).orderBy(compatibilitiesTable.name);
+    res.json(rows); return;
+  }
+  if (categoryId) {
+    const rows = await baseQuery.where(eq(brandsTable.categoryId, categoryId)).orderBy(brandsTable.name, modelsTable.name, compatibilitiesTable.name);
     res.json(rows); return;
   }
   const rows = await baseQuery.orderBy(brandsTable.name, modelsTable.name, compatibilitiesTable.name);

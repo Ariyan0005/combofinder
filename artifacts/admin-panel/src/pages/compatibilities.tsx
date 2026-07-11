@@ -35,11 +35,18 @@ function useModelsForBrand(brandId: number | null) {
     staleTime: 30_000,
   });
 }
-function useCompatibilities() {
+function useCompatibilities(categoryId: number | null) {
   return useQuery<Compat[]>({
-    queryKey: ["compatibilities"],
-    queryFn: () => fetch("/api/compatibilities", { credentials: "include" }).then(r => r.json()),
+    queryKey: ["compatibilities", categoryId],
+    queryFn: () => fetch(`/api/compatibilities${categoryId ? `?category_id=${categoryId}` : ""}`, { credentials: "include" }).then(r => r.json()),
     staleTime: 30_000,
+  });
+}
+function useCategories() {
+  return useQuery<any[]>({
+    queryKey: ["admin-categories"],
+    queryFn: () => fetch("/api/categories", { credentials: "include" }).then(r => r.json()),
+    staleTime: 60_000,
   });
 }
 
@@ -48,7 +55,9 @@ const COMPAT_TYPES: CompatType[] = ["OEM", "Compatible", "Refurbished"];
 export default function Compatibilities() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: compatibilities = [], isLoading } = useCompatibilities();
+  const { data: categories = [], isLoading: cLoading } = useCategories();
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const { data: compatibilities = [], isLoading } = useCompatibilities(filterCategory === "all" ? null : Number(filterCategory));
 
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
@@ -144,6 +153,13 @@ export default function Compatibilities() {
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
             {COMPAT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterCategory} onValueChange={setFilterCategory}>
+          <SelectTrigger className="h-9 w-44 bg-card"><SelectValue placeholder="All categories" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {categories.map((c: any) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>

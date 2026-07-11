@@ -1,22 +1,39 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useGetBrands } from "@workspace/api-client-react";
-import { Tag, ChevronRight, Search } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Tag, ChevronRight, Search, Layers } from "lucide-react";
 
 export default function Brands() {
   const [filter, setFilter] = useState("");
-  const { data: brands, isLoading } = useGetBrands();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
 
-  const filtered = brands?.filter((b) =>
+  const slug = new URLSearchParams(location.split("?")[1] ?? "").get("category");
+
+  const { data: categories } = useQuery<any[]>({
+    queryKey: ["categories"],
+    queryFn: () => fetch(`/api/categories`, { credentials: "include" }).then(r => r.json()),
+  });
+  const selectedCategory = Array.isArray(categories) ? categories.find((c: any) => c.slug === slug) : undefined;
+  const categoryId = selectedCategory?.id;
+
+  const { data: brands, isLoading } = useQuery<any[]>({
+    queryKey: ["brands", categoryId],
+    queryFn: () => fetch(`/api/brands${categoryId ? `?category_id=${categoryId}` : ""}`, { credentials: "include" }).then(r => r.json()),
+  });
+
+  const filtered = (brands ?? []).filter((b: any) =>
     b.name.toLowerCase().includes(filter.toLowerCase())
   );
 
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">All Brands</h1>
-        <p className="text-muted-foreground mt-1 text-sm">Browse all supported phone brands</p>
+        <h1 className="text-2xl font-bold text-foreground">
+          {selectedCategory ? `${selectedCategory.name} Brands` : "All Brands"}
+        </h1>
+        <p className="text-muted-foreground mt-1 text-sm">
+          {selectedCategory ? "Browse brands in this category" : "Browse all supported phone brands"}
+        </p>
       </div>
 
       <div className="relative">
@@ -36,7 +53,7 @@ export default function Brands() {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered?.map((brand) => (
+          {filtered?.map((brand: any) => (
             <button
               key={brand.id}
               onClick={() => navigate(`/brands/${brand.id}`)}

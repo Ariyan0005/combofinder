@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Search, ChevronRight, Monitor, Battery,
-  Clock, X, Layers, Smartphone, ChevronDown,
+  Search, ChevronRight, Layers, Smartphone, ChevronDown, X, Clock,
 } from "lucide-react";
 import { Link } from "wouter";
 
 const LS_KEY = "cf_recent_searches";
+const ALL = "all";
 
 const BRAND_PALETTES = [
   { bg: "#EEF2FF", color: "#6366F1" },
@@ -20,6 +20,9 @@ const BRAND_PALETTES = [
 ];
 
 function brandPalette(name: string) {
+  return BRAND_PALETTES[name.charCodeAt(0) % BRAND_PALETTES.length];
+}
+function categoryColor(name: string) {
   return BRAND_PALETTES[name.charCodeAt(0) % BRAND_PALETTES.length];
 }
 
@@ -37,32 +40,18 @@ const BORDER = "hsl(var(--border))";
 const CARD  = "hsl(var(--card))";
 const PRIMARY = "hsl(var(--primary))";
 
-const PART_TYPES = ["All", "Display", "Battery"] as const;
-type PartType = typeof PART_TYPES[number];
-
-function MobileLcdIcon({ size = 16, color }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color ?? "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="5" y="2" width="14" height="20" rx="2"/>
-      <rect x="7" y="4" width="10" height="13" rx="1"/>
-      <circle cx="12" cy="19.5" r="0.7" fill={color ?? "currentColor"} stroke="none"/>
-    </svg>
-  );
+function readCategoryFromUrl(): string {
+  try { return new URLSearchParams(window.location.search).get("category") ?? ALL; } catch { return ALL; }
 }
 
 export default function Compatibility() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>(getRecentSearches);
-  const [partType, setPartType] = useState<PartType>(() => {
-    try {
-      const p = new URLSearchParams(window.location.search).get("type");
-      if (p === "Display" || p === "Battery") return p;
-    } catch {}
-    return "All";
-  });
-  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const [categories, setCategories] = useState<any[]>([]);
+  const [selectedSlug, setSelectedSlug] = useState<string>(() => readCategoryFromUrl());
+  const [showDropdown, setShowDropdown] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -75,28 +64,70 @@ export default function Compatibility() {
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowTypeDropdown(false);
+        setShowDropdown(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  // Load categories
+  const { data: cats } = useQuery<any[]>({
+    queryKey: ["categories"],
+    queryFn: () => fetch(`/api/categories`, { credentials: "include" }).then(r => r.json()),
+  });
+  useEffect(() => {
+    if (Array.isArray(cats)) setCategories(cats);
+  }, [cats]);
+
+  // Default the selection to "Display" when no category is in the URL
+  useEffect(() => {
+    if (categories.length === 0) return;
+    const urlCat = readCategoryFromUrl();
+    if (urlCat === ALL) {
+      const display = categories.find(c => c.name === "Display" || c.slug === "display");
+      const slug = display?.slug ?? categories[0]?.slug ?? ALL;
+      if (slug !== ALL) {
+        setSelectedSlug(slug);
+        updateUrl(slug);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories]);
+
+  const selectedCategory = categories.find(c => c.slug === selectedSlug);
+  const selectedCategoryId = selectedSlug === ALL ? undefined : selectedCategory?.id;
+
+  function updateUrl(slug: string) {
+    try {
+      const url = new URL(window.location.href);
+      if (slug === ALL) url.searchParams.delete("category");
+      else url.searchParams.set("category", slug);
+      window.history.replaceState(null, "", url.toString());
+    } catch {}
+  }
+
+  function selectCategory(slug: string) {
+    setSelectedSlug(slug);
+    setShowDropdown(false);
+    updateUrl(slug);
+  }
+
   const { data: searchResults, isLoading: searching } = useQuery<{ brands?: any[]; models?: any[] }>({
-    queryKey: ["search", debouncedQuery],
+    queryKey: ["search", debouncedQuery, selectedCategoryId],
     queryFn: () =>
-      fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}`, { credentials: "include" }).then(r => r.json()),
+      fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}${selectedCategoryId ? `&category_id=${selectedCategoryId}` : ""}`, { credentials: "include" }).then(r => r.json()),
     enabled: debouncedQuery.length >= 2,
   });
 
   const { data: brands } = useQuery<any[]>({
-    queryKey: ["brands"],
-    queryFn: () => fetch(`/api/brands`, { credentials: "include" }).then(r => r.json()),
+    queryKey: ["brands", selectedCategoryId],
+    queryFn: () => fetch(`/api/brands${selectedCategoryId ? `?category_id=${selectedCategoryId}` : ""}`, { credentials: "include" }).then(r => r.json()),
     enabled: debouncedQuery.length < 2,
   });
 
   const { data: stats } = useQuery<{ totalBrands?: number; totalModels?: number; totalCombos?: number }>({
-    queryKey: ["compat-stats"],
+    queryKey: ["compat-stats", selectedCategoryId],
     queryFn: () => fetch(`/api/stats/public`, { credentials: "include" }).then(r => r.json()).catch(() => ({})),
     enabled: debouncedQuery.length < 2,
   });
@@ -116,13 +147,11 @@ export default function Compatibility() {
   const allBrands = Array.isArray(searchResults?.brands) ? searchResults!.brands : [];
   const brandList = Array.isArray(brands) ? brands.slice(0, 10) : [];
 
-  // Build navigation link with partType context
   function modelLink(id: number) {
-    return partType !== "All" ? `/models/${id}?type=${partType}` : `/models/${id}`;
+    return selectedSlug !== ALL ? `/models/${id}?category=${selectedSlug}` : `/models/${id}`;
   }
 
-  const partTypeColor = partType === "Display" ? "#6248FF" : partType === "Battery" ? "#10B981" : MUTED;
-  const partTypeBg = partType === "Display" ? "#EEF2FF" : partType === "Battery" ? "#ECFDF5" : "hsl(var(--muted))";
+  const activeColor = selectedSlug !== ALL && selectedCategory ? categoryColor(selectedCategory.name).color : PRIMARY;
 
   return (
     <div className="space-y-4">
@@ -175,57 +204,66 @@ export default function Compatibility() {
           )}
         </div>
 
-        {/* Part Type dropdown */}
+        {/* Part Type (Category) dropdown */}
         <div className="relative flex-shrink-0" ref={dropdownRef}>
           <button
-            onClick={() => setShowTypeDropdown(v => !v)}
+            onClick={() => setShowDropdown(v => !v)}
             className="flex items-center gap-1.5 px-3 py-3.5 rounded-2xl border text-sm font-semibold whitespace-nowrap transition-all"
-            style={{ borderColor: BORDER, background: partType !== "All" ? partTypeBg : CARD, color: partType !== "All" ? partTypeColor : "hsl(var(--foreground))" }}
+            style={{
+              borderColor: BORDER,
+              background: selectedSlug !== ALL && selectedCategory ? categoryColor(selectedCategory.name).bg : CARD,
+              color: selectedSlug !== ALL && selectedCategory ? categoryColor(selectedCategory.name).color : "hsl(var(--foreground))",
+            }}
           >
-            {partType === "Display" && <MobileLcdIcon size={15} color={partTypeColor} />}
-            {partType === "Battery" && <Battery className="w-3.5 h-3.5" style={{ color: partTypeColor }} />}
-            {partType === "All" && <Monitor className="w-3.5 h-3.5" style={{ color: MUTED }} />}
-            <span>{partType === "All" ? "Part Type" : partType}</span>
+            {selectedSlug !== ALL && selectedCategory ? (
+              <span className="w-3.5 h-3.5 rounded-md flex-shrink-0" style={{ background: categoryColor(selectedCategory.name).color }} />
+            ) : (
+              <Layers className="w-3.5 h-3.5" style={{ color: MUTED }} />
+            )}
+            <span>{selectedSlug === ALL ? "Part Type" : selectedCategory?.name ?? "Part Type"}</span>
             <ChevronDown className="w-3.5 h-3.5 opacity-60" />
           </button>
 
-          {showTypeDropdown && (
-            <div className="absolute right-0 top-full mt-1.5 z-50 rounded-2xl border shadow-lg overflow-hidden min-w-[130px]"
+          {showDropdown && (
+            <div className="absolute right-0 top-full mt-1.5 z-50 rounded-2xl border shadow-lg overflow-hidden min-w-[150px]"
               style={{ borderColor: BORDER, background: CARD }}>
-              {PART_TYPES.map(pt => (
-                <button
-                  key={pt}
-                  onClick={() => {
-                  setPartType(pt);
-                  setShowTypeDropdown(false);
-                  try {
-                    const url = new URL(window.location.href);
-                    if (pt === 'All') url.searchParams.delete('type');
-                    else url.searchParams.set('type', pt);
-                    window.history.replaceState(null, '', url.toString());
-                  } catch {}
-                }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-left transition-colors hover:bg-muted/50"
-                  style={pt === partType ? { color: PRIMARY, fontWeight: 700 } : { color: "hsl(var(--foreground))" }}
-                >
-                  {pt === "Display" && <MobileLcdIcon size={14} color={pt === partType ? PRIMARY : undefined} />}
-                  {pt === "Battery" && <Battery className="w-3.5 h-3.5" style={{ color: pt === partType ? PRIMARY : MUTED }} />}
-                  {pt === "All" && <Layers className="w-3.5 h-3.5" style={{ color: pt === partType ? PRIMARY : MUTED }} />}
-                  {pt}
-                  {pt === partType && <span className="ml-auto text-primary">✓</span>}
-                </button>
-              ))}
+              <button
+                key={ALL}
+                onClick={() => selectCategory(ALL)}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-left transition-colors hover:bg-muted/50"
+                style={selectedSlug === ALL ? { color: PRIMARY, fontWeight: 700 } : { color: "hsl(var(--foreground))" }}
+              >
+                <Layers className="w-3.5 h-3.5" style={{ color: selectedSlug === ALL ? PRIMARY : MUTED }} />
+                All
+                {selectedSlug === ALL && <span className="ml-auto text-primary">✓</span>}
+              </button>
+              {categories.map((c: any) => {
+                const pal = categoryColor(c.name);
+                const isActive = selectedSlug === c.slug;
+                return (
+                  <button
+                    key={c.slug}
+                    onClick={() => selectCategory(c.slug)}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-left transition-colors hover:bg-muted/50"
+                    style={isActive ? { color: PRIMARY, fontWeight: 700 } : { color: "hsl(var(--foreground))" }}
+                  >
+                    <span className="w-3.5 h-3.5 rounded-md flex-shrink-0" style={{ background: pal.color }} />
+                    {c.name}
+                    {isActive && <span className="ml-auto text-primary">✓</span>}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
       </div>
 
-      {/* Part type badge when searching */}
-      {debouncedQuery.length >= 2 && partType !== "All" && (
+      {/* Selected category badge when searching */}
+      {debouncedQuery.length >= 2 && selectedSlug !== ALL && selectedCategory && (
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
-            style={{ background: partTypeBg, color: partTypeColor }}>
-            {partType === "Display" ? "📱" : "🔋"} {partType} Compatibility
+            style={{ background: categoryColor(selectedCategory.name).bg, color: categoryColor(selectedCategory.name).color }}>
+            {selectedCategory.name} Compatibility
           </span>
         </div>
       )}
@@ -308,7 +346,9 @@ export default function Compatibility() {
           {brandList.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="font-bold text-base">Popular Brands</h2>
+                <h2 className="font-bold text-base">
+                  {selectedSlug !== ALL && selectedCategory ? `${selectedCategory.name} Brands` : "Popular Brands"}
+                </h2>
                 <Link href="/brands">
                   <span className="text-xs font-semibold" style={{ color: PRIMARY }}>View All</span>
                 </Link>

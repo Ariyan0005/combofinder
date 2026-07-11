@@ -1,6 +1,6 @@
 # ComboFinder
 
-Phone display combo compatibility app — search brands, models, and find compatible display assembly combos.
+Phone display compatibility app — search brands, models, and find compatible display assemblies (compatibilities), organised by part category.
 
 ## Run & Operate
 
@@ -23,7 +23,7 @@ Phone display combo compatibility app — search brands, models, and find compat
 ## Where things live
 
 - `lib/api-spec/openapi.yaml` — source of truth for API contract
-- `lib/db/src/schema/` — Drizzle DB schema (brands, models, combos tables)
+- `lib/db/src/schema/` — Drizzle DB schema (categories, brands, models, compatibilities tables)
 - `lib/api-client-react/src/generated/` — generated React Query hooks + Zod schemas
 - `artifacts/api-server/src/routes/` — Express route handlers
 - `artifacts/admin-panel/src/` — React + Vite admin panel
@@ -35,12 +35,12 @@ Phone display combo compatibility app — search brands, models, and find compat
 - Single shared `@workspace/api-client-react` lib consumed by both web and mobile artifacts
 - Expo mobile app uses absolute URLs via `setBaseUrl(https://${EXPO_PUBLIC_DOMAIN})` in `_layout.tsx`
 - Mobile app navigates: Search tab (search + stats) → model detail; Brands tab → brand models → model detail
-- Admin panel theme: Circuit Blue cobalt (HSL 205 100% 43%), slate background, Inter font
+- Admin panel theme: Replit-style dark UI — violet/indigo primary (HSL 252 100% 64%), slate background, Inter font
 
 ## Product
 
-- **Admin Panel** (`/`): Manage brands, models, and display combos. Full CRUD with search and stats dashboard.
-- **Mobile App** (`/mobile/`): Search brands/models by name, browse all brands, drill into model detail to see compatible display combos with type (OEM/Compatible/Refurbished), quality grade, stock status, and price range.
+- **Admin Panel** (`/`): Manage categories, brands, models, and compatibilities. Full CRUD with search and stats dashboard.
+- **Mobile App** (`/mobile/`): Search brands/models by name, browse all brands, drill into model detail to see compatible display assemblies (compatibilities) with type (OEM/Compatible/Refurbished) and quality grade.
 - **ComboFinder Web** (`/combo-finder-web/`): Repair shop management — repairs, inventory, customers, and now a full POS system:
   - `/inventory`: stock management, has a switch to jump to POS
   - `/pos`: cart-based checkout — add products, adjust qty/price, discount, payment method, customer info, checkout creates an invoice and decrements stock atomically
