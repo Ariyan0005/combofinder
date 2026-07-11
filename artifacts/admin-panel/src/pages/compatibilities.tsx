@@ -117,28 +117,30 @@ export default function Compatibilities() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Compatibility Database</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{compatibilities.length} entries</p>
+          <h1 className="text-2xl font-bold tracking-tight">Compatibility Database</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {compatibilities.length} total {compatibilities.length === 1 ? "entry" : "entries"} · manage display combos across models
+          </p>
         </div>
-        <Button size="sm" onClick={() => setIsCreateOpen(true)}>
-          <Plus className="h-4 w-4 mr-1.5" /> Add Entry
+        <Button size="sm" className="gap-1.5 h-9" onClick={() => setIsCreateOpen(true)}>
+          <Plus className="h-4 w-4" /> Add Entry
         </Button>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-center">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            className="pl-8 h-9" placeholder="Search brand, model, name…"
+            className="pl-9 h-9 bg-card" placeholder="Search brand, model, name…"
             value={search} onChange={e => setSearch(e.target.value)}
           />
         </div>
         <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="h-9 w-36"><SelectValue placeholder="All types" /></SelectTrigger>
+          <SelectTrigger className="h-9 w-40 bg-card"><SelectValue placeholder="All types" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
             {COMPAT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
@@ -146,11 +148,19 @@ export default function Compatibilities() {
         </Select>
       </div>
 
+      {!isLoading && (
+        <p className="text-xs text-muted-foreground">
+          Showing <span className="font-semibold text-foreground">{filtered.length}</span>{" "}
+          {filtered.length === 1 ? "entry" : "entries"}
+          {filterType !== "all" && <span> · <span className="font-semibold text-foreground">{filterType}</span></span>}
+        </p>
+      )}
+
       {/* Table */}
-      <div className="rounded-lg border overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/40">
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead className="font-semibold text-xs uppercase tracking-wider">Brand</TableHead>
               <TableHead className="font-semibold text-xs uppercase tracking-wider">Model</TableHead>
               <TableHead className="font-semibold text-xs uppercase tracking-wider">Name</TableHead>
@@ -249,8 +259,8 @@ export default function Compatibilities() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-              <Button type="submit" size="sm" disabled={!createModelId}>Save</Button>
+              <Button type="button" variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+              <Button type="submit" size="sm" className="h-9 gap-1.5" disabled={!createModelId}>Save</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -280,8 +290,8 @@ export default function Compatibilities() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" size="sm" onClick={() => setEditingCompat(null)}>Cancel</Button>
-              <Button type="submit" size="sm">Save Changes</Button>
+              <Button type="button" variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setEditingCompat(null)}>Cancel</Button>
+              <Button type="submit" size="sm" className="h-9 gap-1.5">Save Changes</Button>
             </DialogFooter>
           </form>
         </DialogContent>
