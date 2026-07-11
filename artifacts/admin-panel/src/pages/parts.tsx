@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SingleModelPicker } from "@/components/brand-model-picker";
+import { SingleModelPicker, useBrands, useModelsForBrand } from "@/components/brand-model-picker";
 
 const API = "/api";
 
@@ -25,9 +25,12 @@ interface Part {
 const fetchCategories = (): Promise<Category[]> =>
   fetch(`${API}/part-categories`, { credentials: "include" }).then(r => r.json());
 
-const fetchParts = (categoryId?: number): Promise<Part[]> => {
+const fetchParts = async (categoryId?: number): Promise<Part[]> => {
   const url = categoryId ? `${API}/parts?categoryId=${categoryId}` : `${API}/parts`;
-  return fetch(url, { credentials: "include" }).then(r => r.json());
+  const r = await fetch(url, { credentials: "include" });
+  if (!r.ok) return [];
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
 };
 
 /* ── Category CHIP colors (cycles) ─────────────────────────── */
@@ -62,7 +65,12 @@ export default function Parts() {
 
   /* add-part form state */
   const [addCatId, setAddCatId] = useState<number | null>(null);
-  const [addModelId, setAddModelId] = useState<number | null>(null);
+  const [addBrandName, setAddBrandName] = useState("");
+  const [addModelName, setAddModelName] = useState("");
+  const { data: brandList = [] } = useBrands();
+  const addBrand = brandList.find(b => b.name === addBrandName) ?? null;
+  const addBrandId = addBrand?.id ?? null;
+  const { data: addModels = [] } = useModelsForBrand(addBrandId);
 
   /* manage-categories form state */
   const [newCatName, setNewCatName] = useState("");
@@ -81,7 +89,8 @@ export default function Parts() {
   });
 
   /* ── Filtered parts (client search) ─────────────────────── */
-  const filtered = parts.filter(p =>
+  const list = Array.isArray(parts) ? parts : [];
+  const filtered = list.filter(p =>
     !search ||
     p.partName.toLowerCase().includes(search.toLowerCase()) ||
     p.modelName.toLowerCase().includes(search.toLowerCase()) ||
@@ -95,7 +104,7 @@ export default function Parts() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["parts"] });
       qc.invalidateQueries({ queryKey: ["part-categories"] });
-      setIsAddPartOpen(false); setAddCatId(null); setAddModelId(null);
+      setIsAddPartOpen(false); setAddCatId(null); setAddBrandName(""); setAddModelName("");
       toast({ title: "Part added" });
     },
     onError: () => toast({ title: "Failed to add part", variant: "destructive" }),
@@ -153,11 +162,13 @@ export default function Parts() {
   /* ── Handlers ────────────────────────────────────────────── */
   const handleAddPart = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!addCatId || !addModelId) return;
+    const sel = addModels.find(m => m.name === addModelName);
+    const modelId = sel?.id ?? null;
+    if (!addCatId || !modelId) return;
     const fd = new FormData(e.currentTarget);
     createPart.mutate({
       categoryId: addCatId,
-      modelId: addModelId,
+      modelId,
       partName: (fd.get("partName") as string).trim(),
       description: (fd.get("description") as string).trim() || null,
     });
@@ -196,7 +207,7 @@ export default function Parts() {
           <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => setIsManageCatsOpen(true)}>
             <Settings2 className="h-3.5 w-3.5" /> Manage Categories
           </Button>
-          <Button size="sm" className="gap-1.5 h-9" onClick={() => { setIsAddPartOpen(true); setAddCatId(activeCatId); setAddModelId(null); }}>
+          <Button size="sm" className="gap-1.5 h-9" onClick={() => { setIsAddPartOpen(true); setAddCatId(activeCatId); setAddBrandName(""); setAddModelName(""); }}>
             <Plus className="h-4 w-4" /> Add Compatible
           </Button>
         </div>
@@ -229,7 +240,7 @@ export default function Parts() {
             }`}
           >
             <span className="text-xs font-bold uppercase tracking-wider opacity-70">All</span>
-            <span className="text-lg font-bold leading-tight">{parts.length || categories.reduce((s, c) => s + c.partCount, 0)}</span>
+            <span className="text-lg font-bold leading-tight">{list.length || categories.reduce((s, c) => s + c.partCount, 0)}</span>
           </button>
 
           {categories.map((cat, idx) => {
@@ -344,7 +355,7 @@ export default function Parts() {
       </div>
 
       {/* ══ ADD PART DIALOG ══════════════════════════════════ */}
-      <Dialog open={isAddPartOpen} onOpenChange={o => { if (!o) { setIsAddPartOpen(false); setAddCatId(null); setAddModelId(null); } }}>
+      <Dialog open={isAddPartOpen} onOpenChange={o => { if (!o) { setIsAddPartOpen(false); setAddCatId(null); setAddBrandName(""); setAddModelName(""); } }}>
         <DialogContent className="max-w-lg">
           <form onSubmit={handleAddPart}>
             <DialogHeader><DialogTitle>Add Compatible Entry</DialogTitle></DialogHeader>
@@ -371,8 +382,9 @@ export default function Parts() {
               <div className="space-y-1.5">
                 <Label>Brand → Model *</Label>
                 <SingleModelPicker
-                  selected={addModelId}
-                  onChange={setAddModelId}
+                  brandName={addBrandName}
+                  modelName={addModelName}
+                  onChange={(b, m) => { setAddBrandName(b); setAddModelName(m); }}
                 />
               </div>
 
@@ -392,7 +404,7 @@ export default function Parts() {
               <Button type="button" variant="outline" size="sm" onClick={() => setIsAddPartOpen(false)}>Cancel</Button>
               <Button
                 type="submit" size="sm"
-                disabled={!addCatId || !addModelId || createPart.isPending}
+                disabled={!addCatId || !addModelName || createPart.isPending}
               >
                 {createPart.isPending ? "Saving…" : "Save"}
               </Button>

@@ -38,7 +38,12 @@ function useModelsForBrand(brandId: number | null) {
 function useCompatibilities(categoryId: number | null) {
   return useQuery<Compat[]>({
     queryKey: ["compatibilities", categoryId],
-    queryFn: () => fetch(`/api/compatibilities${categoryId ? `?category_id=${categoryId}` : ""}`, { credentials: "include" }).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/compatibilities${categoryId ? `?category_id=${categoryId}` : ""}`, { credentials: "include" });
+      if (!r.ok) return [] as Compat[];
+      const data = await r.json();
+      return Array.isArray(data) ? (data as Compat[]) : [];
+    },
     staleTime: 30_000,
   });
 }
@@ -58,6 +63,7 @@ export default function Compatibilities() {
   const { data: categories = [], isLoading: cLoading } = useCategories();
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const { data: compatibilities = [], isLoading } = useCompatibilities(filterCategory === "all" ? null : Number(filterCategory));
+  const list = Array.isArray(compatibilities) ? compatibilities : [];
 
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
@@ -75,7 +81,7 @@ export default function Compatibilities() {
   const { data: brands = [], isLoading: bLoading } = useBrands();
   const { data: createModels = [], isLoading: mLoading } = useModelsForBrand(createBrandId);
 
-  const filtered = compatibilities.filter(c => {
+  const filtered = list.filter(c => {
     const matchSearch = !search ||
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.brandName.toLowerCase().includes(search.toLowerCase()) ||
@@ -131,7 +137,7 @@ export default function Compatibilities() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Compatibility Database</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {compatibilities.length} total {compatibilities.length === 1 ? "entry" : "entries"} · manage display combos across models
+            {list.length} total {list.length === 1 ? "entry" : "entries"} · manage display combos across models
           </p>
         </div>
         <Button size="sm" className="gap-1.5 h-9" onClick={() => setIsCreateOpen(true)}>
