@@ -83,7 +83,7 @@ function ImageModal({ src, title, link, onClose }: { src: string; title: string;
   );
 }
 
-type MainTab = CompatType | "ISP";
+type MainTab = CompatType;
 
 function useModel(id: number) {
   return useQuery({
@@ -94,34 +94,19 @@ function useModel(id: number) {
   });
 }
 
-function usePinouts(modelId: number) {
-  return useQuery({
-    queryKey: ["pinouts", modelId],
-    queryFn: () => fetch(`/api/schematics?model_id=${modelId}`, { credentials: "include" }).then(r => r.json()),
-    enabled: !!modelId,
-    staleTime: 300_000,
-  });
-}
-
 export default function ModelDetail() {
   const { id } = useParams<{ id: string }>();
   const modelId = Number(id);
   const [, navigate] = useLocation();
 
   const { data: model, isLoading } = useModel(modelId);
-  const { data: pinoutsRaw } = usePinouts(modelId);
 
   const compatibilities: Compatibility[] = model?.combos ?? [];
-  const modelPinouts: Pinout[] = Array.isArray(pinoutsRaw) ? pinoutsRaw : [];
 
-  const [activeTab, setActiveTab] = useState<MainTab>("OEM");
-  const [zoomed, setZoomed] = useState<Pinout | null>(null);
+  const [activeTab, setActiveTab] = useState<MainTab>("Compatible");
 
   const tabs: { key: MainTab; label: string }[] = [
-    { key: "OEM",          label: `OEM (${compatibilities.filter(c => c.comboType === "OEM").length})` },
-    { key: "Compatible",   label: `Compatible (${compatibilities.filter(c => c.comboType === "Compatible").length})` },
-    { key: "Refurbished",  label: `Refurbished (${compatibilities.filter(c => c.comboType === "Refurbished").length})` },
-    { key: "ISP",          label: `ISP/Pinout (${modelPinouts.length})` },
+    { key: "Compatible", label: `Compatible (${compatibilities.filter(c => c.comboType === "Compatible").length})` },
   ];
 
   if (isLoading) return (
@@ -165,80 +150,39 @@ export default function ModelDetail() {
       </div>
 
       {/* Tab content */}
-      {activeTab !== "ISP" ? (
-        <>
-          {(() => {
-            const filtered = compatibilities.filter(c => c.comboType === activeTab);
-            const cfg = compatTypeConfig[activeTab as CompatType];
-            if (filtered.length === 0) return (
-              <div className="px-4 py-12 text-center">
-                <p className="text-sm font-medium" style={{ color: MUTED }}>No {cfg.label} entries available.</p>
-              </div>
-            );
-            return (
-              <div className="px-4 space-y-2 mt-2">
-                {filtered.map((c) => {
-                  const Icon = cfg.icon;
-                  return (
-                    <div key={c.id} className="p-4 flex items-start justify-between gap-3 rounded-2xl border"
-                      style={{ background: CARD, borderColor: BORDER }}>
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                          style={{ background: cfg.bg }}>
-                          <Icon className="w-4 h-4" style={{ color: cfg.color }} />
-                        </div>
-                        <div>
-                          <p className="font-bold text-sm leading-snug">{c.name}</p>
-                          {c.qualityGrade && <p className="text-xs mt-0.5 font-semibold" style={{ color: MUTED }}>Grade: {c.qualityGrade}</p>}
-                          {c.notes && <p className="text-xs mt-1" style={{ color: MUTED }}>{c.notes}</p>}
-                        </div>
-                      </div>
-                      <CopyButton text={c.name} />
+      {(() => {
+        const filtered = compatibilities.filter(c => c.comboType === "Compatible");
+        const cfg = compatTypeConfig["Compatible"];
+        if (filtered.length === 0) return (
+          <div className="px-4 py-12 text-center">
+            <p className="text-sm font-medium" style={{ color: MUTED }}>No {cfg.label} entries available.</p>
+          </div>
+        );
+        return (
+          <div className="px-4 space-y-2 mt-2">
+            {filtered.map((c) => {
+              const Icon = cfg.icon;
+              return (
+                <div key={c.id} className="p-4 flex items-start justify-between gap-3 rounded-2xl border"
+                  style={{ background: CARD, borderColor: BORDER }}>
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+                      style={{ background: cfg.bg }}>
+                      <Icon className="w-4 h-4" style={{ color: cfg.color }} />
                     </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
-        </>
-      ) : (
-        <div className="px-4 mt-2">
-          {modelPinouts.length === 0 ? (
-            <div className="py-12 text-center">
-              <p className="text-sm font-medium" style={{ color: MUTED }}>No ISP/Pinout data available.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {modelPinouts.map(p => (
-                <div key={p.id} className="rounded-2xl border overflow-hidden relative"
-                  style={{ borderColor: BORDER, background: CARD }}>
-                  <button className="block w-full" onClick={() => setZoomed(p)}>
-                    {p.fileUrl ? (
-                      <img src={p.fileUrl} alt={p.title} className="w-full h-36 object-cover" loading="lazy" />
-                    ) : (
-                      <div className="w-full h-36 flex items-center justify-center" style={{ background: "#FFF7E6" }}>
-                        <Cpu className="w-10 h-10" style={{ color: "#F59E0B" }} />
-                      </div>
-                    )}
-                  </button>
-                  <div className="p-2.5 space-y-1">
-                    <p className="text-xs font-bold leading-tight line-clamp-2">{p.title}</p>
-                    {p.deviceModel && <p className="text-[10px] font-semibold" style={{ color: "#F59E0B" }}>{p.deviceModel}</p>}
-                    {p.thumbnailUrl && (
-                      <a href={p.thumbnailUrl} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: PRIMARY }}>
-                        <ExternalLink className="w-3 h-3" /> Link
-                      </a>
-                    )}
+                    <div>
+                      <p className="font-bold text-sm leading-snug">{c.name}</p>
+                      {c.qualityGrade && <p className="text-xs mt-0.5 font-semibold" style={{ color: MUTED }}>Grade: {c.qualityGrade}</p>}
+                      {c.notes && <p className="text-xs mt-1" style={{ color: MUTED }}>{c.notes}</p>}
+                    </div>
                   </div>
+                  <CopyButton text={c.name} />
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {zoomed && <ImageModal src={zoomed.fileUrl!} title={zoomed.title} link={zoomed.thumbnailUrl} onClose={() => setZoomed(null)} />}
+              );
+            })}
+          </div>
+        );
+      })()}
     </div>
   );
 }
