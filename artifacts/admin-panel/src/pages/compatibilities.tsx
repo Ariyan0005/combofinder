@@ -81,12 +81,16 @@ export default function Compatibilities() {
   const { data: brands = [], isLoading: bLoading } = useBrands();
   const { data: createModels = [], isLoading: mLoading } = useModelsForBrand(createBrandId);
 
+  // Defensive helpers: avoid calling string methods on undefined/null
+  const safe = (v: any) => (typeof v === "string" ? v : String(v ?? ""));
+  const q = (search || "").toLowerCase();
+
   const filtered = list.filter(c => {
-    const matchSearch = !search ||
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.brandName.toLowerCase().includes(search.toLowerCase()) ||
-      c.modelName.toLowerCase().includes(search.toLowerCase());
-    const matchType = filterType === "all" || c.comboType === filterType;
+    const name = safe(c.name).toLowerCase();
+    const brand = safe(c.brandName).toLowerCase();
+    const model = safe(c.modelName).toLowerCase();
+    const matchSearch = !search || name.includes(q) || brand.includes(q) || model.includes(q);
+    const matchType = filterType === "all" || safe(c.comboType).toString() === filterType;
     return matchSearch && matchType;
   });
 
