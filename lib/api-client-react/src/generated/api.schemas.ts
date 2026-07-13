@@ -62,6 +62,8 @@ export interface Combo {
   modelId: number;
   modelName: string;
   brandName: string;
+  categoryId?: number | null;
+  categoryName?: string | null;
   name: string;
   comboType: ComboComboType;
   qualityGrade?: string | null;
@@ -106,9 +108,16 @@ export interface CreateComboInput {
 }
 export type CreateCompatibilityInput = CreateComboInput;
 
+export interface BulkCreateCompatibilitiesInput {
+  modelId: number;
+  comboType: CreateComboInputComboType;
+  names: string[];
+}
+
 export interface SearchResults {
   brands: Brand[];
   models: Model[];
+  combos?: Combo[];
 }
 
 export interface SuccessResponse {
@@ -122,6 +131,7 @@ export interface ErrorResponse {
 export type SearchModelsParams = {
   q?: string;
   brand_id?: number;
+  category_id?: number;
 };
 
 export type GetModelsParams = {

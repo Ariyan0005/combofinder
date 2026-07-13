@@ -82,7 +82,7 @@ export const getHealthCheckQueryKey = () => {
     }
 
 
-export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -109,7 +109,7 @@ export type HealthCheckQueryError = ErrorType<unknown>
  */
 
 export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -159,7 +159,7 @@ export const getGetStatsQueryKey = () => {
     }
 
 
-export const getGetStatsQueryOptions = <TData = Awaited<ReturnType<typeof getStats>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetStatsQueryOptions = <TData = Awaited<ReturnType<typeof getStats>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -186,7 +186,7 @@ export type GetStatsQueryError = ErrorType<unknown>
  */
 
 export function useGetStats<TData = Awaited<ReturnType<typeof getStats>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -243,7 +243,7 @@ export const getSearchModelsQueryKey = (params?: SearchModelsParams,) => {
     }
 
 
-export const getSearchModelsQueryOptions = <TData = Awaited<ReturnType<typeof searchModels>>, TError = ErrorType<unknown>>(params?: SearchModelsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchModels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getSearchModelsQueryOptions = <TData = Awaited<ReturnType<typeof searchModels>>, TError = ErrorType<unknown>>(params?: SearchModelsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchModels>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -270,7 +270,7 @@ export type SearchModelsQueryError = ErrorType<unknown>
  */
 
 export function useSearchModels<TData = Awaited<ReturnType<typeof searchModels>>, TError = ErrorType<unknown>>(
- params?: SearchModelsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchModels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: SearchModelsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchModels>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -320,7 +320,7 @@ export const getGetBrandsQueryKey = () => {
     }
 
 
-export const getGetBrandsQueryOptions = <TData = Awaited<ReturnType<typeof getBrands>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrands>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetBrandsQueryOptions = <TData = Awaited<ReturnType<typeof getBrands>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBrands>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -347,7 +347,7 @@ export type GetBrandsQueryError = ErrorType<unknown>
  */
 
 export function useGetBrands<TData = Awaited<ReturnType<typeof getBrands>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrands>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBrands>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -468,7 +468,7 @@ export const getGetBrandQueryKey = (id: number,) => {
     }
 
 
-export const getGetBrandQueryOptions = <TData = Awaited<ReturnType<typeof getBrand>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrand>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetBrandQueryOptions = <TData = Awaited<ReturnType<typeof getBrand>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBrand>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -495,7 +495,7 @@ export type GetBrandQueryError = ErrorType<ErrorResponse>
  */
 
 export function useGetBrand<TData = Awaited<ReturnType<typeof getBrand>>, TError = ErrorType<ErrorResponse>>(
- id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrand>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBrand>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -687,7 +687,7 @@ export const getGetBrandModelsQueryKey = (id: number,) => {
     }
 
 
-export const getGetBrandModelsQueryOptions = <TData = Awaited<ReturnType<typeof getBrandModels>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrandModels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetBrandModelsQueryOptions = <TData = Awaited<ReturnType<typeof getBrandModels>>, TError = ErrorType<unknown>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBrandModels>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -714,7 +714,7 @@ export type GetBrandModelsQueryError = ErrorType<unknown>
  */
 
 export function useGetBrandModels<TData = Awaited<ReturnType<typeof getBrandModels>>, TError = ErrorType<unknown>>(
- id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrandModels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBrandModels>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -771,7 +771,7 @@ export const getGetModelsQueryKey = (params?: GetModelsParams,) => {
     }
 
 
-export const getGetModelsQueryOptions = <TData = Awaited<ReturnType<typeof getModels>>, TError = ErrorType<unknown>>(params?: GetModelsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getModels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetModelsQueryOptions = <TData = Awaited<ReturnType<typeof getModels>>, TError = ErrorType<unknown>>(params?: GetModelsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getModels>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -798,7 +798,7 @@ export type GetModelsQueryError = ErrorType<unknown>
  */
 
 export function useGetModels<TData = Awaited<ReturnType<typeof getModels>>, TError = ErrorType<unknown>>(
- params?: GetModelsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getModels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: GetModelsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getModels>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -919,7 +919,7 @@ export const getGetModelQueryKey = (id: number,) => {
     }
 
 
-export const getGetModelQueryOptions = <TData = Awaited<ReturnType<typeof getModel>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getModel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetModelQueryOptions = <TData = Awaited<ReturnType<typeof getModel>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getModel>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -946,7 +946,7 @@ export type GetModelQueryError = ErrorType<ErrorResponse>
  */
 
 export function useGetModel<TData = Awaited<ReturnType<typeof getModel>>, TError = ErrorType<ErrorResponse>>(
- id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getModel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getModel>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -1138,7 +1138,7 @@ export const getGetModelCombosQueryKey = (id: number,) => {
     }
 
 
-export const getGetModelCombosQueryOptions = <TData = Awaited<ReturnType<typeof getModelCombos>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getModelCombos>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetModelCombosQueryOptions = <TData = Awaited<ReturnType<typeof getModelCombos>>, TError = ErrorType<unknown>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getModelCombos>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -1165,7 +1165,7 @@ export type GetModelCombosQueryError = ErrorType<unknown>
  */
 
 export function useGetModelCombos<TData = Awaited<ReturnType<typeof getModelCombos>>, TError = ErrorType<unknown>>(
- id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getModelCombos>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getModelCombos>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -1222,7 +1222,7 @@ export const getGetCombosQueryKey = (params?: GetCombosParams,) => {
     }
 
 
-export const getGetCombosQueryOptions = <TData = Awaited<ReturnType<typeof getCombos>>, TError = ErrorType<unknown>>(params?: GetCombosParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCombos>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetCombosQueryOptions = <TData = Awaited<ReturnType<typeof getCombos>>, TError = ErrorType<unknown>>(params?: GetCombosParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCombos>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -1249,7 +1249,7 @@ export type GetCombosQueryError = ErrorType<unknown>
  */
 
 export function useGetCombos<TData = Awaited<ReturnType<typeof getCombos>>, TError = ErrorType<unknown>>(
- params?: GetCombosParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCombos>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: GetCombosParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCombos>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -1370,7 +1370,7 @@ export const getGetComboQueryKey = (id: number,) => {
     }
 
 
-export const getGetComboQueryOptions = <TData = Awaited<ReturnType<typeof getCombo>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCombo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetComboQueryOptions = <TData = Awaited<ReturnType<typeof getCombo>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCombo>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -1397,7 +1397,7 @@ export type GetComboQueryError = ErrorType<ErrorResponse>
  */
 
 export function useGetCombo<TData = Awaited<ReturnType<typeof getCombo>>, TError = ErrorType<ErrorResponse>>(
- id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCombo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCombo>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 

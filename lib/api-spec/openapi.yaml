@@ -63,6 +63,11 @@ paths:
           required: false
           schema:
             type: integer
+        - name: category_id
+          in: query
+          required: false
+          schema:
+            type: integer
       responses:
         "200":
           description: Search results
@@ -325,114 +330,26 @@ paths:
                 items:
                   $ref: "#/components/schemas/Combo"
 
-  /combos:
-    get:
-      operationId: getCombos
+  /compatibilities/bulk:
+    post:
+      operationId: bulkCreateCompatibilities
       tags: [combos]
-      summary: List all combos
-      parameters:
-        - name: model_id
-          in: query
-          required: false
-          schema:
-            type: integer
+      summary: Bulk create compatibility entries for a model
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkCreateCompatibilitiesInput"
       responses:
-        "200":
-          description: List of combos
+        "201":
+          description: Created combos
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: "#/components/schemas/Combo"
-    post:
-      operationId: createCombo
-      tags: [combos]
-      summary: Create a combo
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateComboInput"
-      responses:
-        "201":
-          description: Created combo
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Combo"
-
-  /combos/{id}:
-    get:
-      operationId: getCombo
-      tags: [combos]
-      summary: Get a combo by ID
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Combo
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Combo"
-        "404":
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-    put:
-      operationId: updateCombo
-      tags: [combos]
-      summary: Update a combo
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateComboInput"
-      responses:
-        "200":
-          description: Updated combo
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Combo"
-        "404":
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-    delete:
-      operationId: deleteCombo
-      tags: [combos]
-      summary: Delete a combo
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Deleted
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessResponse"
 
 components:
   schemas:
@@ -463,6 +380,9 @@ components:
       properties:
         id:
           type: integer
+        categoryId:
+          type: integer
+          nullable: true
         name:
           type: string
         logoUrl:
@@ -482,6 +402,9 @@ components:
     CreateBrandInput:
       type: object
       properties:
+        categoryId:
+          type: integer
+          nullable: true
         name:
           type: string
         logoUrl:
@@ -580,6 +503,12 @@ components:
           type: string
         brandName:
           type: string
+        categoryId:
+          type: integer
+          nullable: true
+        categoryName:
+          type: string
+          nullable: true
         name:
           type: string
         comboType:
@@ -591,11 +520,6 @@ components:
         notes:
           type: string
           nullable: true
-        priceRange:
-          type: string
-          nullable: true
-        inStock:
-          type: boolean
         createdAt:
           type: string
           format: date-time
@@ -606,35 +530,24 @@ components:
         - brandName
         - name
         - comboType
-        - inStock
         - createdAt
 
-    CreateComboInput:
+    BulkCreateCompatibilitiesInput:
       type: object
       properties:
         modelId:
           type: integer
-        name:
-          type: string
         comboType:
           type: string
           enum: [OEM, Compatible, Refurbished]
-        qualityGrade:
-          type: string
-          nullable: true
-        notes:
-          type: string
-          nullable: true
-        priceRange:
-          type: string
-          nullable: true
-        inStock:
-          type: boolean
+        names:
+          type: array
+          items:
+            type: string
       required:
         - modelId
-        - name
         - comboType
-        - inStock
+        - names
 
     SearchResults:
       type: object
@@ -647,6 +560,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Model"
+        combos:
+          type: array
+          items:
+            $ref: "#/components/schemas/Combo"
       required:
         - brands
         - models

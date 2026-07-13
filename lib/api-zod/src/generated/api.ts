@@ -20,7 +20,8 @@ export const GetStatsResponse = zod.object({
 // ── Search ────────────────────────────────────────────────────────────────────
 export const SearchModelsQueryParams = zod.object({
   "q": zod.coerce.string().optional(),
-  "brand_id": zod.coerce.number().optional()
+  "brand_id": zod.coerce.number().optional(),
+  "category_id": zod.coerce.number().optional()
 })
 
 export const SearchModelsResponse = zod.object({
@@ -218,6 +219,12 @@ export const CreateComboBody = zod.object({
 })
 // Alias
 export const CreateCompatibilityBody = CreateComboBody
+
+export const BulkCreateCompatibilitiesBody = zod.object({
+  "modelId": zod.number(),
+  "comboType": zod.enum(['OEM', 'Compatible', 'Refurbished']),
+  "names": zod.array(zod.string().min(1)).min(1),
+})
 
 export const GetComboParams = zod.object({ "id": zod.coerce.number() })
 export const GetComboResponse = CompatibilityShape

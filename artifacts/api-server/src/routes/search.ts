@@ -33,8 +33,22 @@ router.get("/search", async (req, res): Promise<void> => {
 
   const categoryWhere = categoryId ? eq(brandsTable.categoryId, categoryId) : undefined;
 
+  const comboSelect = {
+    id: compatibilitiesTable.id,
+    modelId: compatibilitiesTable.modelId,
+    modelName: modelsTable.name,
+    brandName: brandsTable.name,
+    categoryId: brandsTable.categoryId,
+    categoryName: categoriesTable.name,
+    name: compatibilitiesTable.name,
+    comboType: compatibilitiesTable.comboType,
+    qualityGrade: compatibilitiesTable.qualityGrade,
+    notes: compatibilitiesTable.notes,
+    createdAt: compatibilitiesTable.createdAt,
+  };
+
   if (q) {
-    const [brands, models] = await Promise.all([
+    const [brands, models, combos] = await Promise.all([
       db.select(brandSelect).from(brandsTable)
         .leftJoin(modelsTable, eq(modelsTable.brandId, brandsTable.id))
         .innerJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
@@ -46,8 +60,16 @@ router.get("/search", async (req, res): Promise<void> => {
         .innerJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
         .where(and(or(ilike(modelsTable.name, `%${q}%`), ilike(brandsTable.name, `%${q}%`)), categoryWhere))
         .groupBy(modelsTable.id, brandsTable.name),
+      // Compatibility entries matching by name (e.g. IC number, battery model code)
+      db.select(comboSelect).from(compatibilitiesTable)
+        .innerJoin(modelsTable, eq(modelsTable.id, compatibilitiesTable.modelId))
+        .innerJoin(brandsTable, eq(brandsTable.id, modelsTable.brandId))
+        .innerJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
+        .where(and(ilike(compatibilitiesTable.name, `%${q}%`), categoryWhere))
+        .orderBy(compatibilitiesTable.name)
+        .limit(20),
     ]);
-    res.json({ brands, models }); return;
+    res.json({ brands, models, combos }); return;
   }
   if (brandId) {
     const [brands, models] = await Promise.all([

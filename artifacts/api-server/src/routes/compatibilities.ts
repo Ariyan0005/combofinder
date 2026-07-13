@@ -40,6 +40,30 @@ router.get("/compatibilities", async (req, res): Promise<void> => {
   res.json(rows);
 });
 
+// POST /compatibilities/bulk — create many entries for one model in a single transaction
+router.post("/compatibilities/bulk", async (req, res): Promise<void> => {
+  const { modelId, comboType, names } = req.body;
+  const cleanNames: string[] = Array.isArray(names)
+    ? Array.from(new Set(names.map((n: unknown) => String(n).trim()).filter(Boolean)))
+    : [];
+  if (!modelId || !comboType || cleanNames.length === 0) {
+    res.status(400).json({ error: "modelId, comboType and a non-empty names array are required" }); return;
+  }
+
+  const inserted = await db.transaction(async (tx) => {
+    return tx.insert(compatibilitiesTable).values(
+      cleanNames.map((name) => ({ modelId: Number(modelId), name, comboType }))
+    ).returning();
+  });
+
+  const [model] = await db
+    .select({ name: modelsTable.name, brandName: brandsTable.name })
+    .from(modelsTable).innerJoin(brandsTable, eq(brandsTable.id, modelsTable.brandId))
+    .where(eq(modelsTable.id, Number(modelId)));
+
+  res.status(201).json(inserted.map((row) => ({ ...row, modelName: model?.name ?? "", brandName: model?.brandName ?? "" })));
+});
+
 // POST /compatibilities
 router.post("/compatibilities", async (req, res): Promise<void> => {
   const { modelId, name, comboType, qualityGrade, notes } = req.body;
