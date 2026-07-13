@@ -227,7 +227,7 @@ export default function BrandModels() {
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingModel(model)}>
                         <Edit2 className="h-3.5 w-3.5" />
                       </Button>
