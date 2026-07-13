@@ -52,6 +52,11 @@ export default function ModelDetail() {
     });
   }
 
+  async function apiError(res: Response): Promise<string> {
+    try { const j = await res.json(); return j?.error ?? j?.message ?? `HTTP ${res.status}`; }
+    catch { return `HTTP ${res.status}`; }
+  }
+
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: getGetModelQueryKey(modelId) });
   }
@@ -63,7 +68,7 @@ export default function ModelDetail() {
     const res = await apiCall("/api/compatibilities", "POST", { modelId, name: fd.get("name"), comboType: createType });
     setSaving(false);
     if (res.ok) { invalidate(); setIsCreateOpen(false); toast({ title: "Added" }); }
-    else { toast({ title: "Failed", variant: "destructive" }); }
+    else { toast({ title: "Failed", description: await apiError(res), variant: "destructive" }); }
   }
 
   function parseCsvNames(text: string): string[] {
@@ -84,7 +89,7 @@ export default function ModelDetail() {
       invalidate(); setIsBulkOpen(false); setBulkNames("");
       toast({ title: `${created.length}/${names.length} entries added` });
     } else {
-      toast({ title: "Bulk add failed", variant: "destructive" });
+      toast({ title: "Bulk add failed", description: await apiError(res), variant: "destructive" });
     }
   }
 
@@ -113,14 +118,14 @@ export default function ModelDetail() {
     });
     setSaving(false);
     if (res.ok) { invalidate(); setEditingCompat(null); toast({ title: "Updated" }); }
-    else { toast({ title: "Failed", variant: "destructive" }); }
+    else { toast({ title: "Update failed", description: await apiError(res), variant: "destructive" }); }
   }
 
   async function handleDelete(id: number) {
     if (!confirm("Delete this entry?")) return;
     const res = await apiCall(`/api/compatibilities/${id}`, "DELETE");
     if (res.ok) { invalidate(); toast({ title: "Deleted" }); }
-    else { toast({ title: "Failed", variant: "destructive" }); }
+    else { toast({ title: "Delete failed", description: await apiError(res), variant: "destructive" }); }
   }
 
   if (isLoading) return <div className="flex justify-center py-16"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
