@@ -1,13 +1,12 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { Search, Grid2x2, Home, Wrench, Smartphone } from "lucide-react";
+import { Search, Grid2x2, Home, Smartphone } from "lucide-react";
 
 export default function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const navLinks = [
     { href: "/", label: "Search", icon: Search },
     { href: "/brands", label: "Brands", icon: Grid2x2 },
-    { href: "/parts", label: "Parts", icon: Wrench },
   ];
 
   const isActive = (href: string) =>
@@ -49,7 +48,6 @@ export default function Layout({ children }: { children: ReactNode }) {
         {[
           { href: "/", label: "Search", icon: Home },
           { href: "/brands", label: "Brands", icon: Grid2x2 },
-          { href: "/parts", label: "Parts", icon: Wrench },
         ].map(({ href, label, icon: Icon }) => {
           const active = isActive(href);
           return (

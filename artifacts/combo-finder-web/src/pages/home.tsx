@@ -3,8 +3,8 @@ import { useLocation, Link } from "wouter";
 import { useGetStats, useSearchModels } from "@workspace/api-client-react";
 import {
   Search, Smartphone, Layers, ChevronRight,
-  Battery, Zap, Cpu, Wrench, ShieldCheck, ExternalLink,
-  MoreHorizontal, Download
+  Battery, Cpu, Wrench, ShieldCheck, ExternalLink,
+  Download
 } from "lucide-react";
 
 function MobileLcdIcon({ className }: { className?: string }) {
@@ -18,10 +18,9 @@ function MobileLcdIcon({ className }: { className?: string }) {
 }
 
 const SHORTCUTS = [
-  { label: "LCD / Display", icon: MobileLcdIcon, color: "bg-blue-500", href: "/" },
-  { label: "Battery", icon: Battery, color: "bg-emerald-500", href: "/parts?cat=Battery" },
-  { label: "IC Compatible", icon: Cpu, color: "bg-violet-500", href: "/parts?cat=IC+Compatible" },
-  { label: "More Parts", icon: MoreHorizontal, color: "bg-slate-500", href: "/parts" },
+  { label: "LCD / Display", icon: MobileLcdIcon, color: "bg-blue-500", href: "/compatibility?category=display" },
+  { label: "Battery", icon: Battery, color: "bg-emerald-500", href: "/compatibility?category=battery" },
+  { label: "IC Compatible", icon: Cpu, color: "bg-violet-500", href: "/compatibility?category=ic" },
 ];
 
 export default function Home() {
@@ -146,8 +145,8 @@ export default function Home() {
           {/* Quick categories */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-bold text-foreground">Spare Parts</p>
-              <Link href="/parts" className="text-xs text-primary font-semibold hover:underline">View all →</Link>
+              <p className="text-sm font-bold text-foreground">Compatibility Database</p>
+              <Link href="/compatibility" className="text-xs text-primary font-semibold hover:underline">View all →</Link>
             </div>
             <div className="grid grid-cols-2 gap-2.5">
               {SHORTCUTS.map(({ label, icon: Icon, color, href }) => (

@@ -113,7 +113,7 @@ export default function Compatibility() {
     updateUrl(slug);
   }
 
-  const { data: searchResults, isLoading: searching } = useQuery<{ brands?: any[]; models?: any[] }>({
+  const { data: searchResults, isLoading: searching } = useQuery<{ brands?: any[]; models?: any[]; combos?: any[] }>({
     queryKey: ["search", debouncedQuery, selectedCategoryId],
     queryFn: () =>
       fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}${selectedCategoryId ? `&category_id=${selectedCategoryId}` : ""}`, { credentials: "include" }).then(r => r.json()),
@@ -145,6 +145,7 @@ export default function Compatibility() {
 
   const allModels = Array.isArray(searchResults?.models) ? searchResults!.models : [];
   const allBrands = Array.isArray(searchResults?.brands) ? searchResults!.brands : [];
+  const allCombos = Array.isArray(searchResults?.combos) ? searchResults!.combos : [];
   const brandList = Array.isArray(brands) ? brands.slice(0, 10) : [];
 
   function modelLink(id: number) {
@@ -189,7 +190,7 @@ export default function Compatibility() {
           <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2" style={{ color: MUTED }} />
           <input
             type="text"
-            placeholder="Search model or part…"
+            placeholder={selectedSlug === "ic" ? "Search by IC number…" : "Search model or part…"}
             value={query}
             onChange={e => setQuery(e.target.value)}
             className="w-full pl-11 pr-10 py-3.5 rounded-2xl border text-sm outline-none transition-all"
@@ -330,7 +331,34 @@ export default function Compatibility() {
                   </div>
                 </div>
               )}
-              {allBrands.length === 0 && allModels.length === 0 && (
+              {allCombos.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: MUTED }}>
+                    {selectedSlug === "ic" ? "IC Numbers" : "Compatible Parts"}
+                  </p>
+                  <div className="rounded-2xl border divide-y overflow-hidden" style={{ borderColor: BORDER, background: CARD }}>
+                    {allCombos.map((c: any) => (
+                      <Link key={c.id} href={modelLink(c.modelId)}>
+                        <div onClick={() => handleSearchSelect(c.name)}
+                          className="flex items-center justify-between px-4 py-3 cursor-pointer transition-colors hover:bg-muted/30">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                              style={{ background: "hsl(var(--muted))" }}>
+                              <Layers className="w-4 h-4" style={{ color: MUTED }} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold truncate">{c.name}</p>
+                              <p className="text-[10px] truncate" style={{ color: MUTED }}>{c.brandName} {c.modelName} · {c.comboType}</p>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-4 h-4 flex-shrink-0 ml-2" style={{ color: MUTED }} />
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {allBrands.length === 0 && allModels.length === 0 && allCombos.length === 0 && (
                 <div className="text-center py-12 rounded-2xl border border-dashed" style={{ borderColor: BORDER }}>
                   <Smartphone className="w-9 h-9 mx-auto mb-2" style={{ color: MUTED, opacity: 0.4 }} />
                   <p className="text-sm font-semibold">No results for "{debouncedQuery}"</p>
