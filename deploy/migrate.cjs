@@ -121,6 +121,52 @@ const MIGRATIONS = [
   )`,
   `ALTER TABLE ledger_entries ADD COLUMN IF NOT EXISTS item_name TEXT`,
 
+  // ── Categories (for compatibility sections: Display, Battery, IC) ──────
+  `CREATE TABLE IF NOT EXISTS categories (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+  )`,
+
+  // ── Brands ────────────────────────────────────────────────────────────
+  `CREATE TABLE IF NOT EXISTS brands (
+    id SERIAL PRIMARY KEY,
+    category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+    name TEXT NOT NULL,
+    logo_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+  )`,
+  `ALTER TABLE brands ALTER COLUMN category_id DROP NOT NULL`,
+
+  // ── Models ────────────────────────────────────────────────────────────
+  `CREATE TABLE IF NOT EXISTS models (
+    id SERIAL PRIMARY KEY,
+    brand_id INTEGER NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    release_year INTEGER,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+  )`,
+
+  // ── Compatibilities ───────────────────────────────────────────────────
+  `CREATE TABLE IF NOT EXISTS compatibilities (
+    id SERIAL PRIMARY KEY,
+    model_id INTEGER NOT NULL REFERENCES models(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    combo_type TEXT NOT NULL,
+    quality_grade TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+  )`,
+  // If previous agent added category_id as NOT NULL, make it nullable
+  `DO $ BEGIN
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'compatibilities' AND column_name = 'category_id'
+    ) THEN
+      ALTER TABLE compatibilities ALTER COLUMN category_id DROP NOT NULL;
+    END IF;
+  END $`,
+
   // ── Password Reset Tokens ─────────────────────────────────────────────
   `CREATE TABLE IF NOT EXISTS password_reset_tokens (
     id SERIAL PRIMARY KEY,
