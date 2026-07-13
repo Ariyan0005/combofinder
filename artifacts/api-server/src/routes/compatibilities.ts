@@ -26,7 +26,7 @@ router.get("/compatibilities", async (req, res): Promise<void> => {
     .from(compatibilitiesTable)
     .innerJoin(modelsTable, eq(modelsTable.id, compatibilitiesTable.modelId))
     .innerJoin(brandsTable, eq(brandsTable.id, modelsTable.brandId))
-    .innerJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId));
+    .leftJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId));
 
   if (modelId) {
     const rows = await baseQuery.where(eq(compatibilitiesTable.modelId, modelId)).orderBy(compatibilitiesTable.name);

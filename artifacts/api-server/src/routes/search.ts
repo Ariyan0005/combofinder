@@ -51,20 +51,20 @@ router.get("/search", async (req, res): Promise<void> => {
     const [brands, models, combos] = await Promise.all([
       db.select(brandSelect).from(brandsTable)
         .leftJoin(modelsTable, eq(modelsTable.brandId, brandsTable.id))
-        .innerJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
+        .leftJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
         .where(and(ilike(brandsTable.name, `%${q}%`), categoryWhere))
         .groupBy(brandsTable.id),
       db.select(modelSelect).from(modelsTable)
         .innerJoin(brandsTable, eq(brandsTable.id, modelsTable.brandId))
         .leftJoin(compatibilitiesTable, eq(compatibilitiesTable.modelId, modelsTable.id))
-        .innerJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
+        .leftJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
         .where(and(or(ilike(modelsTable.name, `%${q}%`), ilike(brandsTable.name, `%${q}%`)), categoryWhere))
         .groupBy(modelsTable.id, brandsTable.name),
       // Compatibility entries matching by name (e.g. IC number, battery model code)
       db.select(comboSelect).from(compatibilitiesTable)
         .innerJoin(modelsTable, eq(modelsTable.id, compatibilitiesTable.modelId))
         .innerJoin(brandsTable, eq(brandsTable.id, modelsTable.brandId))
-        .innerJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
+        .leftJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
         .where(and(ilike(compatibilitiesTable.name, `%${q}%`), categoryWhere))
         .orderBy(compatibilitiesTable.name)
         .limit(20),
@@ -75,12 +75,12 @@ router.get("/search", async (req, res): Promise<void> => {
     const [brands, models] = await Promise.all([
       db.select(brandSelect).from(brandsTable)
         .leftJoin(modelsTable, eq(modelsTable.brandId, brandsTable.id))
-        .innerJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
+        .leftJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
         .where(and(eq(brandsTable.id, brandId), categoryWhere)).groupBy(brandsTable.id),
       db.select(modelSelect).from(modelsTable)
         .innerJoin(brandsTable, eq(brandsTable.id, modelsTable.brandId))
         .leftJoin(compatibilitiesTable, eq(compatibilitiesTable.modelId, modelsTable.id))
-        .innerJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
+        .leftJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
         .where(and(eq(modelsTable.brandId, brandId), categoryWhere)).groupBy(modelsTable.id, brandsTable.name),
     ]);
     res.json({ brands, models }); return;
@@ -88,13 +88,13 @@ router.get("/search", async (req, res): Promise<void> => {
   const [brands, models] = await Promise.all([
     db.select(brandSelect).from(brandsTable)
       .leftJoin(modelsTable, eq(modelsTable.brandId, brandsTable.id))
-      .innerJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
+      .leftJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
       .where(categoryWhere)
       .groupBy(brandsTable.id).limit(20),
     db.select(modelSelect).from(modelsTable)
       .innerJoin(brandsTable, eq(brandsTable.id, modelsTable.brandId))
       .leftJoin(compatibilitiesTable, eq(compatibilitiesTable.modelId, modelsTable.id))
-      .innerJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
+      .leftJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
       .where(categoryWhere)
       .groupBy(modelsTable.id, brandsTable.name).limit(20),
   ]);
