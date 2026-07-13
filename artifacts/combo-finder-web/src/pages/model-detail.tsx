@@ -1,7 +1,10 @@
 import { useState, type ElementType } from "react";
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle, BadgeCheck, Repeat2, Copy, Check, ZoomIn, ZoomOut, X, ExternalLink, Cpu } from "lucide-react";
+import {
+  ArrowLeft, CheckCircle, BadgeCheck, Repeat2,
+  Share2, Check, ZoomIn, ZoomOut, X, ExternalLink,
+} from "lucide-react";
 
 type CompatType = "OEM" | "Compatible" | "Refurbished";
 
@@ -16,24 +19,32 @@ type Compatibility = {
   qualityGrade?: string | null; notes?: string | null;
 };
 
-type Pinout = {
-  id: number; title: string; deviceBrand?: string; deviceModel?: string;
-  fileUrl?: string; thumbnailUrl?: string;
-};
+function ShareButton({ title, text }: { title: string; text: string }) {
+  const [shared, setShared] = useState(false);
 
-const MUTED  = "hsl(var(--muted-foreground))";
-const BORDER = "hsl(var(--border))";
-const CARD   = "hsl(var(--card))";
-const PRIMARY = "hsl(var(--primary))";
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text, url });
+      } catch { /* user cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(url);
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    }
+  };
 
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
   return (
-    <button onClick={async () => { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-      className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors"
-      style={{ color: MUTED }}>
-      {copied ? <Check className="w-3.5 h-3.5" style={{ color: "#10B981" }} /> : <Copy className="w-3.5 h-3.5" />}
-      {copied ? "Copied!" : "Copy"}
+    <button
+      onClick={handleShare}
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all active:scale-95"
+      style={{ background: "#F1F5F9", color: "#64748B" }}
+    >
+      {shared
+        ? <><Check className="w-4 h-4" style={{ color: "#10B981" }} /> Copied!</>
+        : <><Share2 className="w-4 h-4" /> Share</>
+      }
     </button>
   );
 }
@@ -74,7 +85,7 @@ function ImageModal({ src, title, link, onClose }: { src: string; title: string;
         {link && (
           <a href={link} target="_blank" rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm"
-            style={{ background: PRIMARY, color: "#fff" }}>
+            style={{ background: "#6C47FF", color: "#fff" }}>
             <ExternalLink className="w-4 h-4" /> Open Full Size
           </a>
         )}
@@ -82,8 +93,6 @@ function ImageModal({ src, title, link, onClose }: { src: string; title: string;
     </div>
   );
 }
-
-type MainTab = CompatType;
 
 function useModel(id: number) {
   return useQuery({
@@ -99,91 +108,109 @@ export default function ModelDetail() {
   const modelId = Number(id);
 
   const { data: model, isLoading } = useModel(modelId);
-
   const compatibilities: Compatibility[] = model?.combos ?? [];
 
-  const [activeTab, setActiveTab] = useState<MainTab>("Compatible");
-
-  const tabs: { key: MainTab; label: string }[] = [
-    { key: "OEM",         label: `OEM (${compatibilities.filter(c => c.comboType === "OEM").length})` },
-    { key: "Compatible",  label: `Compatible (${compatibilities.filter(c => c.comboType === "Compatible").length})` },
-    { key: "Refurbished", label: `Refurbished (${compatibilities.filter(c => c.comboType === "Refurbished").length})` },
-  ].filter(t => compatibilities.some(c => c.comboType === t.key) || t.key === "Compatible");
-
   if (isLoading) return (
-    <div className="flex justify-center py-16">
-      <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: PRIMARY, borderTopColor: "transparent" }} />
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "#F1F5F9" }}>
+      <div className="w-7 h-7 border-[3px] border-t-transparent rounded-full animate-spin" style={{ borderColor: "#6C47FF", borderTopColor: "transparent" }} />
     </div>
   );
 
+  // Build breadcrumb: category → brand, or just brand
+  const breadcrumb = [model?.categoryName, model?.brandName]
+    .filter(Boolean)
+    .join(" / ") || "—";
+
   return (
-    <div className="min-h-screen pb-16" style={{ background: "hsl(var(--background))" }}>
-      {/* Header */}
-      <div className="px-4 pt-4 pb-2 flex items-center gap-3">
-        <button onClick={() => window.history.back()}
-          className="w-9 h-9 rounded-full flex items-center justify-center"
-          style={{ background: "hsl(var(--card))", border: `1px solid ${BORDER}` }}>
-          <ArrowLeft className="w-4.5 h-4.5" style={{ color: MUTED }} />
+    <div className="min-h-screen pb-20" style={{ background: "#F1F5F9" }}>
+
+      {/* Back button */}
+      <div className="px-4 pt-5 pb-3">
+        <button
+          onClick={() => window.history.back()}
+          className="flex items-center gap-1.5 text-sm font-medium"
+          style={{ color: "#64748B" }}
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
         </button>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: MUTED }}>{model?.brandName}</p>
-          <h1 className="text-xl font-extrabold leading-tight truncate">{model?.name}</h1>
-        </div>
-        <CopyButton text={model?.name ?? ""} />
       </div>
 
-      {/* Tabs */}
-      <div className="px-4 overflow-x-auto">
-        <div className="flex gap-2 py-2 w-max">
-          {tabs.map(tab => {
-            const isActive = activeTab === tab.key;
-            return (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                className="px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all"
-                style={isActive
-                  ? { background: PRIMARY, color: "#fff" }
-                  : { background: "hsl(var(--muted))", color: MUTED }}>
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {/* Model card */}
+      <div className="mx-4 rounded-2xl bg-white shadow-sm overflow-hidden">
+        <div className="px-4 pt-4 pb-5">
+          {/* Breadcrumb */}
+          <p className="text-xs font-semibold mb-1" style={{ color: "#6C47FF" }}>
+            {breadcrumb}
+          </p>
 
-      {/* Tab content */}
-      {(() => {
-        const filtered = compatibilities.filter(c => c.comboType === activeTab);
-        const cfg = compatTypeConfig[activeTab];
-        if (filtered.length === 0) return (
-          <div className="px-4 py-12 text-center">
-            <p className="text-sm font-medium" style={{ color: MUTED }}>No {cfg.label} entries available.</p>
+          {/* Name + share row */}
+          <div className="flex items-start justify-between gap-2">
+            <h1 className="text-2xl font-extrabold leading-tight flex-1" style={{ color: "#0F172A" }}>
+              {model?.name}
+            </h1>
+            <div className="pt-1">
+              <ShareButton title={model?.name ?? "ComboFinder"} text={`Check out ${model?.name} on ComboFinder`} />
+            </div>
           </div>
-        );
-        return (
-          <div className="px-4 space-y-2 mt-2">
-            {filtered.map((c) => {
+
+          {/* Availability dot */}
+          <div className="mt-3 flex items-center gap-2">
+            <span
+              className="inline-block w-3.5 h-3.5 rounded-full"
+              style={{ background: "#22C55E", boxShadow: "0 0 0 3px rgba(34,197,94,0.25)" }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Combos section */}
+      <div className="mt-5 px-4">
+        <p className="text-xs font-bold tracking-widest uppercase mb-3" style={{ color: "#94A3B8" }}>
+          Display Combos ({compatibilities.length})
+        </p>
+
+        {compatibilities.length === 0 ? (
+          <div className="bg-white rounded-2xl shadow-sm px-4 py-10 text-center">
+            <p className="text-sm font-medium" style={{ color: "#94A3B8" }}>
+              No combos available for this model yet
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {compatibilities.map(c => {
+              const cfg = compatTypeConfig[c.comboType] ?? compatTypeConfig["Compatible"];
               const Icon = cfg.icon;
               return (
-                <div key={c.id} className="p-4 flex items-start justify-between gap-3 rounded-2xl border"
-                  style={{ background: CARD, borderColor: BORDER }}>
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                      style={{ background: cfg.bg }}>
-                      <Icon className="w-4 h-4" style={{ color: cfg.color }} />
-                    </div>
-                    <div>
-                      <p className="font-bold text-sm leading-snug">{c.name}</p>
-                      {c.qualityGrade && <p className="text-xs mt-0.5 font-semibold" style={{ color: MUTED }}>Grade: {c.qualityGrade}</p>}
-                      {c.notes && <p className="text-xs mt-1" style={{ color: MUTED }}>{c.notes}</p>}
-                    </div>
+                <div key={c.id}
+                  className="bg-white rounded-2xl shadow-sm px-4 py-3.5 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+                    style={{ background: cfg.bg }}>
+                    <Icon className="w-4 h-4" style={{ color: cfg.color }} />
                   </div>
-                  <CopyButton text={c.name} />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm leading-snug" style={{ color: "#0F172A" }}>{c.name}</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{ background: cfg.bg, color: cfg.color }}>
+                        {c.comboType}
+                      </span>
+                      {c.qualityGrade && (
+                        <span className="text-[11px] font-medium" style={{ color: "#64748B" }}>
+                          Grade: {c.qualityGrade}
+                        </span>
+                      )}
+                    </div>
+                    {c.notes && (
+                      <p className="text-xs mt-1" style={{ color: "#94A3B8" }}>{c.notes}</p>
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
-        );
-      })()}
+        )}
+      </div>
     </div>
   );
 }
