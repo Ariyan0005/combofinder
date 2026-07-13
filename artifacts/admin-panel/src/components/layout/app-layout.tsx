@@ -32,10 +32,7 @@ const navigationGroups = [
     key: "database",
     label: "Database",
     items: [
-      { name: "Brands", href: "/brands", icon: Layers },
-      { name: "Models", href: "/brands", icon: Smartphone },
-      { name: "Parts Compatibility", href: "/parts", icon: Cpu },
-      { name: "Compatibility Database", href: "/compatibilities", icon: Database },
+      { name: "Compatibility Database", href: "/brands", icon: Database },
       { name: "Issues & Fixes", href: "/issues-fixes", icon: WrenchIcon },
       { name: "Schematics", href: "/schematics", icon: FolderOpen },
       { name: "ISP & Pinout", href: "/isp-pinout", icon: Cpu, badge: "New" },

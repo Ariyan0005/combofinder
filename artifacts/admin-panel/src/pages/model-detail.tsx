@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ChangeEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
 import { useGetModel } from "@workspace/api-client-react";
@@ -66,18 +66,41 @@ export default function ModelDetail() {
     else { toast({ title: "Failed", variant: "destructive" }); }
   }
 
-  async function handleBulkAdd() {
-    const names = bulkNames.split("\n").map(n => n.trim()).filter(Boolean);
+  function parseCsvNames(text: string): string[] {
+    // Accepts a plain list or CSV with a header row; takes the first column as the name.
+    return text
+      .split(/\r?\n/)
+      .map(line => line.split(",")[0]?.trim())
+      .filter((n): n is string => !!n && n.toLowerCase() !== "name");
+  }
+
+  async function submitBulkNames(names: string[]) {
     if (!names.length) return;
     setSaving(true);
-    let ok = 0;
-    for (const name of names) {
-      const res = await apiCall("/api/compatibilities", "POST", { modelId, name, comboType: bulkType });
-      if (res.ok) ok++;
-    }
+    const res = await apiCall("/api/compatibilities/bulk", "POST", { modelId, comboType: bulkType, names });
     setSaving(false);
-    invalidate(); setIsBulkOpen(false); setBulkNames("");
-    toast({ title: `${ok}/${names.length} entries added` });
+    if (res.ok) {
+      const created = await res.json();
+      invalidate(); setIsBulkOpen(false); setBulkNames("");
+      toast({ title: `${created.length}/${names.length} entries added` });
+    } else {
+      toast({ title: "Bulk add failed", variant: "destructive" });
+    }
+  }
+
+  async function handleBulkAdd() {
+    const names = bulkNames.split("\n").map(n => n.trim()).filter(Boolean);
+    await submitBulkNames(names);
+  }
+
+  async function handleCsvUpload(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const text = await file.text();
+    const names = parseCsvNames(text);
+    if (!names.length) { toast({ title: "No names found in file", variant: "destructive" }); return; }
+    await submitBulkNames(names);
   }
 
   async function handleUpdate(e: FormEvent<HTMLFormElement>) {
@@ -217,6 +240,15 @@ export default function ModelDetail() {
             <div className="space-y-1.5">
               <Label>Names <span className="text-muted-foreground">(one per line)</span></Label>
               <Textarea rows={7} placeholder={"A18\nA17k\nA38"} value={bulkNames} onChange={e => setBulkNames(e.target.value)} />
+            </div>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+              <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">or</span></div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Upload CSV / Excel (.csv)</Label>
+              <Input type="file" accept=".csv,text/csv" onChange={handleCsvUpload} disabled={saving} />
+              <p className="text-xs text-muted-foreground">One name per row, optional header row, first column used.</p>
             </div>
           </div>
           <DialogFooter>

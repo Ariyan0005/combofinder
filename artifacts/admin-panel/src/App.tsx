@@ -9,9 +9,7 @@ import Dashboard from "@/pages/dashboard";
 import Brands from "@/pages/brands";
 import BrandModels from "@/pages/brand-models";
 import ModelDetail from "@/pages/model-detail";
-import Compatibilities from "@/pages/compatibilities";
 import Search from "@/pages/search";
-import Parts from "@/pages/parts";
 import Repairs from "@/pages/repairs";
 import Customers from "@/pages/customers";
 import Inventory from "@/pages/inventory";
@@ -89,8 +87,6 @@ function Router() {
         <Route path="/brands" component={Brands} />
         <Route path="/brands/:id/models" component={BrandModels} />
         <Route path="/models/:id" component={ModelDetail} />
-        <Route path="/compatibilities" component={Compatibilities} />
-        <Route path="/parts" component={Parts} />
         <Route path="/issues-fixes" component={IssuesFixes} />
         <Route path="/schematics" component={Schematics} />
         <Route path="/isp-pinout" component={IspPinoutAdmin} />

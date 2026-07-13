@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { 
   useGetBrands, 
@@ -18,11 +18,30 @@ import { Plus, Edit2, Trash2, Smartphone, Search, Layers, ChevronRight } from "l
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+const ALL = "all";
 
 export default function Brands() {
   const [search, setSearch] = useState("");
+  const [activeCategorySlug, setActiveCategorySlug] = useState<string>(ALL);
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: ["categories"],
+    queryFn: () => fetch(`/api/categories`, { credentials: "include" }).then(r => r.json()),
+  });
   const { data: brands = [], isLoading } = useGetBrands();
-  const filteredBrands = brands.filter(b => b.name.toLowerCase().includes(search.toLowerCase()));
+  const activeCategory = categories.find(c => c.slug === activeCategorySlug);
+  const filteredBrands = brands
+    .filter(b => b.name.toLowerCase().includes(search.toLowerCase()))
+    .filter(b => activeCategorySlug === ALL || b.categoryId === activeCategory?.id);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
@@ -39,8 +58,9 @@ export default function Brands() {
     const formData = new FormData(e.currentTarget);
     const name = formData.get("name") as string;
     const logoUrl = formData.get("logoUrl") as string;
+    const categoryIdRaw = formData.get("categoryId") as string;
     createBrand.mutate(
-      { data: { name, logoUrl } },
+      { data: { name, logoUrl, categoryId: categoryIdRaw ? Number(categoryIdRaw) : undefined } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetBrandsQueryKey() });
@@ -58,8 +78,9 @@ export default function Brands() {
     const formData = new FormData(e.currentTarget);
     const name = formData.get("name") as string;
     const logoUrl = formData.get("logoUrl") as string;
+    const categoryIdRaw = formData.get("categoryId") as string;
     updateBrand.mutate(
-      { id: editingBrand.id, data: { name, logoUrl } },
+      { id: editingBrand.id, data: { name, logoUrl, categoryId: categoryIdRaw ? Number(categoryIdRaw) : undefined } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetBrandsQueryKey() });
@@ -90,12 +111,35 @@ export default function Brands() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Brands</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage phone manufacturers and brands.</p>
+          <h1 className="text-2xl font-bold tracking-tight">Compatibility Database</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Manage brands, models, and part compatibility by category.</p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)} className="gap-2 h-9 px-4 text-sm">
           <Plus className="h-4 w-4" /> Add Brand
         </Button>
+      </div>
+
+      {/* Category tabs */}
+      <div className="flex gap-2 flex-wrap">
+        <Button
+          size="sm"
+          variant={activeCategorySlug === ALL ? "default" : "outline"}
+          onClick={() => setActiveCategorySlug(ALL)}
+          className="h-8 text-xs"
+        >
+          All
+        </Button>
+        {categories.map((c) => (
+          <Button
+            key={c.id}
+            size="sm"
+            variant={activeCategorySlug === c.slug ? "default" : "outline"}
+            onClick={() => setActiveCategorySlug(c.slug)}
+            className="h-8 text-xs"
+          >
+            {c.name}
+          </Button>
+        ))}
       </div>
 
       {/* Search */}
@@ -123,6 +167,7 @@ export default function Brands() {
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead className="font-semibold text-xs uppercase tracking-wider">Brand</TableHead>
+              <TableHead className="font-semibold text-xs uppercase tracking-wider">Category</TableHead>
               <TableHead className="font-semibold text-xs uppercase tracking-wider">Models</TableHead>
               <TableHead className="font-semibold text-xs uppercase tracking-wider hidden sm:table-cell">Added</TableHead>
               <TableHead className="text-right font-semibold text-xs uppercase tracking-wider">Actions</TableHead>
@@ -132,14 +177,14 @@ export default function Brands() {
             {isLoading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={4} className="h-12">
+                  <TableCell colSpan={5} className="h-12">
                     <div className="h-4 bg-muted animate-pulse rounded w-40" />
                   </TableCell>
                 </TableRow>
               ))
             ) : filteredBrands.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-32 text-center">
+                <TableCell colSpan={5} className="h-32 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <Layers className="h-8 w-8 text-muted-foreground opacity-30" />
                     <span className="text-sm text-muted-foreground">No brands found</span>
@@ -163,6 +208,11 @@ export default function Brands() {
                         <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover/link:opacity-100 transition-opacity" />
                       </div>
                     </Link>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs text-muted-foreground">
+                      {categories.find(c => c.id === brand.categoryId)?.name ?? "—"}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">
@@ -212,6 +262,19 @@ export default function Brands() {
                 <Input id="name" name="name" required autoFocus placeholder="e.g. Samsung" />
               </div>
               <div className="space-y-1.5">
+                <Label htmlFor="categoryId">Category *</Label>
+                <Select name="categoryId" defaultValue={activeCategorySlug !== ALL ? String(activeCategory?.id) : undefined} required>
+                  <SelectTrigger id="categoryId">
+                    <SelectValue placeholder="Select part type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
                 <Label htmlFor="logoUrl">Logo URL <span className="text-muted-foreground">(optional)</span></Label>
                 <Input id="logoUrl" name="logoUrl" type="url" placeholder="https://..." />
               </div>
@@ -237,6 +300,19 @@ export default function Brands() {
               <div className="space-y-1.5">
                 <Label htmlFor="edit-name">Brand Name *</Label>
                 <Input id="edit-name" name="name" defaultValue={editingBrand?.name} required autoFocus />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-categoryId">Category *</Label>
+                <Select name="categoryId" defaultValue={editingBrand?.categoryId ? String(editingBrand.categoryId) : undefined} required>
+                  <SelectTrigger id="edit-categoryId">
+                    <SelectValue placeholder="Select part type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="edit-logoUrl">Logo URL <span className="text-muted-foreground">(optional)</span></Label>
