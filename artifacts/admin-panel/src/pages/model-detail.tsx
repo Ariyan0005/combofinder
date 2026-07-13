@@ -187,7 +187,7 @@ export default function ModelDetail() {
                 <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">{c.qualityGrade || "—"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground hidden md:table-cell max-w-xs truncate">{c.notes || "—"}</TableCell>
                 <TableCell className="text-right">
-                  <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex justify-end gap-1">
                     <Button variant="ghost" size="icon" className="h-7 w-7"
                       onClick={() => { setEditingCompat(c); setEditType(c.comboType as CompatType); }}>
                       <Edit2 className="h-3.5 w-3.5" />

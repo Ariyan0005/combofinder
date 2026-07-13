@@ -59,7 +59,11 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const status: number =
     typeof err.status === "number" ? err.status :
     typeof err.statusCode === "number" ? err.statusCode : 500;
-  const message: string = err.message ?? "Internal server error";
+  const cause = (err.cause as any)?.message ?? (err.cause as any)?.detail ?? "";
+  const message: string = cause
+    ? `${err.message ?? "Internal server error"} — DB: ${cause}`
+    : (err.message ?? "Internal server error");
+  logger.error({ err }, "Unhandled error");
   res.status(status).json({ error: message });
 });
 
