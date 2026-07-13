@@ -1,5 +1,5 @@
 import { useState, type ElementType } from "react";
-import { useParams, useLocation } from "wouter";
+import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CheckCircle, BadgeCheck, Repeat2, Copy, Check, ZoomIn, ZoomOut, X, ExternalLink, Cpu } from "lucide-react";
 
@@ -97,7 +97,6 @@ function useModel(id: number) {
 export default function ModelDetail() {
   const { id } = useParams<{ id: string }>();
   const modelId = Number(id);
-  const [, navigate] = useLocation();
 
   const { data: model, isLoading } = useModel(modelId);
 
@@ -106,8 +105,10 @@ export default function ModelDetail() {
   const [activeTab, setActiveTab] = useState<MainTab>("Compatible");
 
   const tabs: { key: MainTab; label: string }[] = [
-    { key: "Compatible", label: `Compatible (${compatibilities.filter(c => c.comboType === "Compatible").length})` },
-  ];
+    { key: "OEM",         label: `OEM (${compatibilities.filter(c => c.comboType === "OEM").length})` },
+    { key: "Compatible",  label: `Compatible (${compatibilities.filter(c => c.comboType === "Compatible").length})` },
+    { key: "Refurbished", label: `Refurbished (${compatibilities.filter(c => c.comboType === "Refurbished").length})` },
+  ].filter(t => compatibilities.some(c => c.comboType === t.key) || t.key === "Compatible");
 
   if (isLoading) return (
     <div className="flex justify-center py-16">
@@ -119,7 +120,7 @@ export default function ModelDetail() {
     <div className="min-h-screen pb-16" style={{ background: "hsl(var(--background))" }}>
       {/* Header */}
       <div className="px-4 pt-4 pb-2 flex items-center gap-3">
-        <button onClick={() => navigate(-1 as any)}
+        <button onClick={() => window.history.back()}
           className="w-9 h-9 rounded-full flex items-center justify-center"
           style={{ background: "hsl(var(--card))", border: `1px solid ${BORDER}` }}>
           <ArrowLeft className="w-4.5 h-4.5" style={{ color: MUTED }} />
@@ -151,8 +152,8 @@ export default function ModelDetail() {
 
       {/* Tab content */}
       {(() => {
-        const filtered = compatibilities.filter(c => c.comboType === "Compatible");
-        const cfg = compatTypeConfig["Compatible"];
+        const filtered = compatibilities.filter(c => c.comboType === activeTab);
+        const cfg = compatTypeConfig[activeTab];
         if (filtered.length === 0) return (
           <div className="px-4 py-12 text-center">
             <p className="text-sm font-medium" style={{ color: MUTED }}>No {cfg.label} entries available.</p>
