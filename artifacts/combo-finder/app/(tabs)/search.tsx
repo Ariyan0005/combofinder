@@ -1,9 +1,11 @@
 import { Feather } from "@expo/vector-icons";
 import {
+  customFetch,
   useGetBrands,
   useGetStats,
   useSearchModels,
 } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -21,15 +23,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 
-// ─── Category chips ────────────────────────────────────────────────────────────
-const CATEGORIES = [
-  { id: "all", label: "All", icon: "grid" },
-  { id: "display", label: "Display", icon: "monitor" },
-  { id: "battery", label: "Battery", icon: "battery-charging" },
-  { id: "ic", label: "IC", icon: "cpu" },
-  { id: "connector", label: "Connector", icon: "zap" },
-  { id: "more", label: "More", icon: "more-horizontal" },
-] as const;
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  icon?: string | null;
+}
+
+// Icons shown for each known category slug; falls back to "layers".
+const CATEGORY_ICONS: Record<string, string> = {
+  display: "monitor",
+  battery: "battery-charging",
+  ic: "cpu",
+};
+
+const ALL_CATEGORY = "all";
 
 // ─── Brand avatar (colored initials) ──────────────────────────────────────────
 const BRAND_COLORS = [
@@ -113,7 +121,7 @@ export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState("all");
+  const [activeCategory, setActiveCategory] = useState<string>(ALL_CATEGORY);
 
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
@@ -121,16 +129,27 @@ export default function SearchScreen() {
 
   const { data: stats } = useGetStats();
   const { data: brands, isLoading: loadingBrands } = useGetBrands();
+  const { data: categories } = useQuery<Category[]>({
+    queryKey: ["categories"],
+    queryFn: () => customFetch<Category[]>("/api/categories"),
+  });
+
+  const activeCategoryObj = categories?.find((c) => c.slug === activeCategory);
+  const categoryId = activeCategory === ALL_CATEGORY ? undefined : activeCategoryObj?.id;
+
+  const filteredBrands = (brands ?? []).filter(
+    (b) => categoryId === undefined || b.categoryId === categoryId
+  );
 
   const { data: results, isLoading: searching } = useSearchModels(
-    { q: query },
+    { q: query, category_id: categoryId },
     { query: { enabled: query.length >= 2 } }
   );
 
   const hasSearch = query.length >= 2;
 
   const allItems: Array<{
-    type: "brand" | "model";
+    type: "brand" | "model" | "combo";
     id: number;
     name: string;
     subtitle?: string;
@@ -148,6 +167,12 @@ export default function SearchScreen() {
           name: m.name,
           subtitle: `${m.brandName} · ${m.comboCount} combo${m.comboCount !== 1 ? "s" : ""}`,
         })),
+        ...(results?.combos ?? []).map((c) => ({
+          type: "combo" as const,
+          id: c.modelId,
+          name: c.name,
+          subtitle: `${c.brandName} ${c.modelName} · ${c.comboType}`,
+        })),
       ]
     : [];
 
@@ -161,7 +186,7 @@ export default function SearchScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Popular Brands
+            {activeCategoryObj ? `${activeCategoryObj.name} Brands` : "Popular Brands"}
           </Text>
           <Pressable onPress={() => {}}>
             <Text style={[styles.seeAll, { color: colors.primary }]}>
@@ -177,7 +202,7 @@ export default function SearchScreen() {
           />
         ) : (
           <View style={styles.brandsGrid}>
-            {(brands ?? []).slice(0, 8).map((b) => (
+            {filteredBrands.slice(0, 8).map((b) => (
               <BrandCard
                 key={b.id}
                 name={b.name}
@@ -262,10 +287,10 @@ export default function SearchScreen() {
             },
           ]}
           onPress={() => {
-            if (item.type === "model") {
-              router.push(`/model/${item.id}`);
-            } else {
+            if (item.type === "brand") {
               router.push(`/brand/${item.id}`);
+            } else {
+              router.push(`/model/${item.id}`);
             }
           }}
         >
@@ -274,14 +299,12 @@ export default function SearchScreen() {
               styles.resultIcon,
               {
                 backgroundColor:
-                  item.type === "model"
-                    ? colors.primary + "18"
-                    : colors.muted,
+                  item.type === "brand" ? colors.muted : colors.primary + "18",
               },
             ]}
           >
             <Feather
-              name={item.type === "model" ? "smartphone" : "tag"}
+              name={item.type === "brand" ? "tag" : item.type === "combo" ? "cpu" : "smartphone"}
               size={18}
               color={colors.primary}
             />
@@ -392,12 +415,40 @@ export default function SearchScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryScroll}
         >
-          {CATEGORIES.map((cat) => {
-            const isActive = activeCategory === cat.id;
+          <Pressable
+            key={ALL_CATEGORY}
+            onPress={() => setActiveCategory(ALL_CATEGORY)}
+            style={[
+              styles.chip,
+              activeCategory === ALL_CATEGORY
+                ? { backgroundColor: colors.primary }
+                : { backgroundColor: colors.muted },
+            ]}
+          >
+            <Feather
+              name="grid"
+              size={13}
+              color={activeCategory === ALL_CATEGORY ? "#fff" : colors.mutedForeground}
+            />
+            <Text
+              style={[
+                styles.chipLabel,
+                {
+                  color: activeCategory === ALL_CATEGORY ? "#fff" : colors.mutedForeground,
+                  fontFamily:
+                    activeCategory === ALL_CATEGORY ? "Inter_600SemiBold" : "Inter_400Regular",
+                },
+              ]}
+            >
+              All
+            </Text>
+          </Pressable>
+          {(categories ?? []).map((cat) => {
+            const isActive = activeCategory === cat.slug;
             return (
               <Pressable
-                key={cat.id}
-                onPress={() => setActiveCategory(cat.id)}
+                key={cat.slug}
+                onPress={() => setActiveCategory(cat.slug)}
                 style={[
                   styles.chip,
                   isActive
@@ -406,7 +457,7 @@ export default function SearchScreen() {
                 ]}
               >
                 <Feather
-                  name={cat.icon as any}
+                  name={(CATEGORY_ICONS[cat.slug] ?? "layers") as any}
                   size={13}
                   color={isActive ? "#fff" : colors.mutedForeground}
                 />
@@ -421,7 +472,7 @@ export default function SearchScreen() {
                     },
                   ]}
                 >
-                  {cat.label}
+                  {cat.name}
                 </Text>
               </Pressable>
             );
