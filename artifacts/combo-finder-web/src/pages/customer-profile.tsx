@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Phone, MessageSquare, Wrench, X, Receipt, CreditCard, CheckCircle } from "lucide-react";
+import { ArrowLeft, Phone, MessageSquare, Wrench, X, Receipt, CreditCard, CheckCircle, ShoppingBag } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 
 function initials(name: string) {
@@ -18,32 +18,57 @@ const STATUS_COLOR: Record<string, { text: string; bg: string }> = {
 
 // ─── Update Payment Modal ─────────────────────────────────────────────────────
 function UpdatePaymentModal({
-  repairList, onClose, onSaved,
+  repairList,
+  saleList,
+  customerId,
+  onClose,
+  onSaved,
 }: {
   repairList: any[];
+  saleList: any[];
+  customerId: number;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [amounts, setAmounts] = useState<Record<number, string>>({});
   const [saving, setSaving] = useState<number | null>(null);
   const [done, setDone] = useState<Set<number>>(new Set());
-  const [error, setError] = useState("");
 
-  // Only show repairs with a total cost that are not yet fully paid
-  const unpaid = repairList.filter(
+  // Credit sale payment state
+  const [saleAmount, setSaleAmount] = useState("");
+  const [saleNotes, setSaleNotes] = useState("");
+  const [saleSaving, setSaleSaving] = useState(false);
+  const [saleDone, setSaleDone] = useState(false);
+  const [saleError, setSaleError] = useState("");
+
+  const [repairError, setRepairError] = useState("");
+
+  // Unpaid repairs
+  const unpaidRepairs = repairList.filter(
     r => Number(r.totalCost) > 0 && !r.isPaid && r.status !== "Cancelled"
   );
 
-  async function savePayment(repair: any, fullyPaid: boolean) {
+  // Unpaid credit sales
+  const unpaidCreditSales = saleList.filter(
+    s => s.paymentMethod === "Credit" &&
+      Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0)) > 0
+  );
+  const totalCreditSaleDue = unpaidCreditSales.reduce(
+    (sum, s) => sum + Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0)),
+    0
+  );
+
+  // ── Repair payment handler ────────────────────────────────────────────────
+  async function saveRepairPayment(repair: any, fullyPaid: boolean) {
     const amountStr = amounts[repair.id] ?? "";
     const totalCost = Number(repair.totalCost);
     const amount = fullyPaid ? totalCost : Number(amountStr);
 
     if (!fullyPaid && (!amountStr || amount <= 0)) {
-      setError("Enter an amount first");
+      setRepairError("Enter an amount first");
       return;
     }
-    setError("");
+    setRepairError("");
     setSaving(repair.id);
     try {
       const isPaidNow = fullyPaid || amount >= totalCost;
@@ -74,127 +99,293 @@ function UpdatePaymentModal({
       setDone(prev => new Set([...prev, repair.id]));
       onSaved();
     } catch (err: any) {
-      setError(err.message ?? "Failed to update payment");
+      setRepairError(err.message ?? "Failed to update payment");
     } finally {
       setSaving(null);
     }
   }
 
+  // ── Credit sale payment handler ───────────────────────────────────────────
+  async function saveSalePayment() {
+    const amount = Number(saleAmount);
+    if (!saleAmount || amount <= 0) {
+      setSaleError("Enter a valid amount");
+      return;
+    }
+    if (amount > totalCreditSaleDue + 0.01) {
+      setSaleError(`Amount exceeds total due (${totalCreditSaleDue.toLocaleString()})`);
+      return;
+    }
+    setSaleError("");
+    setSaleSaving(true);
+    try {
+      const res = await fetch(`/api/sales/customers/${customerId}/payment`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount, notes: saleNotes || undefined }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to record payment");
+      }
+      setSaleDone(true);
+      setSaleAmount("");
+      setSaleNotes("");
+      onSaved();
+    } catch (err: any) {
+      setSaleError(err.message ?? "Failed to record payment");
+    } finally {
+      setSaleSaving(false);
+    }
+  }
+
+  const allRepairsDone = unpaidRepairs.length === 0 || unpaidRepairs.every(r => done.has(r.id));
+  const allSalesDone  = unpaidCreditSales.length === 0 || saleDone;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col"
-        style={{ background: "hsl(var(--card))", maxHeight: "80vh" }}>
-
+      <div
+        className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col"
+        style={{ background: "hsl(var(--card))", maxHeight: "85vh" }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b flex-shrink-0"
-          style={{ borderColor: "hsl(var(--border))" }}>
+        <div
+          className="flex items-center justify-between px-5 pt-5 pb-4 border-b flex-shrink-0"
+          style={{ borderColor: "hsl(var(--border))" }}
+        >
           <div className="flex items-center gap-2">
             <CreditCard className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
             <h3 className="font-bold text-base">Update Payment</h3>
           </div>
-          <button onClick={onClose}
+          <button
+            onClick={onClose}
             className="w-8 h-8 rounded-full flex items-center justify-center"
-            style={{ background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
+            style={{ background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-          {unpaid.length === 0 ? (
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+
+          {/* ── POS Credit Sale Section ─────────────────────────────── */}
+          {unpaidCreditSales.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <ShoppingBag className="w-4 h-4" style={{ color: "#D97706" }} />
+                <h4 className="font-bold text-sm" style={{ color: "#D97706" }}>
+                  POS Credit Sales
+                </h4>
+              </div>
+
+              {saleDone ? (
+                <div className="rounded-2xl border p-4 flex items-center gap-3"
+                  style={{ borderColor: "#6EE7B7", background: "#ECFDF5" }}>
+                  <CheckCircle className="w-5 h-5 flex-shrink-0" style={{ color: "#059669" }} />
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: "#059669" }}>Payment recorded</p>
+                    <p className="text-xs mt-0.5" style={{ color: "#065F46" }}>
+                      Applied to oldest invoices first
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border p-4 space-y-3"
+                  style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--background))" }}>
+                  {/* Summary of unpaid credit invoices */}
+                  <div className="space-y-1.5">
+                    {unpaidCreditSales.map(s => {
+                      const due = Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0));
+                      return (
+                        <div key={s.id} className="flex items-center justify-between text-xs">
+                          <span style={{ color: "hsl(var(--muted-foreground))" }}>
+                            {s.invoiceNumber}
+                          </span>
+                          <span className="font-bold" style={{ color: "#DC2626" }}>
+                            Due: {due.toLocaleString()}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    <div className="pt-1.5 border-t flex items-center justify-between"
+                      style={{ borderColor: "hsl(var(--border))" }}>
+                      <span className="text-xs font-semibold">Total Due</span>
+                      <span className="text-sm font-extrabold" style={{ color: "#DC2626" }}>
+                        {totalCreditSaleDue.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Amount input */}
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={saleAmount}
+                      onChange={e => { setSaleAmount(e.target.value); setSaleError(""); }}
+                      placeholder="Amount received…"
+                      className="flex-1 px-3 py-2.5 rounded-xl border text-sm outline-none"
+                      style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}
+                    />
+                    <button
+                      disabled={saleSaving || !saleAmount || Number(saleAmount) <= 0}
+                      onClick={saveSalePayment}
+                      className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50 flex-shrink-0"
+                      style={{ background: "#D97706" }}
+                    >
+                      {saleSaving ? "…" : "Pay"}
+                    </button>
+                  </div>
+
+                  {/* Notes */}
+                  <input
+                    type="text"
+                    value={saleNotes}
+                    onChange={e => setSaleNotes(e.target.value)}
+                    placeholder="Notes (optional)"
+                    className="w-full px-3 py-2 rounded-xl border text-sm outline-none"
+                    style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}
+                  />
+
+                  {saleError && (
+                    <p className="text-xs" style={{ color: "hsl(var(--destructive))" }}>{saleError}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Repair Section ──────────────────────────────────────── */}
+          {unpaidRepairs.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Wrench className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
+                <h4 className="font-bold text-sm" style={{ color: "hsl(var(--primary))" }}>
+                  Repair Payments
+                </h4>
+              </div>
+              <div className="space-y-3">
+                {unpaidRepairs.map(r => {
+                  const total    = Number(r.totalCost);
+                  const advance  = Number(r.advancePaid ?? 0);
+                  const balance  = Math.max(0, total - advance);
+                  const isDone   = done.has(r.id);
+                  const isSaving = saving === r.id;
+
+                  return (
+                    <div
+                      key={r.id}
+                      className="rounded-2xl border p-4 space-y-3"
+                      style={{
+                        borderColor: isDone ? "#6EE7B7" : "hsl(var(--border))",
+                        background:  isDone ? "#ECFDF5" : "hsl(var(--background))",
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm truncate">
+                            {r.phoneBrand} {r.phoneModel}
+                          </p>
+                          <p className="text-xs mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+                            {r.problem}
+                          </p>
+                          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                            <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                              Total: <b>{total.toLocaleString()}</b>
+                            </span>
+                            {advance > 0 && (
+                              <span className="text-xs" style={{ color: "#059669" }}>
+                                Advance: <b>{advance.toLocaleString()}</b>
+                              </span>
+                            )}
+                            <span className="text-xs font-bold" style={{ color: "#DC2626" }}>
+                              Due: {balance.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                        {isDone ? (
+                          <span
+                            className="text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0"
+                            style={{ background: "#ECFDF5", color: "#059669" }}
+                          >
+                            ✓ Updated
+                          </span>
+                        ) : (
+                          <button
+                            disabled={isSaving}
+                            onClick={() => saveRepairPayment(r, true)}
+                            className="text-xs font-bold px-2.5 py-1.5 rounded-xl text-white flex-shrink-0 disabled:opacity-50"
+                            style={{ background: "#10B981" }}
+                          >
+                            {isSaving ? "…" : "Mark Paid"}
+                          </button>
+                        )}
+                      </div>
+
+                      {!isDone && (
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={amounts[r.id] ?? ""}
+                            onChange={e => setAmounts(p => ({ ...p, [r.id]: e.target.value }))}
+                            placeholder="Or enter amount received…"
+                            className="flex-1 px-3 py-2.5 rounded-xl border text-sm outline-none"
+                            style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}
+                          />
+                          <button
+                            disabled={isSaving || !amounts[r.id] || Number(amounts[r.id]) <= 0}
+                            onClick={() => saveRepairPayment(r, false)}
+                            className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50 flex-shrink-0"
+                            style={{ background: "hsl(var(--primary))" }}
+                          >
+                            {isSaving ? "…" : "Save"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {repairError && (
+                  <p className="text-xs text-center" style={{ color: "hsl(var(--destructive))" }}>
+                    {repairError}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* All clear */}
+          {unpaidRepairs.length === 0 && unpaidCreditSales.length === 0 && (
             <div className="text-center py-10">
               <CheckCircle className="w-10 h-10 mx-auto mb-3" style={{ color: "#10B981" }} />
-              <p className="font-semibold">All repairs fully paid</p>
+              <p className="font-semibold">All payments cleared</p>
               <p className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>
                 No outstanding balance for this customer
               </p>
             </div>
-          ) : (
-            unpaid.map(r => {
-              const total    = Number(r.totalCost);
-              const advance  = Number(r.advancePaid ?? 0);
-              const balance  = Math.max(0, total - advance);
-              const isDone   = done.has(r.id);
-              const isSaving = saving === r.id;
-
-              return (
-                <div key={r.id} className="rounded-2xl border p-4 space-y-3"
-                  style={{
-                    borderColor: isDone ? "#6EE7B7" : "hsl(var(--border))",
-                    background: isDone ? "#ECFDF5" : "hsl(var(--background))",
-                  }}>
-                  {/* Repair info row */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate">
-                        {r.phoneBrand} {r.phoneModel}
-                      </p>
-                      <p className="text-xs mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>
-                        {r.problem}
-                      </p>
-                      <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                        <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                          Total: <b>{total.toLocaleString()}</b>
-                        </span>
-                        {advance > 0 && (
-                          <span className="text-xs" style={{ color: "#059669" }}>
-                            Advance: <b>{advance.toLocaleString()}</b>
-                          </span>
-                        )}
-                        <span className="text-xs font-bold" style={{ color: "#DC2626" }}>
-                          Due: {balance.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                    {isDone ? (
-                      <span className="text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0"
-                        style={{ background: "#ECFDF5", color: "#059669" }}>✓ Updated</span>
-                    ) : (
-                      <button
-                        disabled={isSaving}
-                        onClick={() => savePayment(r, true)}
-                        className="text-xs font-bold px-2.5 py-1.5 rounded-xl text-white flex-shrink-0 disabled:opacity-50"
-                        style={{ background: "#10B981" }}>
-                        {isSaving ? "…" : "Mark Paid"}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Partial amount input */}
-                  {!isDone && (
-                    <div className="flex gap-2">
-                      <input
-                        type="number" min="0" step="0.01"
-                        value={amounts[r.id] ?? ""}
-                        onChange={e => setAmounts(p => ({ ...p, [r.id]: e.target.value }))}
-                        placeholder="Or enter amount received…"
-                        className="flex-1 px-3 py-2.5 rounded-xl border text-sm outline-none"
-                        style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}
-                      />
-                      <button
-                        disabled={isSaving || !amounts[r.id] || Number(amounts[r.id]) <= 0}
-                        onClick={() => savePayment(r, false)}
-                        className="px-4 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50 flex-shrink-0"
-                        style={{ background: "hsl(var(--primary))" }}>
-                        {isSaving ? "…" : "Save"}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })
           )}
-          {error && (
-            <p className="text-xs text-center" style={{ color: "hsl(var(--destructive))" }}>{error}</p>
+
+          {allRepairsDone && allSalesDone && (unpaidRepairs.length > 0 || unpaidCreditSales.length > 0) && (
+            <div className="text-center py-4">
+              <CheckCircle className="w-8 h-8 mx-auto mb-2" style={{ color: "#10B981" }} />
+              <p className="text-sm font-semibold" style={{ color: "#059669" }}>All done!</p>
+            </div>
           )}
         </div>
 
-        {/* Footer close */}
+        {/* Footer */}
         <div className="px-5 py-4 border-t flex-shrink-0" style={{ borderColor: "hsl(var(--border))" }}>
-          <button onClick={onClose}
+          <button
+            onClick={onClose}
             className="w-full py-3 rounded-xl font-semibold text-sm border"
-            style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+            style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
+          >
             Close
           </button>
         </div>
@@ -223,7 +414,7 @@ export default function CustomerProfile() {
     enabled: !!customerId,
   });
 
-  const { data: customerSales } = useQuery<any[]>({
+  const { data: customerSales, refetch: refetchSales } = useQuery<any[]>({
     queryKey: ["sales", "customer", customerId],
     queryFn: () =>
       fetch(`/api/sales/customers/${customerId}`, { credentials: "include" }).then(r => r.json()),
@@ -234,15 +425,23 @@ export default function CustomerProfile() {
   const saleList   = Array.isArray(customerSales) ? customerSales : [];
   const totalSpent = repairList.reduce((sum, r) => sum + (Number(r.totalCost) || 0), 0);
 
-  // Total unpaid repair balance
+  // Repair balance due
   const repairDue = repairList.reduce((sum, r) => {
     if (r.isPaid || r.status === "Cancelled") return sum;
-    const balance = Math.max(0, Number(r.totalCost || 0) - Number(r.advancePaid || 0));
-    return sum + balance;
+    return sum + Math.max(0, Number(r.totalCost || 0) - Number(r.advancePaid || 0));
   }, 0);
   const hasUnpaidRepairs = repairList.some(
     r => !r.isPaid && Number(r.totalCost) > 0 && r.status !== "Cancelled"
   );
+
+  // POS credit sale balance due
+  const creditSaleDue = saleList.reduce((sum, s) => {
+    if (s.paymentMethod !== "Credit") return sum;
+    return sum + Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0));
+  }, 0);
+  const hasUnpaidCreditSales = creditSaleDue > 0;
+
+  const showPaymentBtn = hasUnpaidRepairs || hasUnpaidCreditSales;
 
   if (isLoading) {
     return (
@@ -261,7 +460,9 @@ export default function CustomerProfile() {
         <div className="text-center py-16">
           <p style={{ color: "hsl(var(--muted-foreground))" }}>Customer not found.</p>
           <Link href="/customers">
-            <button className="mt-4 text-sm font-semibold" style={{ color: "hsl(var(--primary))" }}>← Back to Customers</button>
+            <button className="mt-4 text-sm font-semibold" style={{ color: "hsl(var(--primary))" }}>
+              ← Back to Customers
+            </button>
           </Link>
         </div>
       </ProtectedPage>
@@ -282,8 +483,10 @@ export default function CustomerProfile() {
         <div className="bg-card rounded-2xl border border-border p-5">
           {/* Avatar + name */}
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-extrabold text-white flex-shrink-0"
-              style={{ background: "hsl(var(--primary))" }}>
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-extrabold text-white flex-shrink-0"
+              style={{ background: "hsl(var(--primary))" }}
+            >
               {initials(customer.name ?? "?")}
             </div>
             <div className="flex-1 min-w-0">
@@ -302,17 +505,23 @@ export default function CustomerProfile() {
             <div className="flex gap-3 mt-4">
               {customer.phone && (
                 <a href={`tel:${customer.phone}`} className="flex-1">
-                  <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold"
-                    style={{ background: "hsl(var(--primary) / 0.1)", color: "hsl(var(--primary))" }}>
+                  <button
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold"
+                    style={{ background: "hsl(var(--primary) / 0.1)", color: "hsl(var(--primary))" }}
+                  >
                     <Phone className="w-4 h-4" /> Call
                   </button>
                 </a>
               )}
               {(customer.whatsapp || customer.phone) && (
-                <a href={`https://wa.me/${(customer.whatsapp ?? customer.phone).replace(/\D/g, "")}`}
-                  target="_blank" rel="noreferrer" className="flex-1">
-                  <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold"
-                    style={{ background: "#DCFCE7", color: "#16A34A" }}>
+                <a
+                  href={`https://wa.me/${(customer.whatsapp ?? customer.phone).replace(/\D/g, "")}`}
+                  target="_blank" rel="noreferrer" className="flex-1"
+                >
+                  <button
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold"
+                    style={{ background: "#DCFCE7", color: "#16A34A" }}
+                  >
                     <MessageSquare className="w-4 h-4" /> WhatsApp
                   </button>
                 </a>
@@ -338,19 +547,43 @@ export default function CustomerProfile() {
             </div>
           </div>
 
-          {/* Repair balance due + Update Payment button */}
-          {hasUnpaidRepairs && (
-            <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-border">
-              <div>
-                <p className="text-xs font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>Repair Balance Due</p>
-                <p className="text-lg font-extrabold" style={{ color: "#DC2626" }}>
-                  {repairDue.toLocaleString()}
-                </p>
-              </div>
+          {/* Balance due row + Update Payment button */}
+          {showPaymentBtn && (
+            <div className="mt-4 pt-4 border-t border-border space-y-2">
+              {/* Repair due */}
+              {hasUnpaidRepairs && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      Repair Balance Due
+                    </p>
+                    <p className="text-lg font-extrabold" style={{ color: "#DC2626" }}>
+                      {repairDue.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* POS credit sale due */}
+              {hasUnpaidCreditSales && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      Sale Balance Due
+                    </p>
+                    <p className="text-lg font-extrabold" style={{ color: "#D97706" }}>
+                      {creditSaleDue.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Single Update Payment button */}
               <button
                 onClick={() => setShowPayment(true)}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold text-white flex-shrink-0"
-                style={{ background: "hsl(var(--primary))" }}>
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold text-white"
+                style={{ background: "hsl(var(--primary))" }}
+              >
                 <CreditCard className="w-4 h-4" /> Update Payment
               </button>
             </div>
@@ -367,32 +600,50 @@ export default function CustomerProfile() {
             </div>
           ) : (
             <div className="bg-card rounded-2xl border border-border divide-y divide-border overflow-hidden">
-              {saleList.map(s => (
-                <div key={s.id} className="flex items-center gap-3 px-4 py-3.5">
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "hsl(var(--primary) / 0.1)" }}>
-                    <Receipt className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
+              {saleList.map(s => {
+                const due = s.paymentMethod === "Credit"
+                  ? Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0))
+                  : 0;
+                return (
+                  <div key={s.id} className="flex items-center gap-3 px-4 py-3.5">
+                    <div
+                      className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: "hsl(var(--primary) / 0.1)" }}
+                    >
+                      <Receipt className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold">{s.invoiceNumber}</p>
+                      <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        {s.paymentMethod} · {new Date(s.date).toLocaleDateString()}
+                      </p>
+                      {due > 0 && (
+                        <p className="text-[10px] font-bold mt-0.5" style={{ color: "#D97706" }}>
+                          Due: {due.toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <span className="text-sm font-bold" style={{ color: "hsl(var(--primary))" }}>
+                        {Number(s.total).toLocaleString()}
+                      </span>
+                      <span
+                        className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{
+                          background: s.status === "Paid"      ? "#ECFDF5"
+                                    : s.paymentMethod === "Credit" ? "#FEF3C7"
+                                    : "#F3F4F6",
+                          color:      s.status === "Paid"      ? "#059669"
+                                    : s.paymentMethod === "Credit" ? "#D97706"
+                                    : "#6B7280",
+                        }}
+                      >
+                        {s.paymentMethod === "Credit" ? "Credit" : s.status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold">{s.invoiceNumber}</p>
-                    <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                      {s.paymentMethod} · {new Date(s.date).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                    <span className="text-sm font-bold" style={{ color: "hsl(var(--primary))" }}>
-                      {Number(s.total).toLocaleString()}
-                    </span>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                      style={{
-                        background: s.status === "Paid" ? "#ECFDF5" : s.status === "Credit" ? "#FEF3C7" : "#F3F4F6",
-                        color:      s.status === "Paid" ? "#059669" : s.status === "Credit" ? "#D97706" : "#6B7280",
-                      }}>
-                      {s.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -408,7 +659,7 @@ export default function CustomerProfile() {
           ) : (
             <div className="bg-card rounded-2xl border border-border divide-y divide-border overflow-hidden">
               {repairList.map(r => {
-                const sc = STATUS_COLOR[r.status] ?? { text: "#9CA3AF", bg: "#F3F4F6" };
+                const sc      = STATUS_COLOR[r.status] ?? { text: "#9CA3AF", bg: "#F3F4F6" };
                 const advance = Number(r.advancePaid ?? 0);
                 const total   = Number(r.totalCost ?? 0);
                 const balance = Math.max(0, total - advance);
@@ -425,7 +676,9 @@ export default function CustomerProfile() {
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
                       <span className="text-xs font-bold px-2.5 py-1 rounded-full"
-                        style={{ background: sc.bg, color: sc.text }}>{r.status}</span>
+                        style={{ background: sc.bg, color: sc.text }}>
+                        {r.status}
+                      </span>
                       {total > 0 && (
                         <span className="text-xs font-semibold" style={{ color: "hsl(var(--muted-foreground))" }}>
                           {total.toLocaleString()}
@@ -452,10 +705,15 @@ export default function CustomerProfile() {
       {showPayment && (
         <UpdatePaymentModal
           repairList={repairList}
+          saleList={saleList}
+          customerId={customerId}
           onClose={() => setShowPayment(false)}
           onSaved={() => {
             refetchRepairs();
+            refetchSales();
             qc.invalidateQueries({ queryKey: ["repairs"] });
+            qc.invalidateQueries({ queryKey: ["sales"] });
+            qc.invalidateQueries({ queryKey: ["customer", customerId] });
           }}
         />
       )}
