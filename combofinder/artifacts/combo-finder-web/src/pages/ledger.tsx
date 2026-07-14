@@ -125,75 +125,163 @@ export default function Ledger() {
   function exportPdf() {
     const acc = selectedAccount;
     if (!acc) return;
-    const shopName = user?.shopName ?? user?.name ?? "My Shop";
+    const shopName = (user?.shopName ?? user?.name ?? "My Shop").trim();
+    const userName = user?.name ?? "";
     const rows = filteredEntries;
-    const totals = isFiltered ? rangeTotals : { creditSum: acc.creditSum ?? 0, debitSum: acc.debitSum ?? 0, balance: acc.balance };
+    const totals = isFiltered
+      ? rangeTotals
+      : { creditSum: acc.creditSum ?? 0, debitSum: acc.debitSum ?? 0, balance: acc.balance };
 
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const pageW = doc.internal.pageSize.getWidth();
 
-    // Header band
+    // ── Header band ──────────────────────────────────────────────────────────
     doc.setFillColor(37, 99, 235);
-    doc.rect(0, 0, pageW, 32, "F");
+    doc.rect(0, 0, pageW, 30, "F");
+
+    // Shop name — large, centered
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.text(shopName, 14, 10);
-    doc.setFontSize(9);
+    doc.setFontSize(16);
+    doc.text(shopName, pageW / 2, 12, { align: "center" });
+
+    // User name — smaller, centered below shop name
     doc.setFont("helvetica", "normal");
-    doc.text(`Ledger Statement · ${isFiltered ? `${dateFrom || "…"} to ${dateTo || "…"}` : "First to Last"}`, 14, 16);
+    doc.setFontSize(9);
+    doc.text(userName, pageW / 2, 19, { align: "center" });
+
+    // ── Statement title & date below header ──────────────────────────────────
+    doc.setTextColor(20, 20, 20);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text(`${acc.name} Statement`, pageW / 2, 40, { align: "center" });
+
+    const periodLabel = isFiltered
+      ? `${dateFrom || "…"} to ${dateTo || "…"}`
+      : "First to Last";
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(80, 80, 80);
+    doc.text(periodLabel, pageW / 2, 47, { align: "center" });
+
+    // ── Summary strip ────────────────────────────────────────────────────────
+    const stripY = 53;
+    const colW = pageW / 3;
+
+    // Debit box
+    doc.setFillColor(255, 235, 235);
+    doc.roundedRect(10, stripY, colW - 8, 18, 2, 2, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(180, 40, 40);
+    doc.text("Total Debit(-)", 10 + (colW - 8) / 2, stripY + 6, { align: "center" });
     doc.setFontSize(11);
+    doc.text(`${sym}${totals.debitSum.toLocaleString()}`, 10 + (colW - 8) / 2, stripY + 14, { align: "center" });
+
+    // Credit box
+    doc.setFillColor(230, 255, 235);
+    doc.roundedRect(10 + colW, stripY, colW - 8, 18, 2, 2, "F");
     doc.setFont("helvetica", "bold");
-    doc.text(acc.name, 14, 24);
-    doc.setFontSize(9);
+    doc.setFontSize(8);
+    doc.setTextColor(30, 130, 60);
+    doc.text("Total Credit(+)", 10 + colW + (colW - 8) / 2, stripY + 6, { align: "center" });
+    doc.setFontSize(11);
+    doc.text(`${sym}${totals.creditSum.toLocaleString()}`, 10 + colW + (colW - 8) / 2, stripY + 14, { align: "center" });
+
+    // Net Balance box
+    const balColor: [number, number, number] = totals.balance > 0 ? [180, 40, 40] : totals.balance < 0 ? [30, 130, 60] : [60, 60, 60];
+    doc.setFillColor(245, 245, 255);
+    doc.roundedRect(10 + colW * 2, stripY, colW - 12, 18, 2, 2, "F");
+    doc.setFontSize(8);
+    doc.setTextColor(60, 60, 60);
+    doc.text("Net Balance", 10 + colW * 2 + (colW - 12) / 2, stripY + 6, { align: "center" });
+    doc.setFontSize(11);
+    doc.setTextColor(...balColor);
+    doc.text(`${sym}${Math.abs(totals.balance).toLocaleString()}`, 10 + colW * 2 + (colW - 12) / 2, stripY + 14, { align: "center" });
+
+    // Entry count
     doc.setFont("helvetica", "normal");
-    if (acc.phone) doc.text(`Phone: ${acc.phone}`, 80, 24);
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageW - 14, 24, { align: "right" });
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`No. of Entries: ${rows.length}`, 14, stripY + 24);
 
-    // Summary row
-    doc.setTextColor(30, 30, 30);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Total Debit: ${sym}${totals.debitSum.toLocaleString()}`, 14, 42);
-    doc.text(`Total Credit: ${sym}${totals.creditSum.toLocaleString()}`, 80, 42);
-    const balLabel = totals.balance > 0 ? `Balance Due: ${sym}${totals.balance.toLocaleString()} (Customer owes)`
-      : totals.balance < 0 ? `Balance: ${sym}${Math.abs(totals.balance).toLocaleString()} (You owe)`
-      : "Balance: Settled";
-    doc.text(isFiltered ? `${balLabel} (for selected period)` : balLabel, 14, 49);
-
-    // Table — sorted by date ascending
+    // ── Table — sorted by date, grouped by month ─────────────────────────────
     const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date));
 
+    // Build table body with month-group header rows
+    const tableBody: any[][] = [];
+    let lastMonth = "";
+    let monthCredit = 0;
+    let monthDebit = 0;
+    const monthGroupStart: number[] = []; // track row indices of month rows
+
+    for (const e of sorted) {
+      const dateObj = new Date(e.date);
+      const monthKey = dateObj.toLocaleDateString(undefined, { year: "numeric", month: "long" });
+      if (monthKey !== lastMonth) {
+        if (lastMonth !== "") {
+          // Sub-total row for previous month (empty for now, we'll add at end of month)
+        }
+        lastMonth = monthKey;
+        monthCredit = 0;
+        monthDebit = 0;
+        monthGroupStart.push(tableBody.length);
+        tableBody.push([{ content: monthKey, colSpan: 5, styles: { fontStyle: "bold", fillColor: [220, 230, 255], textColor: [37, 99, 235], fontSize: 8 } }]);
+      }
+      const credit = e.type === "credit" ? Number(e.amount) : 0;
+      const debit  = e.type === "debit"  ? Number(e.amount) : 0;
+      monthCredit += credit;
+      monthDebit  += debit;
+      tableBody.push([
+        dateObj.toLocaleDateString(undefined, { day: "2-digit", month: "short" }),
+        acc.name,
+        (e as any).itemName ? (e as any).itemName : (e.description ?? "—"),
+        credit > 0 ? `${sym}${credit.toLocaleString()}` : "",
+        debit  > 0 ? `${sym}${debit.toLocaleString()}`  : "",
+      ]);
+    }
+
+    // Totals row
+    tableBody.push([
+      { content: "Total", colSpan: 3, styles: { fontStyle: "bold", fillColor: [240, 240, 240] } },
+      { content: `${sym}${totals.creditSum.toLocaleString()}`, styles: { fontStyle: "bold", textColor: [22, 163, 74], fillColor: [240, 240, 240], halign: "right" } },
+      { content: `${sym}${totals.debitSum.toLocaleString()}`,  styles: { fontStyle: "bold", textColor: [220, 38, 38],  fillColor: [240, 240, 240], halign: "right" } },
+    ]);
+
+    // Grand Total row
+    const netLabel = totals.balance > 0 ? `Grand Total  (Customer Owes)` : totals.balance < 0 ? `Grand Total  (You Owe)` : "Grand Total  (Settled)";
+    tableBody.push([
+      { content: netLabel, colSpan: 3, styles: { fontStyle: "bold", fillColor: [37, 99, 235], textColor: [255, 255, 255] } },
+      { content: `${sym}${totals.creditSum.toLocaleString()}`, styles: { fontStyle: "bold", textColor: [255, 255, 255], fillColor: [37, 99, 235], halign: "right" } },
+      { content: `${sym}${totals.debitSum.toLocaleString()}`,  styles: { fontStyle: "bold", textColor: [255, 255, 255], fillColor: [37, 99, 235], halign: "right" } },
+    ]);
+
     autoTable(doc, {
-      startY: 56,
-      head: [["Date", "Product / Item", "Description", "Reference", `Credit (${sym})`, `Debit (${sym})`]],
-      body: sorted.map(e => [
-        fmtDate(e.date),
-        (e as any).itemName ?? "—",
-        e.description ?? "—",
-        e.reference ?? "—",
-        e.type === "credit" ? Number(e.amount).toLocaleString() : "",
-        e.type === "debit"  ? Number(e.amount).toLocaleString() : "",
-      ]),
-      styles: { fontSize: 8, cellPadding: 3 },
-      headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold" },
+      startY: stripY + 28,
+      head: [["Date", "Name", "Details", `Credit(+)`, `Debit(-)`]],
+      body: tableBody,
+      styles: { fontSize: 8, cellPadding: 2.5 },
+      headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold", halign: "left" },
       columnStyles: {
-        0: { cellWidth: 24 },
-        1: { cellWidth: 36 },
-        2: { cellWidth: 40 },
-        3: { cellWidth: 24 },
-        4: { cellWidth: 22, halign: "right", textColor: [22, 163, 74] },
-        5: { cellWidth: 22, halign: "right", textColor: [220, 38, 38] },
+        0: { cellWidth: 22 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 60 },
+        3: { cellWidth: 28, halign: "right", textColor: [22, 163, 74] },
+        4: { cellWidth: 28, halign: "right", textColor: [220, 38, 38] },
       },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
+      alternateRowStyles: { fillColor: [250, 252, 255] },
     });
 
-    // Footer
-    const finalY = (doc as any).lastAutoTable?.finalY ?? 200;
-    doc.setFontSize(7);
-    doc.setTextColor(150, 150, 150);
-    doc.text(`${shopName} · Ledger Report`, 14, finalY + 10);
-    doc.text(`Page 1`, pageW - 14, finalY + 10, { align: "right" });
+    // ── Footer ───────────────────────────────────────────────────────────────
+    const finalY = (doc as any).lastAutoTable?.finalY ?? 240;
+    doc.setFontSize(7.5);
+    doc.setTextColor(130, 130, 130);
+    doc.setFont("helvetica", "normal");
+    doc.text(
+      `Report Generated: ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} | ${new Date().toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}`,
+      14, finalY + 10
+    );
+    doc.text("1/1", pageW - 14, finalY + 10, { align: "right" });
 
     doc.save(`ledger-${acc.name.replace(/\s+/g, "-")}${isFiltered ? `-${dateFrom || "start"}_to_${dateTo || "end"}` : ""}.pdf`);
   }
