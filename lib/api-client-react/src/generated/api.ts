@@ -21,12 +21,12 @@ import type {
 
 import type {
   Brand,
+  BulkCreateCompatibilitiesInput,
   Combo,
   CreateBrandInput,
-  CreateComboInput,
   CreateModelInput,
   ErrorResponse,
-  GetCombosParams,
+  GetBrandsParams,
   GetModelsParams,
   HealthStatus,
   Model,
@@ -82,7 +82,7 @@ export const getHealthCheckQueryKey = () => {
     }
 
 
-export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -109,7 +109,7 @@ export type HealthCheckQueryError = ErrorType<unknown>
  */
 
 export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -159,7 +159,7 @@ export const getGetStatsQueryKey = () => {
     }
 
 
-export const getGetStatsQueryOptions = <TData = Awaited<ReturnType<typeof getStats>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getGetStatsQueryOptions = <TData = Awaited<ReturnType<typeof getStats>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -186,7 +186,7 @@ export type GetStatsQueryError = ErrorType<unknown>
  */
 
 export function useGetStats<TData = Awaited<ReturnType<typeof getStats>>, TError = ErrorType<unknown>>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -243,7 +243,7 @@ export const getSearchModelsQueryKey = (params?: SearchModelsParams,) => {
     }
 
 
-export const getSearchModelsQueryOptions = <TData = Awaited<ReturnType<typeof searchModels>>, TError = ErrorType<unknown>>(params?: SearchModelsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchModels>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getSearchModelsQueryOptions = <TData = Awaited<ReturnType<typeof searchModels>>, TError = ErrorType<unknown>>(params?: SearchModelsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchModels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -270,7 +270,7 @@ export type SearchModelsQueryError = ErrorType<unknown>
  */
 
 export function useSearchModels<TData = Awaited<ReturnType<typeof searchModels>>, TError = ErrorType<unknown>>(
- params?: SearchModelsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchModels>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ params?: SearchModelsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchModels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -287,20 +287,27 @@ export function useSearchModels<TData = Awaited<ReturnType<typeof searchModels>>
 
 
 
-export const getGetBrandsUrl = () => {
+export const getGetBrandsUrl = (params?: GetBrandsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/brands`
+  return stringifiedParams.length > 0 ? `/api/brands?${stringifiedParams}` : `/api/brands`
 }
 
 /**
  * @summary List all brands
  */
-export const getBrands = async ( options?: RequestInit): Promise<Brand[]> => {
+export const getBrands = async (params?: GetBrandsParams, options?: RequestInit): Promise<Brand[]> => {
 
-  return customFetch<Brand[]>(getGetBrandsUrl(),
+  return customFetch<Brand[]>(getGetBrandsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -313,23 +320,23 @@ export const getBrands = async ( options?: RequestInit): Promise<Brand[]> => {
 
 
 
-export const getGetBrandsQueryKey = () => {
+export const getGetBrandsQueryKey = (params?: GetBrandsParams,) => {
     return [
-    `/api/brands`
+    `/api/brands`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetBrandsQueryOptions = <TData = Awaited<ReturnType<typeof getBrands>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBrands>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getGetBrandsQueryOptions = <TData = Awaited<ReturnType<typeof getBrands>>, TError = ErrorType<unknown>>(params?: GetBrandsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrands>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetBrandsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetBrandsQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBrands>>> = ({ signal }) => getBrands({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBrands>>> = ({ signal }) => getBrands(params, { signal, ...requestOptions });
 
 
 
@@ -347,11 +354,11 @@ export type GetBrandsQueryError = ErrorType<unknown>
  */
 
 export function useGetBrands<TData = Awaited<ReturnType<typeof getBrands>>, TError = ErrorType<unknown>>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBrands>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ params?: GetBrandsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrands>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetBrandsQueryOptions(options)
+  const queryOptions = getGetBrandsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -468,7 +475,7 @@ export const getGetBrandQueryKey = (id: number,) => {
     }
 
 
-export const getGetBrandQueryOptions = <TData = Awaited<ReturnType<typeof getBrand>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBrand>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getGetBrandQueryOptions = <TData = Awaited<ReturnType<typeof getBrand>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrand>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -495,7 +502,7 @@ export type GetBrandQueryError = ErrorType<ErrorResponse>
  */
 
 export function useGetBrand<TData = Awaited<ReturnType<typeof getBrand>>, TError = ErrorType<ErrorResponse>>(
- id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBrand>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrand>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -687,7 +694,7 @@ export const getGetBrandModelsQueryKey = (id: number,) => {
     }
 
 
-export const getGetBrandModelsQueryOptions = <TData = Awaited<ReturnType<typeof getBrandModels>>, TError = ErrorType<unknown>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBrandModels>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getGetBrandModelsQueryOptions = <TData = Awaited<ReturnType<typeof getBrandModels>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrandModels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -714,7 +721,7 @@ export type GetBrandModelsQueryError = ErrorType<unknown>
  */
 
 export function useGetBrandModels<TData = Awaited<ReturnType<typeof getBrandModels>>, TError = ErrorType<unknown>>(
- id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBrandModels>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrandModels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -771,7 +778,7 @@ export const getGetModelsQueryKey = (params?: GetModelsParams,) => {
     }
 
 
-export const getGetModelsQueryOptions = <TData = Awaited<ReturnType<typeof getModels>>, TError = ErrorType<unknown>>(params?: GetModelsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getModels>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getGetModelsQueryOptions = <TData = Awaited<ReturnType<typeof getModels>>, TError = ErrorType<unknown>>(params?: GetModelsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getModels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -798,7 +805,7 @@ export type GetModelsQueryError = ErrorType<unknown>
  */
 
 export function useGetModels<TData = Awaited<ReturnType<typeof getModels>>, TError = ErrorType<unknown>>(
- params?: GetModelsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getModels>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ params?: GetModelsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getModels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -919,7 +926,7 @@ export const getGetModelQueryKey = (id: number,) => {
     }
 
 
-export const getGetModelQueryOptions = <TData = Awaited<ReturnType<typeof getModel>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getModel>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getGetModelQueryOptions = <TData = Awaited<ReturnType<typeof getModel>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getModel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -946,7 +953,7 @@ export type GetModelQueryError = ErrorType<ErrorResponse>
  */
 
 export function useGetModel<TData = Awaited<ReturnType<typeof getModel>>, TError = ErrorType<ErrorResponse>>(
- id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getModel>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getModel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -1138,7 +1145,7 @@ export const getGetModelCombosQueryKey = (id: number,) => {
     }
 
 
-export const getGetModelCombosQueryOptions = <TData = Awaited<ReturnType<typeof getModelCombos>>, TError = ErrorType<unknown>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getModelCombos>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getGetModelCombosQueryOptions = <TData = Awaited<ReturnType<typeof getModelCombos>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getModelCombos>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -1165,7 +1172,7 @@ export type GetModelCombosQueryError = ErrorType<unknown>
  */
 
 export function useGetModelCombos<TData = Awaited<ReturnType<typeof getModelCombos>>, TError = ErrorType<unknown>>(
- id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getModelCombos>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getModelCombos>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -1182,121 +1189,37 @@ export function useGetModelCombos<TData = Awaited<ReturnType<typeof getModelComb
 
 
 
-export const getGetCombosUrl = (params?: GetCombosParams,) => {
-  const normalizedParams = new URLSearchParams();
+export const getBulkCreateCompatibilitiesUrl = () => {
 
-  Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
-    }
-  });
 
-  const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/compatibilities?${stringifiedParams}` : `/api/compatibilities`
+  return `/api/compatibilities/bulk`
 }
 
 /**
- * @summary List all combos
+ * @summary Bulk create compatibility entries for a model
  */
-export const getCombos = async (params?: GetCombosParams, options?: RequestInit): Promise<Combo[]> => {
+export const bulkCreateCompatibilities = async (bulkCreateCompatibilitiesInput: BulkCreateCompatibilitiesInput, options?: RequestInit): Promise<Combo[]> => {
 
-  return customFetch<Combo[]>(getGetCombosUrl(params),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetCombosQueryKey = (params?: GetCombosParams,) => {
-    return [
-    `/api/compatibilities`, ...(params ? [params] : [])
-    ] as const;
-    }
-
-
-export const getGetCombosQueryOptions = <TData = Awaited<ReturnType<typeof getCombos>>, TError = ErrorType<unknown>>(params?: GetCombosParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCombos>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetCombosQueryKey(params);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCombos>>> = ({ signal }) => getCombos(params, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCombos>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetCombosQueryResult = NonNullable<Awaited<ReturnType<typeof getCombos>>>
-export type GetCombosQueryError = ErrorType<unknown>
-
-
-/**
- * @summary List all combos
- */
-
-export function useGetCombos<TData = Awaited<ReturnType<typeof getCombos>>, TError = ErrorType<unknown>>(
- params?: GetCombosParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCombos>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetCombosQueryOptions(params,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
-
-export const getCreateComboUrl = () => {
-
-
-
-
-  return `/api/compatibilities`
-}
-
-/**
- * @summary Create a combo
- */
-export const createCombo = async (createComboInput: CreateComboInput, options?: RequestInit): Promise<Combo> => {
-
-  return customFetch<Combo>(getCreateComboUrl(),
+  return customFetch<Combo[]>(getBulkCreateCompatibilitiesUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      createComboInput,)
+      bulkCreateCompatibilitiesInput,)
   }
 );}
 
 
 
 
-export const getCreateComboMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCombo>>, TError,{data: BodyType<CreateComboInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createCombo>>, TError,{data: BodyType<CreateComboInput>}, TContext> => {
+export const getBulkCreateCompatibilitiesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkCreateCompatibilities>>, TError,{data: BodyType<BulkCreateCompatibilitiesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkCreateCompatibilities>>, TError,{data: BodyType<BulkCreateCompatibilitiesInput>}, TContext> => {
 
-const mutationKey = ['createCombo'];
+const mutationKey = ['bulkCreateCompatibilities'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -1306,10 +1229,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCombo>>, {data: BodyType<CreateComboInput>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkCreateCompatibilities>>, {data: BodyType<BulkCreateCompatibilitiesInput>}> = (props) => {
           const {data} = props ?? {};
 
-          return  createCombo(data,requestOptions)
+          return  bulkCreateCompatibilities(data,requestOptions)
         }
 
 
@@ -1319,240 +1242,21 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type CreateComboMutationResult = NonNullable<Awaited<ReturnType<typeof createCombo>>>
-    export type CreateComboMutationBody = BodyType<CreateComboInput>
-    export type CreateComboMutationError = ErrorType<unknown>
+    export type BulkCreateCompatibilitiesMutationResult = NonNullable<Awaited<ReturnType<typeof bulkCreateCompatibilities>>>
+    export type BulkCreateCompatibilitiesMutationBody = BodyType<BulkCreateCompatibilitiesInput>
+    export type BulkCreateCompatibilitiesMutationError = ErrorType<unknown>
 
     /**
- * @summary Create a combo
+ * @summary Bulk create compatibility entries for a model
  */
-export const useCreateCombo = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCombo>>, TError,{data: BodyType<CreateComboInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useBulkCreateCompatibilities = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkCreateCompatibilities>>, TError,{data: BodyType<BulkCreateCompatibilitiesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof createCombo>>,
+        Awaited<ReturnType<typeof bulkCreateCompatibilities>>,
         TError,
-        {data: BodyType<CreateComboInput>},
+        {data: BodyType<BulkCreateCompatibilitiesInput>},
         TContext
       > => {
-      return useMutation(getCreateComboMutationOptions(options));
-    }
-
-export const getGetComboUrl = (id: number,) => {
-
-
-
-
-  return `/api/compatibilities/${id}`
-}
-
-/**
- * @summary Get a combo by ID
- */
-export const getCombo = async (id: number, options?: RequestInit): Promise<Combo> => {
-
-  return customFetch<Combo>(getGetComboUrl(id),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetComboQueryKey = (id: number,) => {
-    return [
-    `/api/compatibilities/${id}`
-    ] as const;
-    }
-
-
-export const getGetComboQueryOptions = <TData = Awaited<ReturnType<typeof getCombo>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCombo>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetComboQueryKey(id);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCombo>>> = ({ signal }) => getCombo(id, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCombo>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetComboQueryResult = NonNullable<Awaited<ReturnType<typeof getCombo>>>
-export type GetComboQueryError = ErrorType<ErrorResponse>
-
-
-/**
- * @summary Get a combo by ID
- */
-
-export function useGetCombo<TData = Awaited<ReturnType<typeof getCombo>>, TError = ErrorType<ErrorResponse>>(
- id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCombo>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetComboQueryOptions(id,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
-
-export const getUpdateComboUrl = (id: number,) => {
-
-
-
-
-  return `/api/compatibilities/${id}`
-}
-
-/**
- * @summary Update a combo
- */
-export const updateCombo = async (id: number,
-    createComboInput: CreateComboInput, options?: RequestInit): Promise<Combo> => {
-
-  return customFetch<Combo>(getUpdateComboUrl(id),
-  {
-    ...options,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      createComboInput,)
-  }
-);}
-
-
-
-
-export const getUpdateComboMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCombo>>, TError,{id: number;data: BodyType<CreateComboInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateCombo>>, TError,{id: number;data: BodyType<CreateComboInput>}, TContext> => {
-
-const mutationKey = ['updateCombo'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCombo>>, {id: number;data: BodyType<CreateComboInput>}> = (props) => {
-          const {id,data} = props ?? {};
-
-          return  updateCombo(id,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type UpdateComboMutationResult = NonNullable<Awaited<ReturnType<typeof updateCombo>>>
-    export type UpdateComboMutationBody = BodyType<CreateComboInput>
-    export type UpdateComboMutationError = ErrorType<ErrorResponse>
-
-    /**
- * @summary Update a combo
- */
-export const useUpdateCombo = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCombo>>, TError,{id: number;data: BodyType<CreateComboInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof updateCombo>>,
-        TError,
-        {id: number;data: BodyType<CreateComboInput>},
-        TContext
-      > => {
-      return useMutation(getUpdateComboMutationOptions(options));
-    }
-
-export const getDeleteComboUrl = (id: number,) => {
-
-
-
-
-  return `/api/compatibilities/${id}`
-}
-
-/**
- * @summary Delete a combo
- */
-export const deleteCombo = async (id: number, options?: RequestInit): Promise<SuccessResponse> => {
-
-  return customFetch<SuccessResponse>(getDeleteComboUrl(id),
-  {
-    ...options,
-    method: 'DELETE'
-
-
-  }
-);}
-
-
-
-
-export const getDeleteComboMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCombo>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof deleteCombo>>, TError,{id: number}, TContext> => {
-
-const mutationKey = ['deleteCombo'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCombo>>, {id: number}> = (props) => {
-          const {id} = props ?? {};
-
-          return  deleteCombo(id,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type DeleteComboMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCombo>>>
-
-    export type DeleteComboMutationError = ErrorType<unknown>
-
-    /**
- * @summary Delete a combo
- */
-export const useDeleteCombo = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCombo>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof deleteCombo>>,
-        TError,
-        {id: number},
-        TContext
-      > => {
-      return useMutation(getDeleteComboMutationOptions(options));
+      return useMutation(getBulkCreateCompatibilitiesMutationOptions(options));
     }
 

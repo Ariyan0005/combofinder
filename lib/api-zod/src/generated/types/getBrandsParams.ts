@@ -6,6 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetCombosParams = {
-model_id?: number;
+export type GetBrandsParams = {
+category_id?: number;
 };

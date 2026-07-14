@@ -1,34 +1,37 @@
 import { useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { 
-  useGetBrands, 
-  useCreateBrand, 
-  useUpdateBrand, 
+import {
+  useGetBrands,
+  useCreateBrand,
+  useUpdateBrand,
   useDeleteBrand,
   getGetBrandsQueryKey,
   Brand
 } from "@workspace/api-client-react";
-import { 
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Edit2, Trash2, Smartphone, Search, Layers, ChevronRight } from "lucide-react";
+import { Plus, Edit2, Trash2, BatteryFull, Search, Layers, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
-// Other product-category modules (e.g. Battery Compatibility) reuse this same
-// brands/models/compatibility schema, scoped via categoryId. This page must
-// exclude brands that belong to one of those other categories, so they show
-// up only in their own dedicated admin page, not here as well.
-const OTHER_CATEGORY_SLUGS = ["battery"];
+const BATTERY_CATEGORY_SLUG = "battery";
 
-export default function Brands() {
-  const [search, setSearch] = useState("");
-  const { data: brands = [], isLoading: brandsLoading } = useGetBrands();
-  const { data: categories = [], isLoading: categoriesLoading } = useQuery<{ id: number; slug: string }[]>({
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export default function BatteryBrands() {
+  const { toast } = useToast();
+
+  // Resolve the Battery category id (created once, reused across brand CRUD calls).
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery<Category[]>({
     queryKey: ["categories"],
     queryFn: async () => {
       const r = await fetch("/api/categories", { credentials: "include" });
@@ -36,13 +39,17 @@ export default function Brands() {
       return r.json();
     },
   });
-  const isLoading = brandsLoading || categoriesLoading;
-  const otherCategoryIds = new Set(
-    categories.filter(c => OTHER_CATEGORY_SLUGS.includes(c.slug)).map(c => c.id)
-  );
-  const displayBrands = brands.filter(b => b.categoryId == null || !otherCategoryIds.has(b.categoryId));
+  const batteryCategory = categories.find((c) => c.slug === BATTERY_CATEGORY_SLUG);
+  const categoryId = batteryCategory?.id;
 
-  const filteredBrands = displayBrands.filter(b =>
+  const [search, setSearch] = useState("");
+  const { data: brands = [], isLoading: brandsLoading } = useGetBrands(
+    categoryId !== undefined ? { category_id: categoryId } : undefined,
+    { query: { enabled: categoryId !== undefined } }
+  );
+  const isLoading = categoriesLoading || (categoryId !== undefined && brandsLoading);
+
+  const filteredBrands = brands.filter(b =>
     b.name.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -50,22 +57,30 @@ export default function Brands() {
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
 
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   const createBrand = useCreateBrand();
   const updateBrand = useUpdateBrand();
   const deleteBrand = useDeleteBrand();
 
+  const invalidateBrands = () => {
+    queryClient.invalidateQueries({ queryKey: getGetBrandsQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getGetBrandsQueryKey({ category_id: categoryId }) });
+  };
+
   const handleCreate = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!categoryId) {
+      toast({ title: "Battery category is not set up yet", variant: "destructive" });
+      return;
+    }
     const formData = new FormData(e.currentTarget);
     const name = formData.get("name") as string;
     const logoUrl = formData.get("logoUrl") as string;
     createBrand.mutate(
-      { data: { name, logoUrl } },
+      { data: { name, logoUrl, categoryId } },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetBrandsQueryKey() });
+          invalidateBrands();
           setIsCreateOpen(false);
           toast({ title: "Brand created" });
         },
@@ -81,10 +96,10 @@ export default function Brands() {
     const name = formData.get("name") as string;
     const logoUrl = formData.get("logoUrl") as string;
     updateBrand.mutate(
-      { id: editingBrand.id, data: { name, logoUrl } },
+      { id: editingBrand.id, data: { name, logoUrl, categoryId } },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetBrandsQueryKey() });
+          invalidateBrands();
           setEditingBrand(null);
           toast({ title: "Brand updated" });
         },
@@ -99,7 +114,7 @@ export default function Brands() {
       { id },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetBrandsQueryKey() });
+          invalidateBrands();
           toast({ title: "Brand deleted" });
         },
         onError: () => toast({ title: "Failed to delete brand", variant: "destructive" })
@@ -112,10 +127,10 @@ export default function Brands() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Display Compatibility</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage display brands and model compatibility.</p>
+          <h1 className="text-2xl font-bold tracking-tight">Battery Compatibility</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Manage battery brands and model compatibility.</p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)} className="gap-2 h-9 px-4 text-sm">
+        <Button onClick={() => setIsCreateOpen(true)} className="gap-2 h-9 px-4 text-sm" disabled={!categoryId}>
           <Plus className="h-4 w-4" /> Add Brand
         </Button>
       </div>
@@ -135,7 +150,7 @@ export default function Brands() {
       {!isLoading && (
         <p className="text-xs text-muted-foreground">
           Showing <span className="font-semibold text-foreground">{filteredBrands.length}</span> of{" "}
-          <span className="font-semibold text-foreground">{displayBrands.length}</span> brands
+          <span className="font-semibold text-foreground">{brands.length}</span> brands
         </p>
       )}
 
@@ -178,7 +193,7 @@ export default function Brands() {
                           {brand.logoUrl ? (
                             <img src={brand.logoUrl} alt={brand.name} className="w-5 h-5 object-contain" />
                           ) : (
-                            <Smartphone className="h-4 w-4 text-primary" />
+                            <BatteryFull className="h-4 w-4 text-primary" />
                           )}
                         </div>
                         <span className="group-hover/link:text-primary transition-colors">{brand.name}</span>
@@ -226,7 +241,7 @@ export default function Brands() {
         <DialogContent className="max-w-sm">
           <form onSubmit={handleCreate}>
             <DialogHeader>
-              <DialogTitle>Add New Brand</DialogTitle>
+              <DialogTitle>Add New Battery Brand</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-1.5">

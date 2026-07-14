@@ -81,6 +81,12 @@ paths:
       operationId: getBrands
       tags: [brands]
       summary: List all brands
+      parameters:
+        - name: category_id
+          in: query
+          required: false
+          schema:
+            type: integer
       responses:
         "200":
           description: List of brands

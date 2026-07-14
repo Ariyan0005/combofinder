@@ -6,9 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Brand } from './brand';
+import type { Combo } from './combo';
 import type { Model } from './model';
 
 export interface SearchResults {
   brands: Brand[];
   models: Model[];
+  combos?: Combo[];
 }
