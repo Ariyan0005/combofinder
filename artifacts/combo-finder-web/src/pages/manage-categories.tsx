@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
-  ArrowLeft, Plus, Tag, ChevronDown, FolderOpen, Edit3, Trash2, X, FolderPlus,
+  ArrowLeft, Plus, Tag, ChevronDown, FolderOpen, Edit3, Trash2, X, FolderPlus, Search,
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/context/auth-context";
@@ -151,6 +151,7 @@ export default function ManageCategories() {
 
   const [formMode, setFormMode] = useState<"category" | "subcategory" | "edit" | null>(null);
   const [editTarget, setEditTarget] = useState<Category | undefined>();
+  const [searchQ, setSearchQ] = useState("");
 
   const { data: categories = [], isLoading } = useQuery<Category[]>({
     queryKey: ["inv-categories"],
@@ -169,6 +170,24 @@ export default function ManageCategories() {
 
   const parentCats = categories.filter(c => !c.parentId);
   const subOf = (pid: number) => categories.filter(c => c.parentId === pid);
+
+  // ── Search filtering ──────────────────────────────────────────────────────
+  const q = searchQ.trim().toLowerCase();
+  const filteredParents = q === "" ? parentCats : parentCats.filter(parent => {
+    const parentMatch = parent.name.toLowerCase().includes(q) ||
+      (parent.description ?? "").toLowerCase().includes(q);
+    const hasMatchingSub = subOf(parent.id).some(
+      s => s.name.toLowerCase().includes(q) || (s.description ?? "").toLowerCase().includes(q)
+    );
+    return parentMatch || hasMatchingSub;
+  });
+  const filteredSubOf = (pid: number) => {
+    const subs = subOf(pid);
+    if (q === "") return subs;
+    return subs.filter(
+      s => s.name.toLowerCase().includes(q) || (s.description ?? "").toLowerCase().includes(q)
+    );
+  };
 
   function handleDelete(cat: Category) {
     const hasSubs = categories.some(c => c.parentId === cat.id);
@@ -192,6 +211,25 @@ export default function ManageCategories() {
             <h1 className="text-xl font-extrabold">Manage Categories</h1>
             <p className="text-xs" style={{ color: MUTED }}>{parentCats.length} categories</p>
           </div>
+        </div>
+
+        {/* Search bar */}
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: MUTED }} />
+          <input
+            value={searchQ}
+            onChange={e => setSearchQ(e.target.value)}
+            placeholder="Search categories or sub-categories…"
+            className="w-full pl-10 pr-10 py-3 rounded-2xl border text-sm outline-none"
+            style={{ borderColor: BORDER, background: CARD }}
+          />
+          {searchQ && (
+            <button onClick={() => setSearchQ("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center"
+              style={{ background: "hsl(var(--muted))", color: MUTED }}>
+              <X className="w-3 h-3" />
+            </button>
+          )}
         </div>
 
         {/* Action buttons */}
@@ -221,9 +259,15 @@ export default function ManageCategories() {
             <p className="font-semibold">No categories yet</p>
             <p className="text-sm mt-1" style={{ color: MUTED }}>Tap "Add Category" to create one</p>
           </div>
+        ) : filteredParents.length === 0 ? (
+          <div className="text-center py-14">
+            <Search className="w-9 h-9 mx-auto mb-3" style={{ color: MUTED }} />
+            <p className="font-semibold">No results for "{searchQ}"</p>
+            <p className="text-sm mt-1" style={{ color: MUTED }}>Try a different keyword</p>
+          </div>
         ) : (
           <div className="space-y-2">
-            {parentCats.map(parent => (
+            {filteredParents.map(parent => (
               <div key={parent.id} className="rounded-2xl overflow-hidden border" style={{ borderColor: BORDER }}>
                 {/* Parent row */}
                 <div className="flex items-center gap-3 px-4 py-3.5" style={{ background: "hsl(var(--muted))" }}>
@@ -245,7 +289,7 @@ export default function ManageCategories() {
                   </button>
                 </div>
                 {/* Sub-category rows */}
-                {subOf(parent.id).map(sub => (
+                {filteredSubOf(parent.id).map(sub => (
                   <div key={sub.id} className="flex items-center gap-3 px-4 py-3 border-t"
                     style={{ borderColor: BORDER, background: CARD }}>
                     <span className="text-xs w-4 flex-shrink-0" style={{ color: MUTED }}>↳</span>
