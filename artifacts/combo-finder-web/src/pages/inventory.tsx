@@ -943,8 +943,8 @@ export default function Inventory() {
     return matchCat && matchSearch;
   });
 
-  const lowCount = list.filter(i => i.minStock > 0 && i.quantity <= i.minStock).length;
-  const totalValue = list.reduce((s, i) => s + (Number(i.purchasePrice) || 0) * i.quantity, 0);
+  const lowCount = filtered.filter(i => i.minStock > 0 && i.quantity <= i.minStock).length;
+  const totalValue = filtered.reduce((s, i) => s + (Number(i.purchasePrice) || 0) * i.quantity, 0);
 
   function openItemSheet(item: Item) { setSelectedItem(item); setShowSheet(true); }
   function handleFAB(action: FabAction) {
@@ -980,7 +980,7 @@ export default function Inventory() {
         {/* Stats bar */}
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: "Total Items", value: String(list.length), alert: false },
+            { label: "Total Items", value: String(filtered.length), alert: false },
             { label: "Low Stock",   value: String(lowCount),    alert: lowCount > 0 },
             { label: "Stock Value", value: `${sym}${totalValue > 999 ? (totalValue/1000).toFixed(1)+"k" : totalValue.toLocaleString()}`, alert: false },
           ].map(({ label, value, alert }) => (
