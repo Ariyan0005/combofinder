@@ -31,11 +31,18 @@ echo "=== [5/6] Build Admin Panel + Web ==="
 BASE_PATH=/admin/ PORT=1 pnpm --filter @workspace/admin-panel run build
 BASE_PATH=/ PORT=1 pnpm --filter @workspace/combo-finder-web run build
 
-echo "=== [6/6] Copy static files ==="
+echo "=== [6/6] Deploy static files (clear old, copy new) ==="
+# Clear first — prevents stale hashed JS chunks from accumulating
+rm -rf /var/www/combofinder/admin
 mkdir -p /var/www/combofinder/admin
-mkdir -p /var/www/combofinder/web
 cp -r artifacts/admin-panel/dist/public/* /var/www/combofinder/admin/
+
+rm -rf /var/www/combofinder/web
+mkdir -p /var/www/combofinder/web
 cp -r artifacts/combo-finder-web/dist/public/* /var/www/combofinder/web/
+
+echo "=== Reload nginx (picks up any nginx config changes) ==="
+nginx -t && systemctl reload nginx || echo "⚠ nginx reload failed — check config"
 
 echo "=== Restart API server via systemd ==="
 systemctl restart combofinder-api
