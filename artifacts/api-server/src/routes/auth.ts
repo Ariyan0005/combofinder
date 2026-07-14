@@ -267,10 +267,18 @@ router.post("/auth/login", async (req, res) => {
     return;
   }
   try {
-    const users = await db.select().from(usersTable)
-      .where(eq(usersTable.email, identifier.toLowerCase())).limit(1);
+    // Support login by email OR by name (username)
+    const lowerIdentifier = identifier.toLowerCase();
+    let users = await db.select().from(usersTable)
+      .where(eq(usersTable.email, lowerIdentifier)).limit(1);
+    if (users.length === 0) {
+      // Try by name (case-insensitive)
+      const all = await db.select().from(usersTable);
+      const match = all.find(u => u.name.toLowerCase() === lowerIdentifier);
+      if (match) users = [match];
+    }
     if (users.length === 0 || !users[0].passwordHash) {
-      res.status(401).json({ error: "Invalid email or password" }); return;
+      res.status(401).json({ error: "Invalid email/username or password" }); return;
     }
     const user = users[0];
     if (!verifyPassword(password, user.passwordHash)) {

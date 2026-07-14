@@ -9,8 +9,8 @@ const T = {
     welcome: "Welcome Back!",
     sub: "Sign in to your account",
     orContinue: "or continue with",
-    emailLabel: "Email",
-    emailPh: "Enter your email address",
+    emailLabel: "Email or Username",
+    emailPh: "Enter your email or username",
     passLabel: "Password",
     passPh: "Enter your password",
     forgot: "Forgot password?",
@@ -25,8 +25,8 @@ const T = {
     welcome: "স্বাগতম!",
     sub: "আপনার অ্যাকাউন্টে সাইন ইন করুন",
     orContinue: "অথবা এর মাধ্যমে প্রবেশ করুন",
-    emailLabel: "ইমেইল",
-    emailPh: "ইমেইল লিখুন",
+    emailLabel: "ইমেইল বা ইউজারনেম",
+    emailPh: "ইমেইল বা ইউজারনেম লিখুন",
     passLabel: "পাসওয়ার্ড",
     passPh: "পাসওয়ার্ড লিখুন",
     forgot: "পাসওয়ার্ড ভুলেছেন?",
@@ -41,8 +41,8 @@ const T = {
     welcome: "مرحباً بعودتك!",
     sub: "تسجيل الدخول إلى حسابك",
     orContinue: "أو تابع عبر",
-    emailLabel: "البريد الإلكتروني",
-    emailPh: "أدخل بريدك الإلكتروني",
+    emailLabel: "البريد الإلكتروني أو اسم المستخدم",
+    emailPh: "أدخل بريدك أو اسم المستخدم",
     passLabel: "كلمة المرور",
     passPh: "أدخل كلمة المرور",
     forgot: "نسيت كلمة المرور؟",
@@ -57,8 +57,8 @@ const T = {
     welcome: "वापस आपका स्वागत है!",
     sub: "अपने अकाउंट में साइन इन करें",
     orContinue: "या इससे जारी रखें",
-    emailLabel: "ईमेल",
-    emailPh: "अपना ईमेल दर्ज करें",
+    emailLabel: "ईमेल या यूज़रनेम",
+    emailPh: "ईमेल या यूज़रनेम दर्ज करें",
     passLabel: "पासवर्ड",
     passPh: "पासवर्ड दर्ज करें",
     forgot: "पासवर्ड भूल गए?",
@@ -174,9 +174,9 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div>
               <label className="text-sm font-semibold block mb-1.5">{t.emailLabel}</label>
-              <input type="email" placeholder={t.emailPh} value={email}
+              <input type="text" placeholder={t.emailPh} value={email}
                 onChange={e => setEmail(e.target.value)} className={inputCls} style={iStyle}
-                onFocus={focIn} onBlur={focOut} dir="ltr" />
+                onFocus={focIn} onBlur={focOut} dir="ltr" autoComplete="username" />
             </div>
 
             <div>

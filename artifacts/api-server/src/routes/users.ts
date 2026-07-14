@@ -1,6 +1,13 @@
 import { Router } from "express";
+import { pbkdf2Sync, randomBytes } from "node:crypto";
 import { db, usersTable } from "@workspace/db";
 import { eq, ilike, or, sql, desc } from "drizzle-orm";
+
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const hash = pbkdf2Sync(password, salt, 10000, 64, "sha512").toString("hex");
+  return `${salt}:${hash}`;
+}
 
 const router = Router();
 
@@ -39,19 +46,37 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const [row] = await db.insert(usersTable).values({ ...req.body, updatedAt: new Date() }).returning();
+    const { password, ...rest } = req.body;
+    const values: Record<string, any> = { ...rest, updatedAt: new Date() };
+    if (password) {
+      if (password.length < 6) { res.status(400).json({ error: "Password must be at least 6 characters" }); return; }
+      values.passwordHash = hashPassword(password);
+    }
+    const [row] = await db.insert(usersTable).values(values).returning();
     const { passwordHash: _, ...safe } = row;
     res.status(201).json(safe);
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to create user" }); }
+  } catch (err: any) {
+    if (err?.code === "23505") { res.status(409).json({ error: "Email already registered" }); return; }
+    req.log.error(err); res.status(500).json({ error: "Failed to create user" });
+  }
 });
 
 router.put("/:id", async (req, res) => {
   try {
-    const [row] = await db.update(usersTable).set({ ...req.body, updatedAt: new Date() }).where(eq(usersTable.id, Number(req.params.id))).returning();
+    const { password, ...rest } = req.body;
+    const updates: Record<string, any> = { ...rest, updatedAt: new Date() };
+    if (password) {
+      if (password.length < 6) { res.status(400).json({ error: "Password must be at least 6 characters" }); return; }
+      updates.passwordHash = hashPassword(password);
+    }
+    const [row] = await db.update(usersTable).set(updates).where(eq(usersTable.id, Number(req.params.id))).returning();
     if (!row) return res.status(404).json({ error: "Not found" });
     const { passwordHash: _, ...safe } = row;
     res.json(safe);
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to update user" }); }
+  } catch (err: any) {
+    if (err?.code === "23505") { res.status(409).json({ error: "Email already in use" }); return; }
+    req.log.error(err); res.status(500).json({ error: "Failed to update user" });
+  }
 });
 
 router.delete("/:id", async (req, res) => {
