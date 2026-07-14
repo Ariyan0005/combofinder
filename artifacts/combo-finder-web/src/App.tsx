@@ -26,6 +26,8 @@ import Settings from "@/pages/settings";
 import Subscription from "@/pages/subscription";
 import Ledger from "@/pages/ledger";
 import IspPinout from "@/pages/isp-pinout";
+import ManageCategories from "@/pages/manage-categories";
+import ManageSuppliers from "@/pages/manage-suppliers";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -86,6 +88,8 @@ function Router() {
             <Route path="/subscription" component={Subscription} />
             <Route path="/ledger" component={Ledger} />
             <Route path="/isp-pinout" component={IspPinout} />
+            <Route path="/manage-categories" component={ManageCategories} />
+            <Route path="/manage-suppliers" component={ManageSuppliers} />
             <Route path="/donate" component={Donate} />
             <Route>
               <div className="flex flex-col items-center justify-center h-[60vh] gap-3">

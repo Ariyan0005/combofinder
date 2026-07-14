@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   Plus, Search, Package, X, AlertCircle, Camera, ChevronRight,
   Tag, Truck, ArrowDownToLine, ShoppingCart, Edit3, Trash2,
@@ -800,13 +800,14 @@ function ManageCategoriesModal({ onClose, categories, onEdit, onDeleteCat }: {
 }
 
 // ─── FAB Menu ─────────────────────────────────────────────────────────────────
-type FabAction = "add-product" | "add-category" | "add-subcategory" | "add-supplier" | "stock-in" | "manage-categories";
+type FabAction = "add-product" | "add-category" | "add-subcategory" | "stock-in" | "manage-categories" | "manage-customers" | "manage-suppliers";
 const FAB_ITEMS: { action: FabAction; label: string; icon: React.ReactNode; color: string }[] = [
   { action: "add-product",       label: "Add Product",        icon: <Package className="w-4 h-4" />,        color: "#6366F1" },
   { action: "add-category",      label: "Add Category",       icon: <Tag className="w-4 h-4" />,             color: "#8B5CF6" },
   { action: "add-subcategory",   label: "Add Sub-category",   icon: <ChevronDown className="w-4 h-4" />,     color: "#A78BFA" },
   { action: "manage-categories", label: "Manage Categories",  icon: <Settings className="w-4 h-4" />,        color: "#64748B" },
-  { action: "add-supplier",      label: "Add Supplier",       icon: <Truck className="w-4 h-4" />,           color: "#0EA5E9" },
+  { action: "manage-customers",  label: "Manage Customers",   icon: <Boxes className="w-4 h-4" />,           color: "#F59E0B" },
+  { action: "manage-suppliers",  label: "Manage Suppliers",   icon: <Truck className="w-4 h-4" />,           color: "#0EA5E9" },
   { action: "stock-in",          label: "Stock In",           icon: <ArrowDownToLine className="w-4 h-4" />, color: "#10B981" },
 ];
 
@@ -841,6 +842,7 @@ type CatModal = "category" | "subcategory" | "edit" | "manage" | null;
 
 export default function Inventory() {
   const { user, isGuest } = useAuth();
+  const [, setLocation] = useLocation();
   const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? "৳";
   const [modal, setModal] = useState<Modal>(null);
   const [catModal, setCatModal] = useState<CatModal>(null);
@@ -949,11 +951,12 @@ export default function Inventory() {
   function openItemSheet(item: Item) { setSelectedItem(item); setShowSheet(true); }
   function handleFAB(action: FabAction) {
     if (action === "add-product")       { setModal("add-product"); return; }
-    if (action === "add-supplier")      { setModal("add-supplier"); return; }
     if (action === "stock-in")          { setSelectedItem(undefined); setModal("stock-in"); return; }
     if (action === "add-category")      { setEditCategory(undefined); setCatModal("category"); return; }
     if (action === "add-subcategory")   { setEditCategory(undefined); setCatModal("subcategory"); return; }
-    if (action === "manage-categories") { setCatModal("manage"); return; }
+    if (action === "manage-categories") { setLocation("/manage-categories"); return; }
+    if (action === "manage-customers")  { setLocation("/customers"); return; }
+    if (action === "manage-suppliers")  { setLocation("/manage-suppliers"); return; }
   }
 
   return (
