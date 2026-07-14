@@ -6,8 +6,11 @@ import {
   SunMoon, Bell, FileText, Settings, ShieldCheck, Database, 
   Video, FolderOpen, CreditCard, DollarSign, Activity, FileKey, 
   ClipboardList, CheckSquare, Wrench as WrenchIcon, Factory,
-  PieChart, Megaphone, Inbox, HardDrive, ScrollText, BatteryFull, MemoryStick
+  PieChart, Megaphone, Inbox, HardDrive, ScrollText, BatteryFull, MemoryStick,
+  ArrowLeft,
 } from "lucide-react";
+
+const SITE_URL = "/";
 import { useAuth } from "@/context/auth-context";
 
 const navigationGroups = [
@@ -159,18 +162,29 @@ export function AppLayout({ children }: { children: ReactNode }) {
           </nav>
         </div>
 
-        {/* Footer / User */}
-        <div className="p-4 flex items-center justify-between" style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }}>
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
-              AM
+        {/* Footer / User + Back to Site */}
+        <div className="p-4 flex flex-col gap-2" style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }}>
+          {/* Back to Site button */}
+          <a
+            href={SITE_URL}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors hover:bg-sidebar-accent"
+            style={{ color: "hsl(var(--muted-foreground))" }}
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to Site
+          </a>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
+                AM
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-semibold text-foreground">Abu Mahara</span>
+                <span className="text-[10px] text-muted-foreground">Super Admin</span>
+              </div>
             </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-semibold text-foreground">Abu Mahara</span>
-              <span className="text-[10px] text-muted-foreground">Super Admin</span>
-            </div>
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
           </div>
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
         </div>
       </aside>
 
@@ -178,7 +192,17 @@ export function AppLayout({ children }: { children: ReactNode }) {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-background">
         
         {/* Desktop Topbar */}
-        <header className="h-16 hidden md:flex items-center justify-end px-6 border-b border-border bg-card">
+        <header className="h-16 hidden md:flex items-center justify-between px-6 border-b border-border bg-card">
+          {/* Back to Site — left side */}
+          <a
+            href={SITE_URL}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors hover:bg-muted"
+            style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to Site
+          </a>
+
           <div className="flex items-center gap-4">
             <button className="text-muted-foreground hover:text-foreground transition-colors">
               <SunMoon className="h-5 w-5" />
@@ -205,11 +229,17 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
         {/* Mobile Header */}
         <header className="h-14 flex items-center justify-between px-4 bg-card border-b border-border md:hidden sticky top-0 z-40">
-          <Link href="/">
-            <div className="flex items-center gap-2 cursor-pointer">
-              <span className="text-sm font-bold text-foreground">ComboFinder Admin</span>
-            </div>
-          </Link>
+          <div className="flex items-center gap-3">
+            <a
+              href={SITE_URL}
+              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-muted"
+              style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Site
+            </a>
+            <span className="text-sm font-bold text-foreground">ComboFinder Admin</span>
+          </div>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 rounded-lg hover:bg-muted transition-colors"

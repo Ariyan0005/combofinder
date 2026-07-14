@@ -2,11 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Wrench, Users, Package, CheckCircle, Bell, ChevronRight,
   ShoppingCart, BarChart2, Wallet, Receipt, Battery,
-  Cpu, CreditCard,
+  Cpu, CreditCard, LayoutDashboard, MessageCircle,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
+
+const ADMIN_PANEL_URL = "/admin/";
+const WHATSAPP_URL = "https://wa.me/96897043234?text=Hi%21+I+need+support.+I%27m+contacting+you+from+the+ComboFinder+app+%28pfinder.iunlockd.com%29.";
 
 function greeting() {
   const h = new Date().getHours();
@@ -119,10 +122,38 @@ export default function Dashboard() {
               {user?.name ?? "Technician"} 👋
             </h1>
           </div>
-          <button className="w-9 h-9 rounded-full border flex items-center justify-center"
-            style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
-            <Bell className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Admin: Dashboard button → redirects to admin panel */}
+            {(user?.role === "admin" || user?.role === "superadmin") ? (
+              <a
+                href={ADMIN_PANEL_URL}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white shadow-sm transition-opacity hover:opacity-90"
+                style={{ background: "hsl(var(--primary))" }}
+                title="Go to Admin Panel"
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                Dashboard
+              </a>
+            ) : (
+              /* Regular user: Support button → opens WhatsApp */
+              <a
+                href={WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-opacity hover:opacity-90"
+                style={{ background: "#25D366", color: "#fff" }}
+                title="WhatsApp Support"
+              >
+                <MessageCircle className="w-3.5 h-3.5" />
+                Support
+              </a>
+            )}
+            {/* Bell / Notifications */}
+            <button className="w-9 h-9 rounded-full border flex items-center justify-center"
+              style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
+              <Bell className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
+            </button>
+          </div>
         </div>
 
         {/* ── Compact stats row ── */}
