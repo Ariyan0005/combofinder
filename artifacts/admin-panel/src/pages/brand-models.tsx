@@ -14,8 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-
-const BATTERY_CATEGORY_SLUG = "battery";
+import { CATEGORY_MODULES } from "@/lib/category-modules";
 
 export default function BrandModels() {
   const params = useParams();
@@ -31,10 +30,10 @@ export default function BrandModels() {
       return r.json();
     },
   });
-  const batteryCategory = categories.find((c) => c.slug === BATTERY_CATEGORY_SLUG);
-  const isBatteryBrand = !!brand && brand.categoryId != null && brand.categoryId === batteryCategory?.id;
-  const backHref = isBatteryBrand ? "/battery-brands" : "/brands";
-  const backLabel = isBatteryBrand ? "Battery Brands" : "Brands";
+  const brandCategory = categories.find((c) => c.id === brand?.categoryId);
+  const module = brandCategory ? CATEGORY_MODULES.find((m) => m.slug === brandCategory.slug) : undefined;
+  const backHref = module?.href ?? "/brands";
+  const backLabel = module?.brandsLabel ?? "Brands";
   const { data: models = [], isLoading: modelsLoading } = useGetBrandModels(brandId, { query: { enabled: !!brandId } });
   const filteredModels = models.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
 

@@ -1,6 +1,6 @@
 ---
 name: Importing an existing GitHub repo into a Replit artifact-based repl
-description: How to replace a stub/scaffold artifact with the real contents of a pre-existing multi-service repo, when the repl already has artifact.toml-registered services.
+description: How to replace a stub/scaffold artifact with the real contents of a pre-existing multi-service repo, when the repl already has artifact.toml-registered services, and how to push back to that repo's real history afterward.
 ---
 
 When a user's real project lives in an external GitHub repo and the current
@@ -25,3 +25,37 @@ that tooling risks leaving the workflow pointing at stale config.
 screenshot each artifact's running preview to confirm it shows real
 product content (not leftover scaffold placeholders) before doing any
 feature work on top of it.
+
+## Pushing back to GitHub afterward
+
+Because the import above copies *files* rather than doing a real `git
+clone`, the repl's local git history (a couple of Replit-generated
+snapshot commits) has **no common ancestor** with the real repo's
+`origin/main` history (`git merge-base` returns nothing). Never force-push
+the repl's local history over `origin/main` — that would discard the
+real, meaningful commit history.
+
+**How to apply, safely:**
+1. `git fetch <remote-url> main` to get the real history as `FETCH_HEAD`,
+   confirm divergence with `git merge-base HEAD FETCH_HEAD` (empty = no
+   common ancestor, confirming this situation).
+2. Create a new branch from `FETCH_HEAD` (real history), then replace its
+   working tree with the *current* local `main` branch's tree (e.g. via
+   `git archive main | tar -x -C <tmp-dir>` then copying that snapshot in,
+   `git add -A`, commit). This produces one clean commit containing only
+   the actual delta vs. the real repo, not a wholesale disconnected-history
+   rewrite.
+3. Push that new branch and open a PR against `main` — never push directly
+   to `main` when histories are unrelated.
+
+**On credentials:** if `gitPush`/`createPullRequest` (the git-remote
+skill's managed functions) return `NO_CREDENTIALS`, it means no Replit
+GitHub connection is linked — that's separate from any personally-supplied
+token secret (e.g. `Git_token_for_push`). When the user has explicitly
+provided such a secret for this purpose, push directly with
+`git push "https://${TOKEN_ENV_VAR}@github.com/<owner>/<repo>.git" <branch>`
+(never echo the token — pipe output through a sed mask if logging), and
+open the PR via a direct GitHub REST API call
+(`POST /repos/<owner>/<repo>/pulls` with `Authorization: Bearer
+${TOKEN_ENV_VAR}`) instead of the managed `createPullRequest`, since that
+also depends on the same missing Replit-GitHub connection.
