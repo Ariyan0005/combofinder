@@ -7,6 +7,7 @@
  */
 
 export interface CreateBrandInput {
+  categoryId?: number | null;
   name: string;
   logoUrl?: string | null;
 }

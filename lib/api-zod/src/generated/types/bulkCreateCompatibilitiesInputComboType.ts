@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type CreateComboInputComboType = typeof CreateComboInputComboType[keyof typeof CreateComboInputComboType];
+export type BulkCreateCompatibilitiesInputComboType = typeof BulkCreateCompatibilitiesInputComboType[keyof typeof BulkCreateCompatibilitiesInputComboType];
 
 
-export const CreateComboInputComboType = {
+export const BulkCreateCompatibilitiesInputComboType = {
   OEM: 'OEM',
   Compatible: 'Compatible',
   Refurbished: 'Refurbished',

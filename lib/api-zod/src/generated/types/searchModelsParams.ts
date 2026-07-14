@@ -9,4 +9,5 @@
 export type SearchModelsParams = {
 q?: string;
 brand_id?: number;
+category_id?: number;
 };

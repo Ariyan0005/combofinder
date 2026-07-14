@@ -6,7 +6,7 @@ import {
   SunMoon, Bell, FileText, Settings, ShieldCheck, Database, 
   Video, FolderOpen, CreditCard, DollarSign, Activity, FileKey, 
   ClipboardList, CheckSquare, Wrench as WrenchIcon, Factory,
-  PieChart, Megaphone, Inbox, HardDrive, ScrollText
+  PieChart, Megaphone, Inbox, HardDrive, ScrollText, BatteryFull
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 
@@ -33,6 +33,7 @@ const navigationGroups = [
     label: "Database",
     items: [
       { name: "Display Compatibility", href: "/brands", icon: Database },
+      { name: "Battery Compatibility", href: "/battery-brands", icon: BatteryFull },
       { name: "Issues & Fixes", href: "/issues-fixes", icon: WrenchIcon },
       { name: "Schematics", href: "/schematics", icon: FolderOpen },
       { name: "ISP & Pinout", href: "/isp-pinout", icon: Cpu, badge: "New" },

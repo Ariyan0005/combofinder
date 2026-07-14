@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
 import { 
   useGetBrandModels, useCreateModel, useUpdateModel, useDeleteModel,
@@ -15,12 +15,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 
+const BATTERY_CATEGORY_SLUG = "battery";
+
 export default function BrandModels() {
   const params = useParams();
   const brandId = Number(params.id);
   const [search, setSearch] = useState("");
   
   const { data: brand, isLoading: brandLoading } = useGetBrand(brandId, { query: { enabled: !!brandId } });
+  const { data: categories = [] } = useQuery<{ id: number; slug: string }[]>({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const r = await fetch("/api/categories", { credentials: "include" });
+      if (!r.ok) throw new Error("Failed to load categories");
+      return r.json();
+    },
+  });
+  const batteryCategory = categories.find((c) => c.slug === BATTERY_CATEGORY_SLUG);
+  const isBatteryBrand = !!brand && brand.categoryId != null && brand.categoryId === batteryCategory?.id;
+  const backHref = isBatteryBrand ? "/battery-brands" : "/brands";
+  const backLabel = isBatteryBrand ? "Battery Brands" : "Brands";
   const { data: models = [], isLoading: modelsLoading } = useGetBrandModels(brandId, { query: { enabled: !!brandId } });
   const filteredModels = models.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -116,14 +130,14 @@ export default function BrandModels() {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
       <div className="flex items-start gap-3">
-        <Link href="/brands">
+        <Link href={backHref}>
           <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 mt-0.5">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-            <Link href="/brands"><span className="hover:text-foreground cursor-pointer">Brands</span></Link>
+            <Link href={backHref}><span className="hover:text-foreground cursor-pointer">{backLabel}</span></Link>
             <ChevronRight className="h-3 w-3" />
             <span className="text-foreground font-medium">{brandLoading ? "..." : brand?.name}</span>
           </div>

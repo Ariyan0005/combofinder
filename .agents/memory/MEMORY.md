@@ -1,2 +1,3 @@
-- [ComboFinder architecture](combofinder-arch.md) — contract-first API with shared hooks consumed by both web admin and Expo mobile
-- [combo-finder-web & POS conventions](combofinder-pos.md) — that app uses raw fetch not codegen hooks; stock-affecting writes must use atomic tx
+- [Importing an existing repo into an artifact-based repl](artifact-import-recipe.md) — move-aside/createArtifact/restore trick to replace a stub artifact with real cloned repo content.
+- [Adding a new "part-type" module (Display/Battery/etc.) to ComboFinder](combofinder-category-pattern.md) — generic categories/brands/models schema, what must be category-scoped vs. reused as-is.
+- [pnpm workspace: `tsc --noEmit` vs `tsc --build`](monorepo-typecheck-tsc-build.md) — plain `tsc -p ... --noEmit` on a project-references package can report spurious cross-package errors that `tsc --build` does not.

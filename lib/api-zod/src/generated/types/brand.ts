@@ -8,6 +8,7 @@
 
 export interface Brand {
   id: number;
+  categoryId?: number | null;
   name: string;
   logoUrl?: string | null;
   modelCount: number;
