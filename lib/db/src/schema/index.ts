@@ -1,20 +1,25 @@
-// Export your models here. Add one export per file
-// export * from "./posts";
-//
-// Each model/table should ideally be split into different files.
-// Each model/table should define a Drizzle table, insert schema, and types:
-//
-//   import { pgTable, text, serial } from "drizzle-orm/pg-core";
-//   import { createInsertSchema } from "drizzle-zod";
-//   import { z } from "zod/v4";
-//
-//   export const postsTable = pgTable("posts", {
-//     id: serial("id").primaryKey(),
-//     title: text("title").notNull(),
-//   });
-//
-//   export const insertPostSchema = createInsertSchema(postsTable).omit({ id: true });
-//   export type InsertPost = z.infer<typeof insertPostSchema>;
-//   export type Post = typeof postsTable.$inferSelect;
-
-export {}
+export * from "./categories";
+export * from "./brands";
+export * from "./models";
+export * from "./compatibilities";
+export * from "./customers";
+export * from "./repairs";
+export * from "./inventory";
+export * from "./knowledge-base";
+export * from "./expenses";
+export * from "./users";
+export * from "./subscriptions";
+export * from "./issues-fixes";
+export * from "./schematics";
+export * from "./documents";
+export * from "./videos";
+export * from "./announcements";
+export * from "./repair-categories";
+export * from "./inventory-categories";
+export * from "./suppliers";
+export * from "./transactions";
+export * from "./activity-logs";
+export * from "./stock-movements";
+export * from "./sales";
+export * from "./ledger";
+export * from "./password-reset-tokens";
