@@ -104,9 +104,9 @@ router.post("/entries", async (req, res) => {
 router.put("/entries/:id", async (req, res) => {
   try {
     const userId: number = (req as any).userId;
-    const { type, amount, description, reference, date } = req.body;
+    const { type, amount, itemName, description, reference, date } = req.body;
     const [row] = await db.update(ledgerEntriesTable)
-      .set({ type, amount: String(amount), description, reference, date })
+      .set({ type, amount: String(amount), itemName: itemName || null, description, reference, date })
       .where(and(eq(ledgerEntriesTable.id, Number(req.params.id)), eq(ledgerEntriesTable.userId, userId)))
       .returning();
     if (!row) return res.status(404).json({ error: "Not found" });

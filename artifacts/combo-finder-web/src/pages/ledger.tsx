@@ -83,8 +83,9 @@ export default function Ledger() {
   const [accSaving, setAccSaving] = useState(false);
   const [accError, setAccError] = useState("");
 
-  // Add entry modal
+  // Add / Edit entry modal
   const [entryOpen, setEntryOpen] = useState(false);
+  const [entryEdit, setEntryEdit] = useState<Entry | null>(null);
   const [entryType, setEntryType] = useState<"credit" | "debit">("debit");
   const [entryAmount, setEntryAmount] = useState("");
   const [entryItemName, setEntryItemName] = useState("");
@@ -355,9 +356,23 @@ export default function Ledger() {
   }
 
   function openAddEntry(type: "credit" | "debit" = "debit") {
+    setEntryEdit(null);
     setEntryType(type);
     setEntryAmount(""); setEntryItemName(""); setEntryDesc(""); setEntryRef(""); setEntryOk(false);
     setEntryDate(localDateStr());
+    setEntryError("");
+    setEntryOpen(true);
+  }
+
+  function openEditEntry(entry: Entry) {
+    setEntryEdit(entry);
+    setEntryType(entry.type);
+    setEntryAmount(String(entry.amount));
+    setEntryItemName((entry as any).itemName ?? "");
+    setEntryDesc(entry.description ?? "");
+    setEntryRef(entry.reference ?? "");
+    setEntryDate(entry.date.slice(0, 10));
+    setEntryOk(false);
     setEntryError("");
     setEntryOpen(true);
   }
@@ -366,15 +381,24 @@ export default function Ledger() {
     e.preventDefault();
     if (!selectedAccount) return;
     setEntrySaving(true); setEntryError("");
-    const body = { accountId: selectedAccount.id, type: entryType, amount: entryAmount, itemName: entryItemName || undefined, description: entryDesc, reference: entryRef, date: entryDate };
     try {
-      const r = await apiFetch(`${BASE}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const data = await safeJson(r);
-      if (!r.ok) throw new Error(data.error ?? "Failed");
+      if (entryEdit) {
+        // Edit existing entry
+        const body = { type: entryType, amount: entryAmount, itemName: entryItemName || undefined, description: entryDesc, reference: entryRef, date: entryDate };
+        const r = await apiFetch(`${BASE}/entries/${entryEdit.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const data = await safeJson(r);
+        if (!r.ok) throw new Error(data.error ?? "Failed");
+      } else {
+        // New entry
+        const body = { accountId: selectedAccount.id, type: entryType, amount: entryAmount, itemName: entryItemName || undefined, description: entryDesc, reference: entryRef, date: entryDate };
+        const r = await apiFetch(`${BASE}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const data = await safeJson(r);
+        if (!r.ok) throw new Error(data.error ?? "Failed");
+      }
       setEntryOk(true);
       await loadEntries(selectedAccount.id);
       await loadAccounts();
-      setTimeout(() => { setEntryOpen(false); setEntryOk(false); }, 800);
+      setTimeout(() => { setEntryOpen(false); setEntryOk(false); setEntryEdit(null); }, 800);
     } catch (err: any) { setEntryError(err.message); }
     finally { setEntrySaving(false); }
   }
@@ -600,8 +624,12 @@ export default function Ledger() {
                       style={{ color: entry.type === "credit" ? "#16a34a" : "#dc2626" }}>
                       {entry.type === "credit" ? "+" : "-"}{sym}{Number(entry.amount).toLocaleString()}
                     </p>
+                    <button onClick={() => openEditEntry(entry)}
+                      className="ml-1 p-1 rounded-lg hover:bg-primary/10 transition-colors">
+                      <Edit2 className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary))" }} />
+                    </button>
                     <button onClick={() => deleteEntry(entry.id)}
-                      className="ml-1 p-1 rounded-lg hover:bg-destructive/10 transition-colors">
+                      className="p-1 rounded-lg hover:bg-destructive/10 transition-colors">
                       <Trash2 className="w-3.5 h-3.5" style={{ color: "hsl(var(--destructive))" }} />
                     </button>
                   </div>
@@ -621,7 +649,9 @@ export default function Ledger() {
                 style={{ borderColor: "hsl(var(--border))" }}>
                 <div>
                   <h3 className="font-bold text-base">
-                    {entryType === "debit" ? "Add Debit (Customer owes you)" : "Add Credit (Customer paid)"}
+                    {entryEdit
+                      ? `Edit ${entryType === "debit" ? "Debit" : "Credit"} Entry`
+                      : entryType === "debit" ? "Add Debit (Customer owes you)" : "Add Credit (Customer paid)"}
                   </h3>
                   <p className="text-xs mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>{acc.name}</p>
                 </div>
@@ -697,7 +727,7 @@ export default function Ledger() {
                 <button type="submit" disabled={entrySaving}
                   className="py-3 rounded-xl font-bold text-sm text-white disabled:opacity-60 flex items-center justify-center gap-2"
                   style={{ background: entryType === "debit" ? "#dc2626" : "#16a34a" }}>
-                  {entryOk ? <><Check className="w-4 h-4" /> Saved!</> : entrySaving ? "Saving…" : `Add ${entryType === "debit" ? "Debit" : "Credit"}`}
+                  {entryOk ? <><Check className="w-4 h-4" /> Saved!</> : entrySaving ? "Saving…" : entryEdit ? `Update ${entryType === "debit" ? "Debit" : "Credit"}` : `Add ${entryType === "debit" ? "Debit" : "Credit"}`}
                 </button>
               </form>
             </div>
