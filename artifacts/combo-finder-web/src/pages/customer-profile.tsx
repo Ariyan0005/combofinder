@@ -7,7 +7,7 @@ import {
   ChevronDown, ChevronUp,
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
-import { generateInvoicePdf, generateSalesReportPdf } from "@/lib/invoice-pdf";
+import { generateInvoicePdf, generateInvoicePdfBlob, generateSalesReportPdf } from "@/lib/invoice-pdf";
 import { saleToInvoiceData } from "@/pages/pos";
 import { useAuth } from "@/context/auth-context";
 
@@ -75,33 +75,22 @@ function InvoiceDetailModal({
     data.shopName = shopName;
     data.currencySymbol = sym;
 
-    // Try Web Share API with file
-    if (typeof navigator.share !== "undefined") {
+    // Generate PDF blob and share as file — this makes WhatsApp etc. appear
+    const blob = generateInvoicePdfBlob(data);
+    const file = new File([blob], `${data.invoiceNumber}.pdf`, { type: "application/pdf" });
+
+    if (typeof navigator.share !== "undefined" && navigator.canShare?.({ files: [file] })) {
       try {
-        // Build PDF as blob
-        const { jsPDF } = await import("jspdf");
-        const autoTable = (await import("jspdf-autotable")).default;
-        // Generate via existing function but capture blob instead of save
-        // Simplest: just download, then share text summary
-        const total   = Number(detail.total);
-        const advance = Number(detail.advancePaid ?? 0);
-        const due     = detail.paymentMethod === "Credit" ? Math.max(0, total - advance) : 0;
         await navigator.share({
-          title: `Invoice ${detail.invoiceNumber}`,
-          text: [
-            `Invoice: ${detail.invoiceNumber}`,
-            `Date: ${detail.date}`,
-            detail.customerName ? `Customer: ${detail.customerName}` : "",
-            `Total: ${sym}${total.toLocaleString()}`,
-            due > 0 ? `Due: ${sym}${due.toLocaleString()}` : "",
-            `Payment: ${detail.paymentMethod}`,
-          ].filter(Boolean).join("\n"),
+          title: `Invoice ${data.invoiceNumber}`,
+          files: [file],
         });
         return;
       } catch {
-        // fall through to download
+        // user cancelled or not supported — fall through to download
       }
     }
+    // Fallback: just download the PDF
     handleDownload();
   }
 

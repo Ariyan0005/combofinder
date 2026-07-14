@@ -1,8 +1,16 @@
 import { useState, useEffect, useRef, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, X, Wrench, UserPlus, Package, Trash2, ChevronDown, Check, Share2, Pencil, Phone, MessageCircle } from "lucide-react";
+import { Plus, Search, X, Wrench, UserPlus, Package, Trash2, ChevronDown, Check, Share2, Pencil, Phone, MessageCircle, Download } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
+import { generateRepairPdf, generateRepairPdfBlob } from "@/lib/invoice-pdf";
+import { useAuth } from "@/context/auth-context";
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$", EUR: "€", GBP: "£", BDT: "৳", INR: "₹",
+  PKR: "₨", NPR: "रू", LKR: "Rs", AED: "د.إ", SAR: "﷼",
+  OMR: "OMR", KWD: "KD", QAR: "QR", MYR: "RM", SGD: "S$",
+};
 
 const STATUSES = ["All", "Repairing", "Ready", "Delivered", "Cancelled"];
 const STATUS_COLOR: Record<string, { text: string; bg: string }> = {
@@ -358,96 +366,57 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
 
   const partsArr: PartEntry[] = (() => { try { return repair.partsUsed ? JSON.parse(repair.partsUsed) : []; } catch { return []; } })();
 
-  const shareText = [
-    `🔧 Repair Job #${repair.id}`,
-    `📱 ${repair.phoneBrand} ${repair.phoneModel}`,
-    `👤 ${repair.customerName}${repair.customerPhone ? ` · ${repair.customerPhone}` : ""}`,
-    `❗ Problem: ${repair.problem}`,
-    repair.engineer ? `🛠 Technician: ${repair.engineer}` : null,
-    `📋 Status: ${status}`,
-    Number(repair.totalCost) > 0 ? `💰 Total Bill: ${Number(repair.totalCost).toFixed(2)}` : null,
-    Number(repair.advancePaid) > 0 ? `✅ Advance: ${Number(repair.advancePaid).toFixed(2)}` : null,
-    `📅 Date: ${new Date(repair.createdAt).toLocaleDateString()}`,
-  ].filter(Boolean).join("\n");
+  const { user } = useAuth();
+  const sym      = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
+  const shopName = user?.shopName ?? user?.name ?? "My Shop";
 
-  function escHtml(s: string | null | undefined): string {
-    return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-  }
-
-  function buildReceiptHtml(forPrint: boolean): string {
-    const partsArr2: PartEntry[] = (() => { try { return repair.partsUsed ? JSON.parse(repair.partsUsed) : []; } catch { return []; } })();
-    const dueAmt = Math.max(0, Number(repair.totalCost ?? 0) - Number(localAdvancePaid ?? 0));
-    const isPaidNow = localIsPaid;
-    return `<!DOCTYPE html>
-<html><head><meta charset="utf-8">
-<title>Repair #${repair.id} — ${escHtml(repair.phoneBrand)} ${escHtml(repair.phoneModel)}</title>
-<style>
-  body { font-family: Arial, sans-serif; margin: 0; padding: 24px; color: #111; max-width: 480px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  .badge { display:inline-block; padding:2px 10px; border-radius:99px; font-size:12px; font-weight:700; background:#e0e7ff; color:#4338ca; margin-bottom:16px; }
-  .section { margin-bottom:16px; padding:14px 16px; border:1px solid #e5e7eb; border-radius:12px; }
-  .section h2 { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:#9ca3af; margin:0 0 8px; }
-  .row { display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px; }
-  .total { font-size:15px; font-weight:800; color:#4f46e5; }
-  .due { color:#dc2626; font-weight:700; }
-  .paid { color:#059669; font-weight:700; }
-  .footer { margin-top:20px; font-size:11px; color:#9ca3af; text-align:center; }
-  @media print { button { display:none; } }
-</style></head>
-<body>
-<h1>🔧 Repair Job #${repair.id}</h1>
-<div class="badge">${escHtml(status)}</div>
-<div class="section">
-  <h2>👤 Customer</h2>
-  <div class="row"><span>${escHtml(repair.customerName || "—")}</span></div>
-  ${repair.customerPhone ? `<div class="row"><span>📞 ${escHtml(repair.customerPhone ?? "")}</span></div>` : ""}
-</div>
-<div class="section">
-  <h2>📱 Device &amp; Problem</h2>
-  <div class="row"><b>${escHtml(repair.phoneBrand)} ${escHtml(repair.phoneModel)}</b></div>
-  <div class="row" style="color:#6b7280">${escHtml(repair.problem)}</div>
-</div>
-${Number(repair.totalCost) > 0 ? `<div class="section">
-  <h2>💰 Billing</h2>
-  ${Number(repair.laborCost) > 0 ? `<div class="row"><span>Labor</span><span>${Number(repair.laborCost).toFixed(2)}</span></div>` : ""}
-  ${partsArr2.length > 0 ? partsArr2.map(p => `<div class="row"><span>${escHtml(p.name)} ×${p.qty}</span><span>${(Number(p.unitPrice)*Number(p.qty)).toFixed(2)}</span></div>`).join("") : ""}
-  <div class="row total"><span>Total</span><span>${Number(repair.totalCost).toFixed(2)}</span></div>
-  ${Number(localAdvancePaid) > 0 ? `<div class="row paid"><span>Advance Paid</span><span>${Number(localAdvancePaid).toFixed(2)}</span></div>` : ""}
-  ${status === "Cancelled" ? `` : isPaidNow ? `<div class="row paid"><span>✓ Fully Paid</span></div>` : dueAmt > 0 ? `<div class="row due"><span>Amount Due</span><span>${dueAmt.toFixed(2)}</span></div>` : `<div class="row paid"><span>✓ Fully Paid</span></div>`}
-</div>` : ""}
-${repair.engineer ? `<div class="section"><h2>🛠 Technician</h2><div>${escHtml(repair.engineer ?? "")}</div></div>` : ""}
-${repair.notes ? `<div class="section"><h2>📝 Notes</h2><div>${escHtml(repair.notes ?? "")}</div></div>` : ""}
-<div class="footer">ComboFinder · Created ${escHtml(new Date(repair.createdAt).toLocaleDateString())}</div>
-${forPrint ? `<script>window.onload=function(){window.print();}<\/script>` : ""}
-</body></html>`;
+  function buildVoucherData() {
+    return {
+      id:            repair.id,
+      customerName:  repair.customerName,
+      customerPhone: repair.customerPhone ?? null,
+      phoneBrand:    repair.phoneBrand,
+      phoneModel:    repair.phoneModel,
+      imei:          (repair as any).imei ?? null,
+      problem:       repair.problem,
+      status,
+      engineer:      repair.engineer ?? null,
+      parts:         partsArr.map(p => ({
+        name: p.name, qty: Number(p.qty), unitPrice: Number(p.unitPrice),
+      })),
+      laborCost:     Number(repair.laborCost ?? 0),
+      totalCost:     Number(repair.totalCost ?? 0),
+      advancePaid:   Number(localAdvancePaid ?? 0),
+      isPaid:        localIsPaid,
+      notes:         repair.notes ?? null,
+      createdAt:     repair.createdAt,
+      shopName,
+      currencySymbol: sym,
+      warrantyDays:  (repair as any).warrantyDays ?? 0,
+    };
   }
 
   async function handleShare() {
-    const html = buildReceiptHtml(true);
-    // Use blob URL + programmatic link click — not blocked by popup blockers
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    const voucherData = buildVoucherData();
+    const blob = generateRepairPdfBlob(voucherData);
+    const file = new File([blob], `Repair-${repair.id}.pdf`, { type: "application/pdf" });
+    if (typeof navigator.share !== "undefined" && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({
+          title: `Repair #${repair.id} — ${repair.phoneBrand} ${repair.phoneModel}`,
+          files: [file],
+        });
+        return;
+      } catch {
+        // user cancelled or error — fall through to download
+      }
+    }
+    // Fallback: download the PDF
+    generateRepairPdf(voucherData);
   }
 
   function handleDownloadPDF() {
-    const html = buildReceiptHtml(false);
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Repair-${repair.id}-${repair.phoneBrand}-${repair.phoneModel}.html`.replace(/\s+/g, "-");
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    generateRepairPdf(buildVoucherData());
   }
 
   const STATUS_OPTS = [
@@ -704,12 +673,12 @@ ${forPrint ? `<script>window.onload=function(){window.print();}<\/script>` : ""}
             <button onClick={handleShare}
               className="py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 border"
               style={{ borderColor: PRIMARY, color: PRIMARY }}>
-              <Share2 className="w-4 h-4" /> Share / Print
+              <Share2 className="w-4 h-4" /> Share PDF
             </button>
             <button onClick={handleDownloadPDF}
               className="py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-white"
               style={{ background: PRIMARY }}>
-              ⬇ Download PDF
+              <Download className="w-4 h-4" /> Download PDF
             </button>
           </div>
 
