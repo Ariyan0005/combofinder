@@ -239,7 +239,12 @@ function AddCustomerModal({ onClose, onAdded }: { onClose: () => void; onAdded: 
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Failed"); }
       return res.json();
     },
-    onSuccess: (c) => { qc.invalidateQueries({ queryKey: ["customers"] }); onAdded(c); onClose(); },
+    onSuccess: (c) => {
+      // force-refetch customers list everywhere (mounted + unmounted)
+      qc.invalidateQueries({ queryKey: ["customers"], refetchType: "all" });
+      onAdded(c);
+      onClose();
+    },
     onError: (err: any) => setError(err.message),
   });
   return (
