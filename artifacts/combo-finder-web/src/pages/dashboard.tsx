@@ -124,7 +124,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-2">
             {/* Admin: Dashboard button → redirects to admin panel */}
-            {(user?.role === "admin" || user?.role === "superadmin") ? (
+            {(user?.role?.toLowerCase() === "admin" || user?.role?.toLowerCase() === "superadmin") ? (
               <a
                 href={ADMIN_PANEL_URL}
                 className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white shadow-sm transition-opacity hover:opacity-90"

@@ -264,7 +264,7 @@ export default function IspPinout() {
         .then((rows: any[]) => rows.filter(r => r.schematicType === "ISP Pinout")),
   });
 
-  const canAdd = user?.role === "admin" || user?.role === "superadmin";
+  const canAdd = user?.role?.toLowerCase() === "admin" || user?.role?.toLowerCase() === "superadmin";
 
   // Unique brands from data
   const allBrands = Array.from(
