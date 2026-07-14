@@ -238,7 +238,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
               <ArrowLeft className="h-3.5 w-3.5" />
               Site
             </a>
-            <span className="text-sm font-bold text-foreground">ComboFinder Admin</span>
+            <Link href="/">
+              <span className="text-sm font-bold text-foreground cursor-pointer hover:text-primary transition-colors">ComboFinder Admin</span>
+            </Link>
           </div>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

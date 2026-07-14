@@ -64,7 +64,7 @@ router.use(categoriesRouter);
 router.use(brandsRouter);
 router.use(modelsRouter);
 router.use(compatibilitiesRouter);
-router.use(requireUserAuth, statsRouter);
+router.use(statsRouter); // stats router reads userId from session internally — no requireUserAuth needed
 router.use(monthlyStatsRouter);
 router.use(searchRouter);
 router.use("/knowledge-base", knowledgeBaseRouter);
