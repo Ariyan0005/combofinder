@@ -7,12 +7,23 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Package, Edit2, Trash2, AlertTriangle, Filter } from "lucide-react";
+import { Plus, Search, Package, Edit2, Trash2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const API = "/api/inventory";
+const PURCHASE_API = "/api/supplier-purchases";
 const PART_TYPES = ["LCD / Display", "Battery", "Charging Sub Board", "IC Compatible", "Camera", "FPC Connector", "Frame", "Other"];
 const QUALITIES = ["Original", "Compatible", "Refurbished"];
+const PAYMENT_STATUSES = [
+  { value: "paid", label: "সম্পূর্ণ পরিশোধ" },
+  { value: "partial", label: "আংশিক পরিশোধ" },
+  { value: "credit", label: "সম্পূর্ণ বাকি (Credit)" },
+];
+
+interface Supplier {
+  id: number;
+  name: string;
+}
 
 interface InventoryItem {
   id: number;
@@ -25,6 +36,7 @@ interface InventoryItem {
   minStock: number;
   purchasePrice?: string;
   sellingPrice?: string;
+  supplierId?: number;
   supplier?: string;
   shelfLocation?: string;
   notes?: string;
@@ -38,9 +50,22 @@ const QUALITY_COLORS: Record<string, string> = {
   "Refurbished": "bg-amber-100 text-amber-700",
 };
 
-function ItemForm({ def, partType, onPartType, quality, onQuality }: {
-  def?: InventoryItem; partType: string; onPartType: (v: string) => void; quality: string; onQuality: (v: string) => void;
+function ItemForm({ def, partType, onPartType, quality, onQuality, suppliers, isCreate }: {
+  def?: InventoryItem;
+  partType: string;
+  onPartType: (v: string) => void;
+  quality: string;
+  onQuality: (v: string) => void;
+  suppliers: Supplier[];
+  isCreate?: boolean;
 }) {
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string>(def?.supplierId ? String(def.supplierId) : "none");
+  const [paymentStatus, setPaymentStatus] = useState("paid");
+  const [totalAmount, setTotalAmount] = useState("");
+  const [paidAmount, setPaidAmount] = useState("");
+
+  const showPaymentFields = isCreate && selectedSupplierId && selectedSupplierId !== "none";
+
   return (
     <div className="space-y-3 py-2 max-h-[65vh] overflow-y-auto pr-1">
       <div className="space-y-1">
@@ -70,8 +95,86 @@ function ItemForm({ def, partType, onPartType, quality, onQuality }: {
         <div className="space-y-1"><Label className="text-xs">Purchase Price</Label><Input name="purchasePrice" defaultValue={def?.purchasePrice} placeholder="5 OMR" /></div>
         <div className="space-y-1"><Label className="text-xs">Selling Price</Label><Input name="sellingPrice" defaultValue={def?.sellingPrice} placeholder="8 OMR" /></div>
       </div>
+
+      {/* Supplier selection — dropdown when creating */}
+      <div className="space-y-1">
+        <Label className="text-xs">Supplier</Label>
+        {isCreate ? (
+          <>
+            <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId} name="supplierId">
+              <SelectTrigger className="h-9"><SelectValue placeholder="— No supplier —" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— No supplier —</SelectItem>
+                {suppliers.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {/* Hidden input to carry supplierId value in form */}
+            <input type="hidden" name="supplierId" value={selectedSupplierId === "none" ? "" : selectedSupplierId} />
+          </>
+        ) : (
+          <Input name="supplier" defaultValue={def?.supplier} placeholder="Al-Ameen Parts" />
+        )}
+      </div>
+
+      {/* Payment tracking — only when creating with a supplier */}
+      {showPaymentFields && (
+        <div className="space-y-3 p-3 rounded-lg border border-blue-200 bg-blue-50/50">
+          <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">💰 পেমেন্ট ট্র্যাকিং</p>
+          <div className="space-y-1">
+            <Label className="text-xs">পেমেন্ট স্ট্যাটাস</Label>
+            <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {PAYMENT_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <input type="hidden" name="paymentStatus" value={paymentStatus} />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">মোট মূল্য (Total Amount)</Label>
+            <Input
+              name="totalAmount"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              value={totalAmount}
+              onChange={e => {
+                setTotalAmount(e.target.value);
+                if (paymentStatus === "paid") setPaidAmount(e.target.value);
+                if (paymentStatus === "credit") setPaidAmount("0");
+              }}
+            />
+          </div>
+          {paymentStatus === "partial" && (
+            <div className="space-y-1">
+              <Label className="text-xs">এখন কত দিলেন (Paid Now)</Label>
+              <Input
+                name="paidAmount"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={paidAmount}
+                onChange={e => setPaidAmount(e.target.value)}
+              />
+              {totalAmount && paidAmount && Number(paidAmount) < Number(totalAmount) && (
+                <p className="text-xs text-amber-700 font-medium">
+                  বাকি থাকবে: {(Number(totalAmount) - Number(paidAmount)).toFixed(2)}
+                </p>
+              )}
+            </div>
+          )}
+          {paymentStatus === "paid" && (
+            <input type="hidden" name="paidAmount" value={totalAmount} />
+          )}
+          {paymentStatus === "credit" && (
+            <input type="hidden" name="paidAmount" value="0" />
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1"><Label className="text-xs">Supplier</Label><Input name="supplier" defaultValue={def?.supplier} placeholder="Al-Ameen Parts" /></div>
         <div className="space-y-1"><Label className="text-xs">Shelf Location</Label><Input name="shelfLocation" defaultValue={def?.shelfLocation} placeholder="A3, Drawer 2..." /></div>
       </div>
       <div className="space-y-1"><Label className="text-xs">Notes</Label><Textarea name="notes" defaultValue={def?.notes} rows={2} placeholder="Any extra info..." /></div>
@@ -103,6 +206,15 @@ export default function Inventory() {
     },
   });
 
+  const { data: suppliers = [] } = useQuery<Supplier[]>({
+    queryKey: ["suppliers"],
+    queryFn: async () => {
+      const r = await fetch("/api/suppliers", { credentials: "include" });
+      if (!r.ok) return [];
+      return r.json();
+    },
+  });
+
   const filtered = items.filter(item => {
     const matchesType = typeFilter === "all" || item.partType === typeFilter;
     const matchesLow = !showLowStock || item.quantity <= item.minStock;
@@ -112,23 +224,77 @@ export default function Inventory() {
   const lowStockCount = items.filter(i => i.quantity <= i.minStock).length;
 
   const createM = useMutation({
-    mutationFn: async (data: Partial<InventoryItem>) => {
-      const r = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data), credentials: "include" });
+    mutationFn: async (data: Partial<InventoryItem> & { totalAmount?: string; paidAmount?: string; paymentStatus?: string }) => {
+      const { totalAmount, paidAmount, paymentStatus, supplierId, ...inventoryData } = data as any;
+
+      // Set supplier name from suppliers list
+      if (supplierId) {
+        const sup = suppliers.find(s => s.id === Number(supplierId));
+        if (sup) inventoryData.supplier = sup.name;
+        inventoryData.supplierId = Number(supplierId);
+      }
+
+      // Create the inventory item
+      const r = await fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(inventoryData),
+        credentials: "include",
+      });
       if (!r.ok) throw new Error("Failed");
-      return r.json();
+      const newItem = await r.json();
+
+      // If supplier + totalAmount given, create purchase record
+      if (supplierId && supplierId !== "none" && supplierId !== "" && totalAmount && Number(totalAmount) > 0) {
+        const sup = suppliers.find(s => s.id === Number(supplierId));
+        const paid = paymentStatus === "paid"
+          ? totalAmount
+          : paymentStatus === "credit"
+          ? "0"
+          : (paidAmount || "0");
+
+        await fetch(PURCHASE_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            supplierId: Number(supplierId),
+            supplierName: sup?.name,
+            inventoryId: newItem.id,
+            productName: inventoryData.partName,
+            quantity: inventoryData.quantity || 1,
+            totalAmount,
+            paidAmount: paid,
+            purchaseDate: new Date().toISOString().split("T")[0],
+          }),
+          credentials: "include",
+        });
+
+        qc.invalidateQueries({ queryKey: ["supplier-balances"] });
+      }
+
+      return newItem;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["inventory"] }); setIsCreateOpen(false); toast({ title: "Item added" }); },
-    onError: () => toast({ title: "Failed to add item", variant: "destructive" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+      setIsCreateOpen(false);
+      toast({ title: "প্রোডাক্ট যোগ হয়েছে ✓" });
+    },
+    onError: () => toast({ title: "যোগ করা যায়নি", variant: "destructive" }),
   });
 
   const updateM = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<InventoryItem> }) => {
-      const r = await fetch(`${API}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data), credentials: "include" });
+      const r = await fetch(`${API}/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
       if (!r.ok) throw new Error("Failed");
       return r.json();
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["inventory"] }); setEditingItem(null); toast({ title: "Item updated" }); },
-    onError: () => toast({ title: "Failed to update", variant: "destructive" }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["inventory"] }); setEditingItem(null); toast({ title: "আপডেট হয়েছে ✓" }); },
+    onError: () => toast({ title: "আপডেট করা যায়নি", variant: "destructive" }),
   });
 
   const deleteM = useMutation({
@@ -136,24 +302,29 @@ export default function Inventory() {
       const r = await fetch(`${API}/${id}`, { method: "DELETE", credentials: "include" });
       if (!r.ok) throw new Error("Failed");
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["inventory"] }); toast({ title: "Item deleted" }); },
-    onError: () => toast({ title: "Failed to delete", variant: "destructive" }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["inventory"] }); toast({ title: "ডিলিট হয়েছে" }); },
+    onError: () => toast({ title: "ডিলিট করা যায়নি", variant: "destructive" }),
   });
 
-  const getFormData = (form: HTMLFormElement) => ({
-    partName: (form.elements.namedItem("partName") as HTMLInputElement).value.trim(),
-    partType: createPartType || editPartType,
-    brand: (form.elements.namedItem("brand") as HTMLInputElement).value.trim() || undefined,
-    model: (form.elements.namedItem("model") as HTMLInputElement).value.trim() || undefined,
-    quality: createQuality || editQuality,
-    quantity: Number((form.elements.namedItem("quantity") as HTMLInputElement).value) || 0,
-    minStock: Number((form.elements.namedItem("minStock") as HTMLInputElement).value) || 2,
-    purchasePrice: (form.elements.namedItem("purchasePrice") as HTMLInputElement).value.trim() || undefined,
-    sellingPrice: (form.elements.namedItem("sellingPrice") as HTMLInputElement).value.trim() || undefined,
-    supplier: (form.elements.namedItem("supplier") as HTMLInputElement).value.trim() || undefined,
-    shelfLocation: (form.elements.namedItem("shelfLocation") as HTMLInputElement).value.trim() || undefined,
-    notes: (form.elements.namedItem("notes") as HTMLTextAreaElement).value.trim() || undefined,
-  });
+  const getFormData = (form: HTMLFormElement) => {
+    const get = (name: string) => (form.elements.namedItem(name) as HTMLInputElement)?.value ?? "";
+    return {
+      partName: get("partName").trim(),
+      brand: get("brand").trim() || undefined,
+      model: get("model").trim() || undefined,
+      quantity: Number(get("quantity")) || 0,
+      minStock: Number(get("minStock")) || 2,
+      purchasePrice: get("purchasePrice").trim() || undefined,
+      sellingPrice: get("sellingPrice").trim() || undefined,
+      supplier: get("supplier").trim() || undefined,
+      supplierId: get("supplierId") || undefined,
+      shelfLocation: get("shelfLocation").trim() || undefined,
+      notes: (form.elements.namedItem("notes") as HTMLTextAreaElement)?.value.trim() || undefined,
+      totalAmount: get("totalAmount").trim() || undefined,
+      paidAmount: get("paidAmount").trim() || undefined,
+      paymentStatus: get("paymentStatus") || undefined,
+    };
+  };
 
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -237,6 +408,7 @@ export default function Inventory() {
                         {(item.brand || item.model) && (
                           <p className="text-xs text-muted-foreground">{[item.brand, item.model].filter(Boolean).join(" ")}</p>
                         )}
+                        {item.supplier && <p className="text-[10px] text-muted-foreground">{item.supplier}</p>}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -270,27 +442,60 @@ export default function Inventory() {
         </Table>
       </div>
 
+      {/* Add Item Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="max-w-lg">
-          <form onSubmit={e => { e.preventDefault(); createM.mutate({ ...getFormData(e.currentTarget), partType: createPartType, quality: createQuality }); }}>
+          <form onSubmit={e => {
+            e.preventDefault();
+            const data = getFormData(e.currentTarget);
+            createM.mutate({ ...data, partType: createPartType, quality: createQuality } as any);
+          }}>
             <DialogHeader><DialogTitle>Add Stock Item</DialogTitle></DialogHeader>
-            <ItemForm partType={createPartType} onPartType={setCreatePartType} quality={createQuality} onQuality={setCreateQuality} />
+            <ItemForm
+              partType={createPartType}
+              onPartType={setCreatePartType}
+              quality={createQuality}
+              onQuality={setCreateQuality}
+              suppliers={suppliers}
+              isCreate
+            />
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-              <Button type="submit" size="sm" disabled={!createPartType || createM.isPending}>{createM.isPending ? "Saving..." : "Add Item"}</Button>
+              <Button type="submit" size="sm" disabled={!createPartType || createM.isPending}>
+                {createM.isPending ? "Saving..." : "Add Item"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
+      {/* Edit Item Dialog */}
       <Dialog open={!!editingItem} onOpenChange={o => !o && setEditingItem(null)}>
         <DialogContent className="max-w-lg">
-          <form onSubmit={e => { e.preventDefault(); if (editingItem) updateM.mutate({ id: editingItem.id, data: { ...getFormData(e.currentTarget), partType: editPartType, quality: editQuality } }); }}>
+          <form onSubmit={e => {
+            e.preventDefault();
+            if (editingItem) {
+              const data = getFormData(e.currentTarget);
+              updateM.mutate({ id: editingItem.id, data: { ...data, partType: editPartType, quality: editQuality } as any });
+            }
+          }}>
             <DialogHeader><DialogTitle>Edit Stock Item</DialogTitle></DialogHeader>
-            {editingItem && <ItemForm def={editingItem} key={editingItem.id} partType={editPartType} onPartType={setEditPartType} quality={editQuality} onQuality={setEditQuality} />}
+            {editingItem && (
+              <ItemForm
+                def={editingItem}
+                key={editingItem.id}
+                partType={editPartType}
+                onPartType={setEditPartType}
+                quality={editQuality}
+                onQuality={setEditQuality}
+                suppliers={suppliers}
+              />
+            )}
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setEditingItem(null)}>Cancel</Button>
-              <Button type="submit" size="sm" disabled={!editPartType || updateM.isPending}>{updateM.isPending ? "Saving..." : "Save"}</Button>
+              <Button type="submit" size="sm" disabled={!editPartType || updateM.isPending}>
+                {updateM.isPending ? "Saving..." : "Save"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -28,6 +28,7 @@ import activityLogsRouter from "./activity-logs";
 import stockMovementsRouter from "./stock-movements";
 import salesRouter from "./sales";
 import ledgerRouter from "./ledger";
+import supplierPurchasesRouter from "./supplier-purchases";
 
 const router: IRouter = Router();
 
@@ -85,6 +86,7 @@ router.use("/activity-logs", requireUserAuth, activityLogsRouter);
 router.use("/stock-movements", requireUserAuth, stockMovementsRouter);
 router.use("/sales", requireUserAuth, salesRouter);
 router.use("/ledger", requireUserAuth, ledgerRouter);
+router.use("/supplier-purchases", requireUserAuth, supplierPurchasesRouter);
 
 router.use("/users", usersRouter);
 router.use("/subscriptions", subscriptionsRouter);
