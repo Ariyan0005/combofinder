@@ -137,24 +137,19 @@ export default function Ledger() {
 
     // ── Header band ──────────────────────────────────────────────────────────
     doc.setFillColor(37, 99, 235);
-    doc.rect(0, 0, pageW, 30, "F");
+    doc.rect(0, 0, pageW, 26, "F");
 
-    // Shop name — large, centered
+    // Shop name — large, centered (no user name below)
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text(shopName, pageW / 2, 12, { align: "center" });
-
-    // User name — smaller, centered below shop name
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text(userName, pageW / 2, 19, { align: "center" });
+    doc.setFontSize(22);
+    doc.text(shopName, pageW / 2, 16, { align: "center" });
 
     // ── Statement title & date below header ──────────────────────────────────
     doc.setTextColor(20, 20, 20);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text(`${acc.name} Statement`, pageW / 2, 40, { align: "center" });
+    doc.text(`${acc.name} Statement`, pageW / 2, 36, { align: "center" });
 
     const periodLabel = isFiltered
       ? `${dateFrom || "…"} to ${dateTo || "…"}`
@@ -162,10 +157,10 @@ export default function Ledger() {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(80, 80, 80);
-    doc.text(periodLabel, pageW / 2, 47, { align: "center" });
+    doc.text(periodLabel, pageW / 2, 43, { align: "center" });
 
     // ── Summary strip ────────────────────────────────────────────────────────
-    const stripY = 53;
+    const stripY = 49;
     const colW = pageW / 3;
 
     // Debit box
@@ -260,16 +255,30 @@ export default function Ledger() {
       startY: stripY + 28,
       head: [["Date", "Name", "Details", `Credit(+)`, `Debit(-)`]],
       body: tableBody,
-      styles: { fontSize: 8, cellPadding: 2.5 },
-      headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold", halign: "left" },
+      styles: {
+        fontSize: 8,
+        cellPadding: { top: 3, bottom: 3, left: 3, right: 3 },
+        lineColor: [180, 190, 210],
+        lineWidth: 0.25,
+      },
+      headStyles: {
+        fillColor: [37, 99, 235],
+        textColor: 255,
+        fontStyle: "bold",
+        halign: "left",
+        lineColor: [20, 60, 180],
+        lineWidth: 0.4,
+      },
       columnStyles: {
         0: { cellWidth: 22 },
-        1: { cellWidth: 40 },
+        1: { cellWidth: 38 },
         2: { cellWidth: 60 },
-        3: { cellWidth: 28, halign: "right", textColor: [22, 163, 74] },
-        4: { cellWidth: 28, halign: "right", textColor: [220, 38, 38] },
+        3: { cellWidth: 30, halign: "right", textColor: [22, 163, 74] },
+        4: { cellWidth: 30, halign: "right", textColor: [220, 38, 38] },
       },
-      alternateRowStyles: { fillColor: [250, 252, 255] },
+      alternateRowStyles: { fillColor: [245, 248, 255] },
+      tableLineColor: [180, 190, 210],
+      tableLineWidth: 0.3,
     });
 
     // ── Footer ───────────────────────────────────────────────────────────────
