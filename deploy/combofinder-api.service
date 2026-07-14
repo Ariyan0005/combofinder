@@ -1,0 +1,24 @@
+[Unit]
+Description=ComboFinder API Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/combofinder
+
+Environment=PORT=3001
+Environment=NODE_ENV=production
+Environment=SUPABASE_DATABASE_URL=postgresql://postgres:AriyancomBD100@db.rueghpjcjoocorejovtz.supabase.co:5432/postgres
+Environment=SESSION_SECRET=ComboFinderSecret2024AriyanBD100
+Environment=ADMIN_USERNAME=Ariyan005
+Environment=ADMIN_PASSWORD=AriyancomBD100
+
+ExecStart=/usr/bin/node /var/www/combofinder/artifacts/api-server/dist/index.mjs
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
