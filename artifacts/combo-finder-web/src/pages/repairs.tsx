@@ -406,12 +406,13 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
           title: `Repair #${repair.id} — ${repair.phoneBrand} ${repair.phoneModel}`,
           files: [file],
         });
-        return;
-      } catch {
-        // user cancelled or error — fall through to download
+        return; // shared or user dismissed — do NOT auto-download
+      } catch (err: any) {
+        if (err?.name === "AbortError") return; // user cancelled share sheet — no download
+        // Other errors (e.g. NotAllowedError) → fall through to download
       }
     }
-    // Fallback: download the PDF
+    // Fallback: Web Share API unavailable
     generateRepairPdf(voucherData);
   }
 

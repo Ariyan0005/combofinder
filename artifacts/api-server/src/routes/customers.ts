@@ -23,15 +23,30 @@ router.get("/", async (req, res) => {
       : await db.select().from(customersTable).where(userFilter).orderBy(customersTable.createdAt);
 
     // Attach credit due from sales for each customer
+    // Excludes fully-Returned sales; subtracts any partial refunds for Partially Returned
     if (rows.length > 0) {
       const creditRows = await db.execute(sql`
-        SELECT customer_id::int,
-               GREATEST(0, SUM(total::numeric - COALESCE(advance_paid::numeric, 0))) AS credit_due
-        FROM sales
-        WHERE payment_method = 'Credit'
-          AND customer_id IS NOT NULL
-          AND user_id = ${userId}
-        GROUP BY customer_id
+        SELECT s.customer_id::int,
+               GREATEST(0, SUM(
+                 CASE
+                   WHEN s.status = 'Returned' THEN 0
+                   ELSE GREATEST(0,
+                     s.total::numeric
+                     - COALESCE(s.advance_paid::numeric, 0)
+                     - COALESCE(r.total_refund, 0)
+                   )
+                 END
+               )) AS credit_due
+        FROM sales s
+        LEFT JOIN (
+          SELECT sale_id, SUM(refund_amount::numeric) AS total_refund
+          FROM sale_returns
+          GROUP BY sale_id
+        ) r ON r.sale_id = s.id
+        WHERE s.payment_method = 'Credit'
+          AND s.customer_id IS NOT NULL
+          AND s.user_id = ${userId}
+        GROUP BY s.customer_id
       `);
       const dueMap = new Map<number, number>(
         (creditRows.rows as any[]).map(r => [Number(r.customer_id), Number(r.credit_due)])
@@ -51,9 +66,23 @@ router.get("/:id", async (req, res) => {
     if (!row) return res.status(404).json({ error: "Not found" });
 
     const [dueRow] = await db.execute(sql`
-      SELECT GREATEST(0, SUM(total::numeric - COALESCE(advance_paid::numeric, 0))) AS credit_due
-      FROM sales
-      WHERE payment_method = 'Credit' AND customer_id = ${row.id} AND user_id = ${userId}
+      SELECT GREATEST(0, SUM(
+        CASE
+          WHEN s.status = 'Returned' THEN 0
+          ELSE GREATEST(0,
+            s.total::numeric
+            - COALESCE(s.advance_paid::numeric, 0)
+            - COALESCE(r.total_refund, 0)
+          )
+        END
+      )) AS credit_due
+      FROM sales s
+      LEFT JOIN (
+        SELECT sale_id, SUM(refund_amount::numeric) AS total_refund
+        FROM sale_returns
+        GROUP BY sale_id
+      ) r ON r.sale_id = s.id
+      WHERE s.payment_method = 'Credit' AND s.customer_id = ${row.id} AND s.user_id = ${userId}
     `).then(r => r.rows as any[]);
     const creditDue = Number(dueRow?.credit_due ?? 0);
 

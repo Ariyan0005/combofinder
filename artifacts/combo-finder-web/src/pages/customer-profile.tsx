@@ -75,22 +75,18 @@ function InvoiceDetailModal({
     data.shopName = shopName;
     data.currencySymbol = sym;
 
-    // Generate PDF blob and share as file — this makes WhatsApp etc. appear
     const blob = generateInvoicePdfBlob(data);
     const file = new File([blob], `${data.invoiceNumber}.pdf`, { type: "application/pdf" });
 
     if (typeof navigator.share !== "undefined" && navigator.canShare?.({ files: [file] })) {
       try {
-        await navigator.share({
-          title: `Invoice ${data.invoiceNumber}`,
-          files: [file],
-        });
-        return;
-      } catch {
-        // user cancelled or not supported — fall through to download
+        await navigator.share({ title: `Invoice ${data.invoiceNumber}`, files: [file] });
+        return; // shared or dismissed — do NOT auto-download
+      } catch (err: any) {
+        if (err?.name === "AbortError") return; // user cancelled — no download
+        // Other errors fall through to download
       }
     }
-    // Fallback: just download the PDF
     handleDownload();
   }
 
@@ -574,6 +570,7 @@ export default function CustomerProfile() {
 
   const creditSaleDue = saleList.reduce((sum, s) => {
     if (s.paymentMethod !== "Credit") return sum;
+    if (s.status === "Returned") return sum; // fully returned — no due
     return sum + Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0));
   }, 0);
   const hasUnpaidCreditSales = creditSaleDue > 0;

@@ -9,6 +9,14 @@ export interface InvoiceItemData {
   returnedQuantity?: number;
 }
 
+export interface InvoiceReturnRow {
+  date: string;
+  partName: string;
+  quantity: number;
+  refundAmount: number;
+  reason?: string | null;
+}
+
 export interface InvoiceData {
   invoiceNumber: string;
   date: string;
@@ -23,6 +31,9 @@ export interface InvoiceData {
   // Credit sale fields
   advancePaid?: number | null;
   amountDue?: number | null;
+  // Return/refund data
+  returns?: InvoiceReturnRow[];
+  totalRefunded?: number;
   // Branding (passed from user context)
   shopName?: string | null;
   currencySymbol?: string | null;
@@ -189,6 +200,56 @@ function buildInvoiceDoc(invoice: InvoiceData): jsPDF {
     doc.setDrawColor(220, 38, 38);
     doc.setLineWidth(0.4);
     doc.roundedRect(labelX - 3, ty - 5.5, valX - labelX + 6, 8, 1, 1, "S");
+  }
+
+  // ── Returns section ──────────────────────────────────────────────────────────
+  if (invoice.returns && invoice.returns.length > 0) {
+    ty += 12;
+    // Section header
+    doc.setFillColor(220, 38, 38);
+    const retHeaderW = W - 28;
+    doc.roundedRect(14, ty - 4, retHeaderW, 7, 1.5, 1.5, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text("RETURNS / REFUNDS", 17, ty + 0.5);
+    doc.setTextColor(0, 0, 0);
+    ty += 8;
+
+    autoTable(doc, {
+      startY: ty,
+      head: [["Date", "Item", "Qty", `Refund (${sym})`, "Reason"]],
+      body: invoice.returns.map(r => [
+        r.date,
+        r.partName,
+        String(r.quantity),
+        r.refundAmount.toLocaleString(),
+        r.reason ?? "—",
+      ]),
+      theme: "grid",
+      headStyles: { fillColor: [220, 38, 38], fontSize: 8, fontStyle: "bold" },
+      bodyStyles: { fontSize: 8 },
+      columnStyles: {
+        2: { halign: "center", cellWidth: 12 },
+        3: { halign: "right",  cellWidth: 28 },
+      },
+      margin: { left: 14, right: 14 },
+    });
+
+    const retEndY = (doc as any).lastAutoTable?.finalY ?? ty + 20;
+    if (invoice.totalRefunded != null && invoice.totalRefunded > 0) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(220, 38, 38);
+      doc.text(
+        `Total Refunded: ${sym}${invoice.totalRefunded.toLocaleString()}`,
+        valX, retEndY + 6, { align: "right" },
+      );
+      // Net after refund
+      const net = invoice.total - invoice.totalRefunded;
+      doc.setTextColor(25, 50, 180);
+      doc.text(`Net Amount: ${sym}${net.toLocaleString()}`, valX, retEndY + 13, { align: "right" });
+    }
   }
 
   doc.setFontSize(9);

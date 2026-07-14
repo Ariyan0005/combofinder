@@ -713,7 +713,25 @@ export function saleToInvoiceData(sale: any): InvoiceData {
   const total = Number(sale.total);
   const advancePaid = Number(sale.advancePaid ?? 0);
   const isCredit = sale.paymentMethod === "Credit";
-  const amountDue = isCredit ? Math.max(0, total - advancePaid) : 0;
+  const isReturned = sale.status === "Returned";
+
+  // Build returns rows, cross-referencing items for part names
+  const returnsArr = (sale.returns ?? []).map((r: any) => {
+    const matchItem = (sale.items ?? []).find((it: any) => it.id === r.saleItemId);
+    return {
+      date: r.date,
+      partName: matchItem?.partName ?? "Item",
+      quantity: Number(r.quantity),
+      refundAmount: Number(r.refundAmount),
+      reason: r.reason ?? null,
+    };
+  });
+  const totalRefunded = returnsArr.reduce((s: number, r: any) => s + r.refundAmount, 0);
+
+  // For returned sales the amount due is 0; also subtract refunds from due
+  const rawDue = isCredit ? Math.max(0, total - advancePaid) : 0;
+  const amountDue = isReturned ? 0 : Math.max(0, rawDue - totalRefunded);
+
   return {
     invoiceNumber: sale.invoiceNumber,
     date: sale.date,
@@ -728,6 +746,8 @@ export function saleToInvoiceData(sale: any): InvoiceData {
     paymentMethod: sale.paymentMethod, status: sale.status,
     advancePaid: isCredit ? advancePaid : undefined,
     amountDue: amountDue > 0 ? amountDue : undefined,
+    returns: returnsArr.length > 0 ? returnsArr : undefined,
+    totalRefunded: totalRefunded > 0 ? totalRefunded : undefined,
     // shopName and currencySymbol must be set by the caller from user context
   };
 }
