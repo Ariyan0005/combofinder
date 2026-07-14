@@ -674,7 +674,8 @@ function ItemSheet({ item, suppliers, onClose, onEdit, onStockIn, onDelete }: {
   const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? "৳";
   const qty = item.quantity;
   const min = item.minStock;
-  const isLow = min > 0 && qty <= min;
+  const isOut = qty === 0;
+  const isLow = !isOut && min > 0 && qty <= min;
   const supplierName = suppliers.find(s => s.id === item.supplierId)?.name ?? item.supplier ?? "—";
 
   return (
@@ -696,8 +697,12 @@ function ItemSheet({ item, suppliers, onClose, onEdit, onStockIn, onDelete }: {
           <span className="text-2xl font-black">{qty}</span>
           <span className="text-sm font-semibold" style={{ color: MUTED }}>in stock</span>
           <span className="text-xs font-bold px-2.5 py-1 rounded-full ml-1"
-            style={isLow ? { background: "#FFF7E6", color: "#D97706" } : { background: "#ECFDF5", color: "#059669" }}>
-            {isLow ? "⚠ Low Stock" : "✓ In Stock"}
+            style={isOut
+              ? { background: "#FEF2F2", color: "#DC2626" }
+              : isLow
+                ? { background: "#FFF7E6", color: "#D97706" }
+                : { background: "#ECFDF5", color: "#059669" }}>
+            {isOut ? "✕ Out of Stock" : isLow ? "⚠ Low Stock" : "✓ In Stock"}
           </span>
         </div>
 
@@ -1064,7 +1069,8 @@ export default function Inventory() {
           <div className="rounded-2xl border divide-y overflow-hidden" style={{ borderColor: BORDER, background: CARD }}>
             {filtered.map(item => {
               const qty = item.quantity;
-              const isLow = item.minStock > 0 && qty <= item.minStock;
+              const isOut = qty === 0;
+              const isLow = !isOut && item.minStock > 0 && qty <= item.minStock;
               const supplierName = suppliers.find(s => s.id === item.supplierId)?.name ?? item.supplier;
               return (
                 <button key={item.id} onClick={() => openItemSheet(item)}
@@ -1083,6 +1089,12 @@ export default function Inventory() {
                   </div>
                   <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                     <span className="text-sm font-black">{qty}</span>
+                    {isOut && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                        style={{ background: "#FEF2F2", color: "#DC2626" }}>
+                        Out
+                      </span>
+                    )}
                     {isLow && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                         style={{ background: "#FFF7E6", color: "#D97706" }}>
