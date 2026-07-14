@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Plus, X, Users, AlertCircle } from "lucide-react";
-import { Link } from "wouter";
+import { Search, Plus, X, Users, AlertCircle, ArrowLeft } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
 
@@ -107,6 +107,8 @@ export default function Customers() {
   const qc = useQueryClient();
   const { user } = useAuth();
   const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
+  const [, setLocation] = useLocation();
+  const fromInventory = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("from") === "inventory";
 
   const { data: customers, isLoading } = useQuery<Customer[]>({
     queryKey: ["customers", searchQ],
@@ -129,6 +131,15 @@ export default function Customers() {
   return (
     <ProtectedPage>
       <div className="space-y-4">
+        {/* Back to Inventory — only shown when navigated from Inventory FAB */}
+        {fromInventory && (
+          <button onClick={() => setLocation("/inventory")}
+            className="flex items-center gap-1.5 text-sm font-medium pt-1"
+            style={{ color: "hsl(var(--muted-foreground))" }}>
+            <ArrowLeft className="w-4 h-4" /> Back to Inventory
+          </button>
+        )}
+
         <div className="flex items-center justify-between pt-1">
           <h1 className="text-xl font-extrabold">Customers</h1>
           <button onClick={() => { setEditCustomer(undefined); setShowForm(true); }}

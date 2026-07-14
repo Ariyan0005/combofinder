@@ -951,7 +951,7 @@ export default function Inventory() {
     if (action === "add-product")       { setModal("add-product"); return; }
     if (action === "stock-in")          { setSelectedItem(undefined); setModal("stock-in"); return; }
     if (action === "manage-categories") { setLocation("/manage-categories"); return; }
-    if (action === "manage-customers")  { setLocation("/customers"); return; }
+    if (action === "manage-customers")  { setLocation("/customers?from=inventory"); return; }
     if (action === "manage-suppliers")  { setLocation("/manage-suppliers"); return; }
   }
 
