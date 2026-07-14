@@ -19,6 +19,7 @@ type Customer = {
   whatsapp?: string;
   notes?: string;
   totalRepairs?: number;
+  repairDue?: number;
   creditDue?: number;
   createdAt: string;
 };
@@ -185,11 +186,11 @@ export default function Customers() {
                       <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
                         Repairs: {c.totalRepairs ?? 0}
                       </p>
-                      {(c.creditDue ?? 0) > 0 && (
+                      {((c.creditDue ?? 0) + (c.repairDue ?? 0)) > 0 && (
                         <span className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
                           style={{ background: "#FEF2F2", color: "#DC2626" }}>
                           <AlertCircle className="w-2.5 h-2.5" />
-                          Due: {sym}{Number(c.creditDue).toLocaleString()}
+                          Due: {sym}{((c.creditDue ?? 0) + (c.repairDue ?? 0)).toLocaleString()}
                         </span>
                       )}
                     </div>
