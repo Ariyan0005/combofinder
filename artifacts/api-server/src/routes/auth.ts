@@ -2,7 +2,7 @@ import { Router } from "express";
 import { pbkdf2Sync, randomBytes, timingSafeEqual } from "node:crypto";
 import { promises as dnsPromises } from "node:dns";
 import { db, usersTable, passwordResetTokensTable } from "@workspace/db";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, gt, lt } from "drizzle-orm";
 import nodemailer from "nodemailer";
 
 const router = Router();
@@ -290,9 +290,9 @@ router.post("/auth/register", async (req, res) => {
       accountType: usersTable.accountType, subscriptionPlan: usersTable.subscriptionPlan, currency: usersTable.currency,
     });
 
-    // Generate 6-digit verification OTP (24h expiry)
+    // Generate 6-digit verification OTP (10 min expiry)
     const verifyCode = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, user.id)).catch(() => {});
     await db.insert(passwordResetTokensTable).values({ userId: user.id, token: verifyCode, expiresAt });
 
@@ -336,7 +336,19 @@ router.post("/auth/verify-email", async (req, res) => {
     ).limit(1);
 
     if (tokens.length === 0) {
-      res.status(400).json({ error: "Invalid or expired verification code. Request a new one." }); return;
+      // Check if the code exists but is expired (vs completely wrong code)
+      const expiredTokens = await db.select().from(passwordResetTokensTable).where(
+        and(
+          eq(passwordResetTokensTable.userId, user.id),
+          eq(passwordResetTokensTable.token, token)
+        )
+      ).limit(1);
+      if (expiredTokens.length > 0 && !user.isApproved) {
+        // Token existed but expired — clean up the unverified account
+        await db.delete(usersTable).where(eq(usersTable.id, user.id)).catch(() => {});
+        res.status(410).json({ error: "Registration expired. The 10-minute window has passed. Please register again.", expired: true }); return;
+      }
+      res.status(400).json({ error: "Invalid verification code. Please check and try again." }); return;
     }
 
     await db.update(usersTable)
@@ -369,7 +381,7 @@ router.post("/auth/resend-verification", async (req, res) => {
     if (users.length === 0 || users[0].isApproved) { res.json({ success: true }); return; }
     const user = users[0];
     const verifyCode = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, user.id)).catch(() => {});
     await db.insert(passwordResetTokensTable).values({ userId: user.id, token: verifyCode, expiresAt });
     await sendVerificationEmail(user.name, user.email, verifyCode);

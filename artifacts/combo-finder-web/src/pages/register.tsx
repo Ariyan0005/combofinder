@@ -325,7 +325,16 @@ export default function Register() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: regEmail, token: otp.trim() }),
       });
-      const data = await res.json() as { success?: boolean; error?: string; user?: any };
+      const data = await res.json() as { success?: boolean; error?: string; expired?: boolean; user?: any };
+      if (res.status === 410 && data.expired) {
+        // Account deleted — send back to form with clear message
+        setStep("form");
+        setOtp("");
+        setForm(p => ({ ...p, email: "", password: "" }));
+        setEmailStatus("idle");
+        setError("Your registration expired (10-minute window passed). Please fill the form again.");
+        return;
+      }
       if (!res.ok) throw new Error(data.error ?? "Verification failed");
       await refreshUser();
       navigate("/");
