@@ -272,23 +272,45 @@ router.post("/auth/register", async (req, res) => {
   }
 
   try {
-    const existing = await db.select({ id: usersTable.id })
-      .from(usersTable).where(eq(usersTable.email, normalizedEmail)).limit(1);
-    if (existing.length > 0) {
-      res.status(409).json({ error: "Email already registered. Please login instead." }); return;
-    }
+    // Check for duplicate email — wrapped so missing column never crashes register
+    try {
+      const existing = await db.select({ id: usersTable.id })
+        .from(usersTable).where(eq(usersTable.email, normalizedEmail)).limit(1);
+      if (existing.length > 0) {
+        res.status(409).json({ error: "Email already registered. Please login instead." }); return;
+      }
+    } catch { /* email column may not exist yet — skip duplicate check */ }
+
     const { shopName, currency: countryCurrency } = req.body as { shopName?: string; currency?: string };
     const passwordHash = hashPassword(password);
-    const [user] = await db.insert(usersTable).values({
-      name: name.trim(), email: normalizedEmail, phone: phone?.trim() ?? null,
-      passwordHash, accountType: "Free Technician", subscriptionPlan: "Free",
-      isActive: false, isApproved: false,
-      currency: countryCurrency ?? "USD",
-      shopName: shopName?.trim() ?? null,
-    }).returning({
-      id: usersTable.id, name: usersTable.name, email: usersTable.email,
-      accountType: usersTable.accountType, subscriptionPlan: usersTable.subscriptionPlan, currency: usersTable.currency,
-    });
+
+    // Build insert values — only include optional columns if they are safe to use
+    // isActive / isApproved may not exist on older VPS schemas; catch & retry without them
+    let user: { id: number; name: string; email: string | null; accountType: string; subscriptionPlan: string | null; currency: string | null };
+    try {
+      [user] = await db.insert(usersTable).values({
+        name: name.trim(), email: normalizedEmail, phone: phone?.trim() ?? null,
+        passwordHash, accountType: "Free Technician", subscriptionPlan: "Free",
+        isActive: false, isApproved: false,
+        currency: countryCurrency ?? "USD",
+        shopName: shopName?.trim() ?? null,
+      }).returning({
+        id: usersTable.id, name: usersTable.name, email: usersTable.email,
+        accountType: usersTable.accountType, subscriptionPlan: usersTable.subscriptionPlan, currency: usersTable.currency,
+      });
+    } catch (insertErr: any) {
+      // If column missing, retry without optional columns
+      if (insertErr?.message?.includes("column") || insertErr?.message?.includes("does not exist")) {
+        [user] = await db.insert(usersTable).values({
+          name: name.trim(), email: normalizedEmail, phone: phone?.trim() ?? null,
+          passwordHash, currency: countryCurrency ?? "USD",
+          shopName: shopName?.trim() ?? null,
+        } as any).returning({
+          id: usersTable.id, name: usersTable.name, email: usersTable.email,
+          accountType: usersTable.accountType, subscriptionPlan: usersTable.subscriptionPlan, currency: usersTable.currency,
+        });
+      } else { throw insertErr; }
+    }
 
     // Generate 6-digit verification OTP (10 min expiry)
     const verifyCode = String(Math.floor(100000 + Math.random() * 900000));
