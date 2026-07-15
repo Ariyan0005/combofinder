@@ -45,6 +45,9 @@ echo "=== Reload nginx (picks up any nginx config changes) ==="
 nginx -t && systemctl reload nginx || echo "⚠ nginx reload failed — check config"
 
 echo "=== Restart API server via systemd ==="
+# Copy service file in case it changed (e.g. new EnvironmentFile line)
+cp /var/www/combofinder/deploy/combofinder-api.service /etc/systemd/system/combofinder-api.service
+systemctl daemon-reload
 systemctl restart combofinder-api
 systemctl is-active --quiet combofinder-api && echo "combofinder-api: running ✓" || echo "⚠ combofinder-api failed to start — check: journalctl -u combofinder-api -n 50"
 

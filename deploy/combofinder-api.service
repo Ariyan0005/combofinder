@@ -7,6 +7,7 @@ Type=simple
 User=root
 WorkingDirectory=/var/www/combofinder
 
+EnvironmentFile=-/var/www/combofinder/.env
 Environment=PORT=3001
 Environment=NODE_ENV=production
 Environment=SUPABASE_DATABASE_URL=postgresql://postgres:AriyancomBD100@db.rueghpjcjoocorejovtz.supabase.co:5432/postgres
