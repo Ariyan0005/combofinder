@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Filter, UserCheck, Edit, Trash2, X, Save } from "lucide-react";
+import { Search, Edit, Trash2, Save, CalendarPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -12,10 +12,18 @@ interface User {
   phone?: string;
   accountType: string;
   subscriptionPlan: string;
+  subscriptionExpiresAt?: string | null;
   country?: string;
   isActive: boolean;
   isApproved: boolean;
   createdAt: string;
+}
+
+function addMonths(fromDate: string | null | undefined, months: number): string {
+  const base = fromDate ? new Date(fromDate) : new Date();
+  if (base < new Date()) base.setTime(new Date().getTime()); // if expired, start from today
+  base.setMonth(base.getMonth() + months);
+  return base.toISOString().split("T")[0];
 }
 
 const PLAN_COLORS: Record<string, string> = {
@@ -112,9 +120,9 @@ export default function Users() {
               <tr>
                 <th className="px-4 py-3">User</th>
                 <th className="px-4 py-3">Plan</th>
+                <th className="px-4 py-3">Expires</th>
                 <th className="px-4 py-3">Type</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Country</th>
                 <th className="px-4 py-3">Joined</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
@@ -148,13 +156,32 @@ export default function Users() {
                         {user.subscriptionPlan ?? "Free"}
                       </span>
                     </td>
+                    <td className="px-4 py-3 text-xs">
+                      {user.subscriptionPlan === "Lifetime" ? (
+                        <span className="text-yellow-400">Lifetime</span>
+                      ) : user.subscriptionPlan === "Free" ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : user.subscriptionExpiresAt ? (
+                        (() => {
+                          const exp = new Date(user.subscriptionExpiresAt);
+                          const isExpired = exp < new Date();
+                          return (
+                            <span className={isExpired ? "text-red-400" : "text-emerald-400"}>
+                              {exp.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                              {isExpired ? " ✗" : ""}
+                            </span>
+                          );
+                        })()
+                      ) : (
+                        <span className="text-amber-400">Not set</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground text-xs">{user.accountType}</td>
                     <td className="px-4 py-3">
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${user.isActive ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"}`}>
                         {user.isActive ? "Active" : "Inactive"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs">{user.country ?? "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground text-xs">
                       {new Date(user.createdAt).toLocaleDateString()}
                     </td>
@@ -230,6 +257,51 @@ export default function Users() {
                   {["Free Technician", "Pro Technician", "Shop Owner", "Admin"].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
+              {/* Subscription Expiry */}
+              {editUser.subscriptionPlan !== "Free" && editUser.subscriptionPlan !== "Lifetime" && (
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <CalendarPlus className="h-3 w-3" /> Subscription Expires At
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full bg-input border border-border rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary"
+                    value={editUser.subscriptionExpiresAt
+                      ? new Date(editUser.subscriptionExpiresAt).toISOString().split("T")[0]
+                      : ""}
+                    onChange={e => setEditUser({ ...editUser, subscriptionExpiresAt: e.target.value || null })}
+                  />
+                  {/* Quick buttons */}
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setEditUser({ ...editUser, subscriptionExpiresAt: addMonths(editUser.subscriptionExpiresAt, 1) })}
+                      className="flex-1 text-xs py-1.5 rounded-md font-semibold border border-primary text-primary hover:bg-primary/10 transition-colors"
+                    >
+                      + 1 Month
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditUser({ ...editUser, subscriptionExpiresAt: addMonths(editUser.subscriptionExpiresAt, 12) })}
+                      className="flex-1 text-xs py-1.5 rounded-md font-semibold border border-violet-400 text-violet-400 hover:bg-violet-400/10 transition-colors"
+                    >
+                      + 1 Year
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditUser({ ...editUser, subscriptionExpiresAt: null })}
+                      className="px-3 text-xs py-1.5 rounded-md font-semibold border border-border text-muted-foreground hover:bg-secondary transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  {editUser.subscriptionExpiresAt && (
+                    <p className="text-[11px] text-muted-foreground pt-0.5">
+                      Expires: {new Date(editUser.subscriptionExpiresAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
