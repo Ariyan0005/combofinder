@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
-  ArrowLeft, Plus, Truck, Edit3, Trash2, X, Phone, Search,
+  ArrowLeft, Plus, Truck, X, Phone, Search, ChevronRight, AlertCircle,
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/context/auth-context";
@@ -21,6 +21,10 @@ type Supplier = {
   partTypes?: string;
   notes?: string;
   isActive: boolean;
+};
+type SupplierBalance = {
+  supplierId: number;
+  totalDue: number;
 };
 
 const AVATAR_COLORS = ["#6366F1", "#10B981", "#F59E0B", "#0EA5E9", "#8B5CF6", "#EF4444"];
@@ -154,6 +158,17 @@ export default function ManageSuppliers() {
     enabled: !isGuest && !!user,
   });
 
+  const { data: balances = [] } = useQuery<SupplierBalance[]>({
+    queryKey: ["suppliers-balances"],
+    queryFn: async () => {
+      const d = await fetch("/api/supplier-purchases/balances", { credentials: "include" }).then(r => r.json());
+      return Array.isArray(d) ? d : [];
+    },
+    enabled: !isGuest && !!user,
+  });
+
+  const balanceMap = Object.fromEntries(balances.map(b => [b.supplierId, b.totalDue]));
+
   const deleteMut = useMutation({
     mutationFn: (id: number) =>
       fetch(`/api/suppliers/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
@@ -222,42 +237,58 @@ export default function ManageSuppliers() {
           </div>
         ) : (
           <div className="rounded-2xl border divide-y overflow-hidden" style={{ borderColor: BORDER, background: CARD }}>
-            {filtered.map((s, i) => (
-              <div key={s.id} className="flex items-center gap-3 px-4 py-3.5">
-                {/* Avatar */}
-                <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-white"
-                  style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length] }}>
-                  {initials(s.name)}
-                </div>
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{s.name}</p>
-                  {s.phone && (
-                    <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: MUTED }}>
-                      <Phone className="w-3 h-3" /> {s.phone}
-                    </p>
-                  )}
-                  {s.partTypes && (
-                    <p className="text-xs truncate mt-0.5" style={{ color: MUTED }}>{s.partTypes}</p>
-                  )}
-                </div>
-                {/* Actions */}
-                <div className="flex flex-col items-end gap-2 flex-shrink-0">
+            {filtered.map((s, i) => {
+              const due = balanceMap[s.id] ?? 0;
+              return (
+                <div key={s.id} className="px-4 py-3.5">
+                  <div className="flex items-center gap-3">
+                    {/* Avatar */}
+                    <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-white"
+                      style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length] }}>
+                      {initials(s.name)}
+                    </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{s.name}</p>
+                      {s.phone && (
+                        <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: MUTED }}>
+                          <Phone className="w-3 h-3" /> {s.phone}
+                        </p>
+                      )}
+                      {s.partTypes && (
+                        <p className="text-xs truncate mt-0.5" style={{ color: MUTED }}>{s.partTypes}</p>
+                      )}
+                    </div>
+                    {/* Actions */}
+                    <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => { setEditSupplier(s); setShowForm(true); }}
+                        className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                        style={{ background: "hsl(var(--accent))", color: PRIMARY }}>
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => { if (confirm(`Delete "${s.name}"?`)) deleteMut.mutate(s.id); }}
+                        className="text-[10px] font-medium"
+                        style={{ color: "hsl(var(--destructive))" }}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                  {/* Ledger row */}
                   <button
-                    onClick={() => { setEditSupplier(s); setShowForm(true); }}
-                    className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                    style={{ background: "hsl(var(--accent))", color: PRIMARY }}>
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => { if (confirm(`Delete "${s.name}"?`)) deleteMut.mutate(s.id); }}
-                    className="text-[10px] font-medium"
-                    style={{ color: "hsl(var(--destructive))" }}>
-                    Delete
+                    onClick={() => setLocation(`/supplier-ledger/${s.id}`)}
+                    className="mt-2 w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold"
+                    style={{ background: due > 0 ? "#FEF3C7" : "hsl(var(--muted))", color: due > 0 ? "#92400E" : MUTED }}>
+                    <span className="flex items-center gap-1.5">
+                      {due > 0 && <AlertCircle className="w-3.5 h-3.5" style={{ color: "#F59E0B" }} />}
+                      {due > 0 ? `Due: ${due.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "View Ledger"}
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
