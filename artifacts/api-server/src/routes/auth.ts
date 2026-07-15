@@ -177,6 +177,35 @@ async function sendPasswordResetEmail(name: string, email: string, code: string)
   });
 }
 
+
+async function sendVerificationEmail(name: string, email: string, code: string): Promise<boolean> {
+  try {
+    const transporter = getMailTransporter();
+    if (!transporter) return false;
+    await transporter.sendMail({
+      from: `"${FROM_NAME()}" <${FROM_EMAIL()}>`,
+      to: `"${name}" <${email}>`,
+      subject: "ComboFinder — Verify Your Email",
+      html: `<div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#ffffff;">
+        <h2 style="color:#0080DB;margin-bottom:8px;">Verify Your Email</h2>
+        <p style="color:#374151;font-size:15px;line-height:1.6;">Hi <strong>${name}</strong>,</p>
+        <p style="color:#374151;font-size:15px;line-height:1.6;">Use the code below to activate your ComboFinder account. It expires in <strong>24 hours</strong>.</p>
+        <div style="margin:24px 0;text-align:center;">
+          <div style="display:inline-block;background:#F3F4F6;border-radius:12px;padding:18px 40px;">
+            <span style="font-size:36px;font-weight:800;letter-spacing:8px;color:#0080DB;">${code}</span>
+          </div>
+        </div>
+        <p style="color:#6B7280;font-size:13px;">If you didn't create this account, you can ignore this email.</p>
+      </div>`,
+      text: `ComboFinder — Verify Your Email\n\nYour verification code: ${code}\n\nThis code expires in 24 hours.`,
+    });
+    return true;
+  } catch (err) {
+    console.error("Verification email failed:", err);
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Password helpers
 // ---------------------------------------------------------------------------
@@ -200,6 +229,23 @@ function verifyPassword(password: string, stored: string): boolean {
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Email availability check (used by register form for real-time feedback)
+// ---------------------------------------------------------------------------
+router.get("/auth/check-email", async (req, res) => {
+  const email = ((req.query["email"] as string) ?? "").toLowerCase().trim();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.json({ available: false }); return;
+  }
+  try {
+    const existing = await db.select({ id: usersTable.id })
+      .from(usersTable).where(eq(usersTable.email, email)).limit(1);
+    res.json({ available: existing.length === 0 });
+  } catch {
+    res.json({ available: true }); // fail-open on DB error
+  }
+});
 
 router.post("/auth/register", async (req, res) => {
   const { name, email, phone, password } = req.body as {
@@ -231,25 +277,106 @@ router.post("/auth/register", async (req, res) => {
     if (existing.length > 0) {
       res.status(409).json({ error: "Email already registered. Please login instead." }); return;
     }
+    const { shopName, currency: countryCurrency } = req.body as { shopName?: string; currency?: string };
     const passwordHash = hashPassword(password);
     const [user] = await db.insert(usersTable).values({
       name: name.trim(), email: normalizedEmail, phone: phone?.trim() ?? null,
       passwordHash, accountType: "Free Technician", subscriptionPlan: "Free",
-      isActive: true, isApproved: true, currency: "USD",
+      isActive: false, isApproved: false,
+      currency: countryCurrency ?? "USD",
+      shopName: shopName?.trim() ?? null,
     }).returning({
       id: usersTable.id, name: usersTable.name, email: usersTable.email,
       accountType: usersTable.accountType, subscriptionPlan: usersTable.subscriptionPlan, currency: usersTable.currency,
     });
+
+    // Generate 6-digit verification OTP (24h expiry)
+    const verifyCode = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, user.id)).catch(() => {});
+    await db.insert(passwordResetTokensTable).values({ userId: user.id, token: verifyCode, expiresAt });
+
+    const emailSent = await sendVerificationEmail(user.name, user.email, verifyCode);
+    if (!emailSent) {
+      // SMTP not configured — activate immediately as fallback
+      await db.update(usersTable).set({ isActive: true, isApproved: true }).where(eq(usersTable.id, user.id));
+      (req.session as any).authenticated = true;
+      (req.session as any).userId = user.id;
+      (req.session as any).userName = user.name;
+      (req.session as any).userRole = user.accountType;
+      (req.session as any).userCurrency = user.currency ?? "USD";
+      res.json({ success: true, requiresVerification: false, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan, currency: user.currency ?? "USD" } });
+      return;
+    }
+    res.json({ success: true, requiresVerification: true, email: user.email });
+  } catch (err) {
+    console.error("Register error:", err);
+    res.status(500).json({ error: "Registration failed. Please try again." });
+  }
+});
+
+router.post("/auth/verify-email", async (req, res) => {
+  const { email, token } = req.body as { email?: string; token?: string };
+  if (!email || !token) {
+    res.status(400).json({ error: "Email and verification code are required" }); return;
+  }
+  const normalizedEmail = email.toLowerCase().trim();
+  try {
+    const users = await db.select().from(usersTable).where(eq(usersTable.email, normalizedEmail)).limit(1);
+    if (users.length === 0) { res.status(400).json({ error: "Invalid verification code" }); return; }
+    const user = users[0];
+
+    const now = new Date();
+    const tokens = await db.select().from(passwordResetTokensTable).where(
+      and(
+        eq(passwordResetTokensTable.userId, user.id),
+        eq(passwordResetTokensTable.token, token),
+        gt(passwordResetTokensTable.expiresAt, now)
+      )
+    ).limit(1);
+
+    if (tokens.length === 0) {
+      res.status(400).json({ error: "Invalid or expired verification code. Request a new one." }); return;
+    }
+
+    await db.update(usersTable)
+      .set({ isApproved: true, isActive: true, updatedAt: new Date() })
+      .where(eq(usersTable.id, user.id));
+    await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.id, tokens[0].id)).catch(() => {});
+
     (req.session as any).authenticated = true;
     (req.session as any).userId = user.id;
     (req.session as any).userName = user.name;
     (req.session as any).userRole = user.accountType;
+    (req.session as any).userPlan = user.subscriptionPlan ?? "Free";
     (req.session as any).userCurrency = user.currency ?? "USD";
+
     sendWelcomeEmail(user.name, user.email);
-    res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan, currency: user.currency ?? "USD" } });
+    res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan ?? "Free", currency: user.currency ?? "USD" } });
   } catch (err) {
-    console.error("Register error:", err);
-    res.status(500).json({ error: "Registration failed. Please try again." });
+    console.error("Verify email error:", err);
+    res.status(500).json({ error: "Verification failed. Please try again." });
+  }
+});
+
+// Resend verification code
+router.post("/auth/resend-verification", async (req, res) => {
+  const { email } = req.body as { email?: string };
+  if (!email) { res.status(400).json({ error: "Email is required" }); return; }
+  const normalizedEmail = email.toLowerCase().trim();
+  try {
+    const users = await db.select().from(usersTable).where(eq(usersTable.email, normalizedEmail)).limit(1);
+    if (users.length === 0 || users[0].isApproved) { res.json({ success: true }); return; }
+    const user = users[0];
+    const verifyCode = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, user.id)).catch(() => {});
+    await db.insert(passwordResetTokensTable).values({ userId: user.id, token: verifyCode, expiresAt });
+    await sendVerificationEmail(user.name, user.email, verifyCode);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Resend verification error:", err);
+    res.status(500).json({ error: "Failed to resend code." });
   }
 });
 
@@ -286,6 +413,9 @@ router.post("/auth/login", async (req, res) => {
     const user = users[0];
     if (!verifyPassword(password, user.passwordHash)) {
       res.status(401).json({ error: "Invalid email or password" }); return;
+    }
+    if (!user.isApproved) {
+      res.status(403).json({ error: "Please verify your email before logging in.", requiresVerification: true, email: user.email }); return;
     }
     if (!user.isActive) {
       res.status(403).json({ error: "Account is deactivated" }); return;
@@ -365,9 +495,9 @@ router.post("/auth/forgot-password", async (req, res) => {
     }
     const user = users[0];
 
-    // Invalidate old tokens for this user
+    // Invalidate old tokens for this user (ignore errors if table is empty)
     await db.delete(passwordResetTokensTable)
-      .where(eq(passwordResetTokensTable.userId, user.id));
+      .where(eq(passwordResetTokensTable.userId, user.id)).catch(() => {});
 
     // Generate 6-digit code
     const code = String(Math.floor(100000 + Math.random() * 900000));

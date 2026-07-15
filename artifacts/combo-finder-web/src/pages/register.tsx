@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, type FormEvent } from "react";
+import { useState, useEffect, useRef, useCallback, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
-import { Eye, EyeOff, Search, Check, ChevronDown } from "lucide-react";
+import { Eye, EyeOff, Search, Check, ChevronDown, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { AuthNavbar, type Lang } from "@/components/auth-navbar";
 
@@ -205,9 +205,11 @@ function AppleIcon() {
 
 // ── Main Register page ─────────────────────────────────────────────────────────
 export default function Register() {
-  const { register, refreshUser } = useAuth();
+  const { refreshUser } = useAuth();
   const [, navigate] = useLocation();
   const [lang, setLang] = useState<Lang>("en");
+  const [step, setStep] = useState<"form" | "verify">("form");
+  const [regEmail, setRegEmail] = useState("");
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -221,12 +223,50 @@ export default function Register() {
   const [dupEmail, setDupEmail] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Real-time email availability
+  const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
+  const emailCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // OTP verify state
+  const [otp, setOtp] = useState("");
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyError, setVerifyError] = useState("");
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
   const isRtl = lang === "ar";
 
   // Auto-detect country from timezone on mount
   useEffect(() => {
     const detected = detectCountry();
     if (detected) setForm(p => ({ ...p, country: detected }));
+  }, []);
+
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setInterval(() => setResendCooldown(c => c - 1), 1000);
+    return () => clearInterval(t);
+  }, [resendCooldown]);
+
+  // Debounced email availability check
+  const checkEmail = useCallback((email: string) => {
+    if (emailCheckTimer.current) clearTimeout(emailCheckTimer.current);
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailStatus("idle"); return;
+    }
+    setEmailStatus("checking");
+    emailCheckTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/check-email?email=${encodeURIComponent(email)}`, { credentials: "include" });
+        const data = await res.json() as { available: boolean };
+        setEmailStatus(data.available ? "available" : "taken");
+        if (!data.available) setDupEmail(true);
+        else setDupEmail(false);
+      } catch {
+        setEmailStatus("idle");
+      }
+    }, 600);
   }, []);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -241,33 +281,72 @@ export default function Register() {
     if (!form.email || !form.password) { setError("Email and password are required"); return; }
     if (form.password.length < 6) { setError("Password must be at least 6 characters"); return; }
     if (!form.country) { setError("Please select your country"); return; }
-    if (!form.shopName.trim()) { setError("Shop name is required"); return; }
+    if (!form.shopName.trim()) { setError("Business name is required"); return; }
     if (!agreed) { setError("Please agree to the Terms and Privacy Policy"); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError("Enter a valid email address"); return; }
+    if (emailStatus === "taken") { setDupEmail(true); return; }
     setLoading(true);
     try {
-      await register({ name: form.name.trim(), email: form.email, password: form.password });
       const currency = COUNTRY_CURRENCY[form.country] ?? "USD";
-      const settingsRes = await fetch("/api/auth/settings", {
-        method: "PUT", credentials: "include",
+      const res = await fetch("/api/auth/register", {
+        method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shopName: form.shopName.trim(), currency }),
+        body: JSON.stringify({ name: form.name.trim(), email: form.email, password: form.password, shopName: form.shopName.trim(), currency }),
       });
-      if (!settingsRes.ok) {
-        console.warn("Could not save shop settings after registration; user can update in Settings.");
+      const data = await res.json() as { success?: boolean; requiresVerification?: boolean; email?: string; user?: any; error?: string };
+      if (!res.ok) {
+        const msg = data.error ?? "Registration failed";
+        if (msg.toLowerCase().includes("already") || msg.toLowerCase().includes("duplicate")) setDupEmail(true);
+        else setError(msg);
+        return;
       }
-      await refreshUser();
-      navigate("/");
-    } catch (err: any) {
-      const msg: string = err.message ?? "Registration failed";
-      if (msg.toLowerCase().includes("already") || msg.toLowerCase().includes("duplicate")) {
-        setDupEmail(true);
+      if (data.requiresVerification) {
+        setRegEmail(data.email ?? form.email);
+        setStep("verify");
       } else {
-        setError(msg);
+        await refreshUser();
+        navigate("/");
       }
+    } catch (err: any) {
+      setError(err.message ?? "Registration failed");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleVerify(e: FormEvent) {
+    e.preventDefault();
+    setVerifyError("");
+    if (!otp.trim()) { setVerifyError("Please enter the verification code"); return; }
+    setVerifyLoading(true);
+    try {
+      const res = await fetch("/api/auth/verify-email", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: regEmail, token: otp.trim() }),
+      });
+      const data = await res.json() as { success?: boolean; error?: string; user?: any };
+      if (!res.ok) throw new Error(data.error ?? "Verification failed");
+      await refreshUser();
+      navigate("/");
+    } catch (err: any) {
+      setVerifyError(err.message ?? "Invalid code. Please try again.");
+    } finally {
+      setVerifyLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    setResendLoading(true);
+    try {
+      await fetch("/api/auth/resend-verification", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: regEmail }),
+      });
+      setResendCooldown(60);
+    } catch {}
+    finally { setResendLoading(false); }
   }
 
   const inputCls = "w-full px-4 py-3 rounded-xl border text-sm outline-none transition-colors";
@@ -326,12 +405,20 @@ export default function Register() {
               <label className="text-sm font-semibold block mb-1">
                 Email <span style={{ color: "hsl(var(--destructive))" }}>*</span>
               </label>
-              <input type="email" placeholder="Enter your email" value={form.email} onChange={set("email")}
-                className={inputCls} dir="ltr"
-                style={{ ...iStyle, borderColor: dupEmail ? "hsl(var(--destructive))" : "hsl(var(--border))" }}
-                onFocus={e => { e.currentTarget.style.borderColor = dupEmail ? "hsl(var(--destructive))" : "hsl(var(--primary))"; }}
-                onBlur={e => { e.currentTarget.style.borderColor = dupEmail ? "hsl(var(--destructive))" : "hsl(var(--border))"; }}
-              />
+              <div className="relative">
+                <input type="email" placeholder="Enter your email" value={form.email}
+                  onChange={e => { set("email")(e); checkEmail(e.target.value); setEmailStatus("idle"); if (emailCheckTimer.current) clearTimeout(emailCheckTimer.current); setEmailStatus("checking"); checkEmail(e.target.value); }}
+                  className={`${inputCls} pr-10`} dir="ltr"
+                  style={{ ...iStyle, borderColor: dupEmail ? "hsl(var(--destructive))" : emailStatus === "available" ? "#22c55e" : "hsl(var(--border))" }}
+                  onFocus={e => { e.currentTarget.style.borderColor = dupEmail ? "hsl(var(--destructive))" : emailStatus === "available" ? "#22c55e" : "hsl(var(--primary))"; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = dupEmail ? "hsl(var(--destructive))" : emailStatus === "available" ? "#22c55e" : "hsl(var(--border))"; }}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {emailStatus === "checking" && <Loader2 className="w-4 h-4 animate-spin" style={{ color: "hsl(var(--muted-foreground))" }} />}
+                  {emailStatus === "available" && <CheckCircle2 className="w-4 h-4" style={{ color: "#22c55e" }} />}
+                  {emailStatus === "taken" && <XCircle className="w-4 h-4" style={{ color: "hsl(var(--destructive))" }} />}
+                </span>
+              </div>
               {dupEmail && (
                 <div className="mt-1.5 px-3 py-2 rounded-xl text-sm"
                   style={{ background: "hsl(var(--destructive) / 0.08)", color: "hsl(var(--destructive))" }}>
@@ -383,7 +470,7 @@ export default function Register() {
                 Business Name <span style={{ color: "hsl(var(--destructive))" }}>*</span>
               </label>
               <input type="text" placeholder="" value={form.shopName}
-                onChange={set("shopName")} className={inputCls} style={iStyle}
+                onChange={set("shopName")} className={inputCls} style={iStyle} placeholder="Enter your business name"
                 onFocus={focIn} onBlur={focOut} />
             </div>
 
@@ -419,6 +506,7 @@ export default function Register() {
               <span className="font-bold cursor-pointer" style={{ color: "hsl(var(--primary))" }}>Sign in</span>
             </Link>
           </p>
+          </>)}
         </div>
       </div>
     </div>
