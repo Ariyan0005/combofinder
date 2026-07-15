@@ -9,7 +9,7 @@ import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
 
 const ADMIN_PANEL_URL = "/admin/";
-const WHATSAPP_URL = "https://wa.me/96897043234?text=Hi%21+I+need+support.+I%27m+contacting+you+from+the+ComboFinder+app+%28pfinder.iunlockd.com%29.";
+const WHATSAPP_URL = "https://wa.me/96897043234?text=Hi%21+I+need+support.+I%27m+contacting+you+from+the+ComboFinder+app.";
 
 function greeting() {
   const h = new Date().getHours();
