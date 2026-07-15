@@ -239,9 +239,9 @@ function PayNowModal({ supplierId, supplierName, dueAmount, onClose }: {
                 className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none"
                 style={{ borderColor: BORDER, background: BG }}>
                 <option value="cash">Cash</option>
-                <option value="bkash">bKash</option>
-                <option value="nagad">Nagad</option>
                 <option value="bank">Bank Transfer</option>
+                <option value="card">Card</option>
+                <option value="mobile_banking">Mobile Banking</option>
                 <option value="other">Other</option>
               </select>
             </Field>
