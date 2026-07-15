@@ -263,6 +263,7 @@ router.post("/auth/login", async (req, res) => {
     (req.session as any).authenticated = true;
     (req.session as any).userName = adminUsername;
     (req.session as any).userRole = "Admin";
+    (req.session as any).userPlan = "Pro";
     res.json({ success: true, user: { name: adminUsername, role: "Admin", plan: "Pro" } });
     return;
   }
@@ -291,8 +292,9 @@ router.post("/auth/login", async (req, res) => {
     (req.session as any).userId = user.id;
     (req.session as any).userName = user.name;
     (req.session as any).userRole = user.accountType;
+    (req.session as any).userPlan = user.subscriptionPlan ?? "Free";
     (req.session as any).userCurrency = user.currency ?? "USD";
-    res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan, currency: user.currency ?? "USD", shopName: user.shopName ?? "" } });
+    res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan ?? "Free", currency: user.currency ?? "USD", shopName: user.shopName ?? "" } });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Login failed. Please try again." });
@@ -309,13 +311,21 @@ router.get("/auth/me", async (req, res) => {
     let currency = "USD";
     let shopName = "";
     let email = "";
+    // Read plan fresh from DB so admin plan updates are reflected immediately
+    // without requiring the user to log out and back in.
+    let plan: string = (req.session as any).userPlan ?? "Free";
     if (userId) {
       try {
-        const [u] = await db.select({ currency: usersTable.currency, shopName: usersTable.shopName, email: usersTable.email })
-          .from(usersTable).where(eq(usersTable.id, userId));
+        const [u] = await db.select({
+          currency: usersTable.currency,
+          shopName: usersTable.shopName,
+          email: usersTable.email,
+          subscriptionPlan: usersTable.subscriptionPlan,
+        }).from(usersTable).where(eq(usersTable.id, userId));
         currency = u?.currency ?? "USD";
         shopName = u?.shopName ?? "";
         email = u?.email ?? "";
+        plan = u?.subscriptionPlan ?? "Free";
       } catch {}
     }
     res.json({
@@ -325,7 +335,7 @@ router.get("/auth/me", async (req, res) => {
         name: (req.session as any).userName ?? "User",
         email,
         role: (req.session as any).userRole ?? "Technician",
-        plan: (req.session as any).userPlan ?? "Free",
+        plan,
         currency,
         shopName,
       },
