@@ -532,8 +532,8 @@ export default function Register() {
               <label className="text-sm font-semibold block mb-1">
                 Business Name <span style={{ color: "hsl(var(--destructive))" }}>*</span>
               </label>
-              <input type="text" placeholder="" value={form.shopName}
-                onChange={set("shopName")} className={inputCls} style={iStyle} placeholder="Enter your business name"
+              <input type="text" placeholder="Enter your business name" value={form.shopName}
+                onChange={set("shopName")} className={inputCls} style={iStyle}
                 onFocus={focIn} onBlur={focOut} />
             </div>
 
