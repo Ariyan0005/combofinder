@@ -369,6 +369,60 @@ export default function Register() {
 
       <div className="flex-1 flex items-start md:items-center justify-center px-5 py-3 overflow-y-auto">
         <div className="w-full max-w-sm">
+
+          {/* ── Verify email step ── */}
+          {step === "verify" && (
+            <div className="flex flex-col gap-5">
+              <div>
+                <h1 className="text-2xl font-extrabold">Verify Your Email</h1>
+                <p className="text-sm mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+                  We sent a 6-digit code to <strong>{regEmail}</strong>. Enter it below.
+                </p>
+              </div>
+              <form onSubmit={handleVerify} className="flex flex-col gap-4">
+                <div>
+                  <label className="text-sm font-semibold block mb-1.5">Verification Code</label>
+                  <input
+                    type="text" inputMode="numeric" maxLength={6}
+                    placeholder="000000"
+                    value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ""))}
+                    className="w-full px-4 py-4 rounded-xl border text-center text-2xl font-bold tracking-widest outline-none"
+                    style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))", color: "hsl(var(--foreground))" }}
+                    dir="ltr"
+                  />
+                </div>
+                {verifyError && (
+                  <p className="text-sm text-center px-3 py-2 rounded-xl font-medium"
+                    style={{ color: "hsl(var(--destructive))", background: "hsl(var(--destructive) / 0.08)" }}>
+                    {verifyError}
+                  </p>
+                )}
+                <button type="submit" disabled={verifyLoading || otp.length !== 6}
+                  className="w-full py-3.5 rounded-xl font-bold text-white text-sm transition-opacity disabled:opacity-60"
+                  style={{ background: "hsl(var(--primary))" }}>
+                  {verifyLoading ? "Verifying…" : "Verify & Continue"}
+                </button>
+                <div className="text-center">
+                  {resendCooldown > 0
+                    ? <span className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>Resend in {resendCooldown}s</span>
+                    : <button type="button" onClick={handleResend} disabled={resendLoading}
+                        className="text-sm font-semibold" style={{ color: "hsl(var(--primary))" }}>
+                        {resendLoading ? "Sending…" : "Resend Code"}
+                      </button>
+                  }
+                </div>
+              </form>
+              <p className="text-sm text-center" style={{ color: "hsl(var(--muted-foreground))" }}>
+                Wrong email?{" "}
+                <button type="button" onClick={() => setStep("form")} className="font-bold" style={{ color: "hsl(var(--primary))" }}>
+                  Go back
+                </button>
+              </p>
+            </div>
+          )}
+
+          {/* ── Registration form step ── */}
+          {step === "form" && (<>
           <div className="mb-3">
             <h1 className="text-xl font-extrabold">Create Account</h1>
             <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Set up your ComboFinder shop</p>
