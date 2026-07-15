@@ -409,16 +409,36 @@ router.post("/auth/login", async (req, res) => {
     return;
   }
   try {
-    // Support login by email OR by name (username)
+    // Support login by email OR by name OR by phone (username)
+    // Wrapped in try/catch per-query so a missing column never crashes the login.
     const lowerIdentifier = identifier.toLowerCase();
-    let users = await db.select().from(usersTable)
-      .where(eq(usersTable.email, lowerIdentifier)).limit(1);
+    let users: typeof usersTable.$inferSelect[] = [];
+
+    // 1. Try email column (may not exist on older VPS schemas)
     if (users.length === 0) {
-      // Try by name (case-insensitive)
-      const all = await db.select().from(usersTable);
-      const match = all.find(u => u.name.toLowerCase() === lowerIdentifier);
-      if (match) users = [match];
+      try {
+        users = await db.select().from(usersTable)
+          .where(eq(usersTable.email, lowerIdentifier)).limit(1);
+      } catch { /* email column missing — fall through */ }
     }
+
+    // 2. Try phone column
+    if (users.length === 0) {
+      try {
+        users = await db.select().from(usersTable)
+          .where(eq(usersTable.phone, identifier)).limit(1);
+      } catch { /* phone column missing — fall through */ }
+    }
+
+    // 3. Try name (case-insensitive full scan)
+    if (users.length === 0) {
+      try {
+        const all = await db.select().from(usersTable);
+        const match = all.find(u => u.name?.toLowerCase() === lowerIdentifier);
+        if (match) users = [match];
+      } catch { /* ignore */ }
+    }
+
     if (users.length === 0 || !users[0].passwordHash) {
       res.status(401).json({ error: "Invalid email/username or password" }); return;
     }
@@ -498,8 +518,15 @@ router.post("/auth/forgot-password", async (req, res) => {
   if (!email) { res.status(400).json({ error: "Email is required" }); return; }
   const normalizedEmail = email.toLowerCase().trim();
   try {
-    const users = await db.select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
-      .from(usersTable).where(eq(usersTable.email, normalizedEmail)).limit(1);
+    // Query by email — gracefully handle missing email column on older VPS schemas
+    let users: { id: number; name: string; email: string | null }[] = [];
+    try {
+      users = await db.select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
+        .from(usersTable).where(eq(usersTable.email, normalizedEmail)).limit(1);
+    } catch {
+      // email column may not exist yet — return silent success (don't crash)
+      res.json({ success: true, message: "If this email exists, a reset code has been sent." }); return;
+    }
 
     // Always return success to prevent email enumeration
     if (users.length === 0) {
