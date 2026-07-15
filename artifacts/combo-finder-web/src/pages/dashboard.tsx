@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Wrench, Users, Package, CheckCircle, Bell, ChevronRight,
   ShoppingCart, BarChart2, Wallet, Receipt, Battery,
-  Cpu, CreditCard, LayoutDashboard, MessageCircle,
+  Cpu, CreditCard, LayoutDashboard, MessageCircle, Zap,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/context/auth-context";
@@ -140,8 +140,8 @@ export default function Dashboard() {
                 href={WHATSAPP_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-opacity hover:opacity-90"
-                style={{ background: "#25D366", color: "#fff" }}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white shadow-sm transition-opacity hover:opacity-90"
+                style={{ background: "hsl(var(--primary))" }}
                 title="WhatsApp Support"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
@@ -241,6 +241,32 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
+
+        {/* ── Upgrade banner — Free plan users only ── */}
+        {(!user?.plan || user.plan === "Free") && (
+          <Link href="/subscription">
+            <div className="relative overflow-hidden rounded-2xl p-4 cursor-pointer"
+              style={{ background: "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 80% 55%) 100%)" }}>
+              {/* decorative glow */}
+              <div className="absolute -top-4 -right-4 w-24 h-24 rounded-full opacity-20"
+                style={{ background: "#fff" }} />
+              <div className="flex items-center justify-between relative z-10">
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Zap className="w-3.5 h-3.5 text-yellow-300" fill="currentColor" />
+                    <span className="text-xs font-extrabold text-white">Upgrade to Pro</span>
+                  </div>
+                  <p className="text-[11px] text-white/80 leading-snug">
+                    Only $1/month · Unlimited repairs &amp; inventory
+                  </p>
+                </div>
+                <div className="flex-shrink-0 bg-white/20 rounded-xl px-3 py-1.5">
+                  <span className="text-xs font-extrabold text-white">Get Pro →</span>
+                </div>
+              </div>
+            </div>
+          </Link>
+        )}
 
       </div>
     </ProtectedPage>

@@ -13,29 +13,30 @@ router.get("/stats", async (req: any, res): Promise<void> => {
 
   let totalCustomers = 0, activeRepairs = 0, lowStock = 0;
 
-  try {
-    const q = db.select({ count: sql<number>`cast(count(*) as int)` }).from(customersTable);
-    const [c] = userId ? await q.where(eq(customersTable.userId, userId)) : await q;
-    totalCustomers = c?.count ?? 0;
-  } catch {}
+  // Only show user-scoped stats when there is a real userId in session.
+  // Without userId (e.g. env-based admin login on the web app) return 0
+  // so the dashboard doesn't show other users' data.
+  if (userId) {
+    try {
+      const [c] = await db.select({ count: sql<number>`cast(count(*) as int)` })
+        .from(customersTable).where(eq(customersTable.userId, userId));
+      totalCustomers = c?.count ?? 0;
+    } catch {}
 
-  try {
-    const baseFilter = sql`status != 'Delivered'`;
-    const [r] = userId
-      ? await db.select({ count: sql<number>`cast(count(*) as int)` }).from(repairsTable)
-          .where(and(eq(repairsTable.userId, userId), baseFilter))
-      : await db.select({ count: sql<number>`cast(count(*) as int)` }).from(repairsTable).where(baseFilter);
-    activeRepairs = r?.count ?? 0;
-  } catch {}
+    try {
+      const [r] = await db.select({ count: sql<number>`cast(count(*) as int)` })
+        .from(repairsTable)
+        .where(and(eq(repairsTable.userId, userId), sql`status != 'Delivered'`));
+      activeRepairs = r?.count ?? 0;
+    } catch {}
 
-  try {
-    const lowFilter = and(sql`${inventoryTable.minStock} > 0`, lte(inventoryTable.quantity, inventoryTable.minStock));
-    const [i] = userId
-      ? await db.select({ count: sql<number>`cast(count(*) as int)` }).from(inventoryTable)
-          .where(and(eq(inventoryTable.userId, userId), lowFilter))
-      : await db.select({ count: sql<number>`cast(count(*) as int)` }).from(inventoryTable).where(lowFilter);
-    lowStock = i?.count ?? 0;
-  } catch {}
+    try {
+      const lowFilter = and(sql`${inventoryTable.minStock} > 0`, lte(inventoryTable.quantity, inventoryTable.minStock));
+      const [i] = await db.select({ count: sql<number>`cast(count(*) as int)` })
+        .from(inventoryTable).where(and(eq(inventoryTable.userId, userId), lowFilter));
+      lowStock = i?.count ?? 0;
+    } catch {}
+  }
 
   res.json({
     totalBrands: brands?.count ?? 0,

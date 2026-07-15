@@ -65,9 +65,9 @@ export default function MainLayout({ children }: { children: ReactNode }) {
             </div>
             <span className="font-bold text-base">ComboFinder</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Link href="/donate">
-              <button className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border"
+              <button className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border mr-2"
                 style={{ borderColor: "hsl(var(--primary))", color: "hsl(var(--primary))" }}>
                 <Heart className="w-3 h-3" />
                 Donate
