@@ -63,11 +63,24 @@ router.post("/", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   try {
-    const { password, ...rest } = req.body;
-    const updates: Record<string, any> = { ...rest, updatedAt: new Date() };
-    if (password) {
-      if (password.length < 6) { res.status(400).json({ error: "Password must be at least 6 characters" }); return; }
-      updates.passwordHash = hashPassword(password);
+    const b = req.body;
+    // Explicitly whitelist updatable fields to prevent Drizzle unknown-column errors
+    const updates: Record<string, any> = { updatedAt: new Date() };
+    if (b.name !== undefined)              updates.name = String(b.name).trim();
+    if (b.email !== undefined)             updates.email = String(b.email).trim().toLowerCase();
+    if (b.phone !== undefined)             updates.phone = b.phone || null;
+    if (b.accountType !== undefined)       updates.accountType = String(b.accountType);
+    if (b.subscriptionPlan !== undefined)  updates.subscriptionPlan = String(b.subscriptionPlan);
+    if (b.subscriptionStatus !== undefined) updates.subscriptionStatus = String(b.subscriptionStatus);
+    if (b.subscriptionExpiresAt !== undefined) updates.subscriptionExpiresAt = b.subscriptionExpiresAt ? new Date(b.subscriptionExpiresAt) : null;
+    if (b.isActive !== undefined)          updates.isActive = Boolean(b.isActive);
+    if (b.isApproved !== undefined)        updates.isApproved = Boolean(b.isApproved);
+    if (b.country !== undefined)           updates.country = b.country || null;
+    if (b.shopName !== undefined)          updates.shopName = b.shopName || null;
+    if (b.currency !== undefined)          updates.currency = b.currency || null;
+    if (b.password) {
+      if (b.password.length < 6) { res.status(400).json({ error: "Password must be at least 6 characters" }); return; }
+      updates.passwordHash = hashPassword(b.password);
     }
     const [row] = await db.update(usersTable).set(updates).where(eq(usersTable.id, Number(req.params.id))).returning();
     if (!row) return res.status(404).json({ error: "Not found" });

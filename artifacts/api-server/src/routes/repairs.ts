@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, repairsTable } from "@workspace/db";
-import { eq, ilike, or, desc, sql, and } from "drizzle-orm";
+import { db, repairsTable, usersTable } from "@workspace/db";
+import { eq, ilike, or, desc, sql, and, gte } from "drizzle-orm";
 
 const router = Router();
 
@@ -71,6 +71,22 @@ router.get("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
+
+    // Enforce Free plan limit: 30 repairs per calendar month
+    const [userRow] = await db.select({ subscriptionPlan: usersTable.subscriptionPlan })
+      .from(usersTable).where(eq(usersTable.id, userId));
+    if (!userRow || (userRow.subscriptionPlan ?? "Free") === "Free") {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      const [countRow] = await db.select({ count: sql<number>`cast(count(*) as int)` })
+        .from(repairsTable)
+        .where(and(eq(repairsTable.userId, userId), gte(repairsTable.createdAt, startOfMonth)));
+      if ((countRow?.count ?? 0) >= 30) {
+        return res.status(403).json({ error: "Free plan limit reached: 30 repairs per month. Upgrade to Pro for unlimited repairs." });
+      }
+    }
+
     const [row] = await db.insert(repairsTable).values({ ...req.body, userId, updatedAt: new Date() }).returning();
     res.status(201).json(row);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to create repair" }); }

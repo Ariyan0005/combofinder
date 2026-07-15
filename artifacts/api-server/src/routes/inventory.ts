@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, inventoryTable } from "@workspace/db";
+import { db, inventoryTable, usersTable } from "@workspace/db";
 import { eq, ilike, or, lte, sql, and } from "drizzle-orm";
 
 const router = Router();
@@ -103,6 +103,17 @@ router.post("/", async (req, res) => {
   try { values = bodyToRow(req.body, userId); }
   catch (err: any) { return res.status(400).json({ error: err.message }); }
   try {
+    // Enforce Free plan limit: 50 inventory items total
+    const [userRow] = await db.select({ subscriptionPlan: usersTable.subscriptionPlan })
+      .from(usersTable).where(eq(usersTable.id, userId));
+    if (!userRow || (userRow.subscriptionPlan ?? "Free") === "Free") {
+      const [countRow] = await db.select({ count: sql<number>`cast(count(*) as int)` })
+        .from(inventoryTable).where(eq(inventoryTable.userId, userId));
+      if ((countRow?.count ?? 0) >= 50) {
+        return res.status(403).json({ error: "Free plan limit reached: 50 inventory items. Upgrade to Pro for unlimited inventory." });
+      }
+    }
+
     const [row] = await db.insert(inventoryTable).values(values as any).returning();
     res.status(201).json(row);
   } catch (err: any) { req.log.error(err); res.status(500).json({ error: "Failed to create item" }); }

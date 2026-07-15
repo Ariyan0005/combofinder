@@ -10,10 +10,10 @@ const PLANS = {
       id: "free",
       name: "Free Plan",
       price: "0",
-      currency: "BDT",
+      currency: "$",
       period: "month",
       features: [
-        "Up to 20 Repairs/month",
+        "Up to 30 Repairs/month",
         "Basic Inventory (50 items)",
         "Limited Reports",
         "Community Support",
@@ -22,8 +22,8 @@ const PLANS = {
     {
       id: "pro",
       name: "Pro Plan",
-      price: "699",
-      currency: "BDT",
+      price: "1",
+      currency: "$",
       period: "month",
       features: [
         "Unlimited Repairs",
@@ -41,10 +41,10 @@ const PLANS = {
       id: "free",
       name: "Free Plan",
       price: "0",
-      currency: "BDT",
+      currency: "$",
       period: "year",
       features: [
-        "Up to 20 Repairs/month",
+        "Up to 30 Repairs/month",
         "Basic Inventory (50 items)",
         "Limited Reports",
         "Community Support",
@@ -53,8 +53,8 @@ const PLANS = {
     {
       id: "pro",
       name: "Pro Plan",
-      price: "6,699",
-      currency: "BDT",
+      price: "10",
+      currency: "$",
       period: "year",
       features: [
         "Unlimited Repairs",
@@ -109,7 +109,7 @@ export default function Subscription() {
               {b === "yearly" ? "Yearly" : "Monthly"}
               {b === "yearly" && billing !== "yearly" && (
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                  style={{ background: "#ECFDF5", color: "#10B981" }}>Save 20%</span>
+                  style={{ background: "#ECFDF5", color: "#10B981" }}>Save 17%</span>
               )}
             </button>
           ))}
@@ -129,8 +129,8 @@ export default function Subscription() {
                   <div>
                     <p className="font-extrabold text-base">{plan.name}</p>
                     <p className="text-2xl font-extrabold mt-1">
-                      {plan.price} <span className="text-sm font-semibold" style={{ color: "hsl(var(--muted-foreground))" }}>
-                        {plan.currency} / {plan.period}
+                      {plan.currency}{plan.price} <span className="text-sm font-semibold" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        / {plan.period}
                       </span>
                     </p>
                   </div>
