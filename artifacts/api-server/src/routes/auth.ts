@@ -155,7 +155,9 @@ async function sendWelcomeEmail(name: string, email: string) {
 
 async function sendPasswordResetEmail(name: string, email: string, code: string) {
   const transporter = getMailTransporter();
-  if (!transporter) throw new Error("Email service not configured on server");
+  if (!transporter) throw new Error(
+    "SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER and SMTP_PASS env vars on your server."
+  );
   await transporter.sendMail({
     from: `"${FROM_NAME()}" <${FROM_EMAIL()}>`,
     to: `"${name}" <${email}>`,

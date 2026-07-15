@@ -209,6 +209,7 @@ export default function Register() {
   const [, navigate] = useLocation();
   const [lang, setLang] = useState<Lang>("en");
   const [form, setForm] = useState({
+    name: "",
     email: "",
     password: "",
     country: "",
@@ -236,6 +237,7 @@ export default function Register() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(""); setDupEmail(false);
+    if (!form.name.trim()) { setError("Full name is required"); return; }
     if (!form.email || !form.password) { setError("Email and password are required"); return; }
     if (form.password.length < 6) { setError("Password must be at least 6 characters"); return; }
     if (!form.country) { setError("Please select your country"); return; }
@@ -244,8 +246,7 @@ export default function Register() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError("Enter a valid email address"); return; }
     setLoading(true);
     try {
-      const name = form.email.split("@")[0];
-      await register({ name, email: form.email, password: form.password });
+      await register({ name: form.name.trim(), email: form.email, password: form.password });
       const currency = COUNTRY_CURRENCY[form.country] ?? "USD";
       const settingsRes = await fetch("/api/auth/settings", {
         method: "PUT", credentials: "include",
@@ -310,6 +311,16 @@ export default function Register() {
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
+            {/* Full Name */}
+            <div>
+              <label className="text-sm font-semibold block mb-1">
+                Full Name <span style={{ color: "hsl(var(--destructive))" }}>*</span>
+              </label>
+              <input type="text" placeholder="Enter your full name" value={form.name}
+                onChange={set("name")} className={inputCls} style={iStyle}
+                onFocus={focIn} onBlur={focOut} autoComplete="name" />
+            </div>
+
             {/* Email */}
             <div>
               <label className="text-sm font-semibold block mb-1">
