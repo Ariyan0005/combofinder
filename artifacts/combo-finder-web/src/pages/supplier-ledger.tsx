@@ -1,4 +1,13 @@
 import { useState } from "react";
+import { useAuth } from "@/context/auth-context";
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$", EUR: "€", GBP: "£", BDT: "৳", INR: "₹",
+  PKR: "₨", NPR: "रू", LKR: "Rs", AED: "د.إ", SAR: "﷼",
+  OMR: "OMR", KWD: "KD", QAR: "QR", MYR: "RM", SGD: "S$",
+  THB: "฿", IDR: "Rp", PHP: "₱", CNY: "¥", JPY: "¥",
+  KRW: "₩", TRY: "₺", ZAR: "R", NGN: "₦", GHS: "₵",
+};
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import {
@@ -298,10 +307,13 @@ function PayNowModal({ supplierId, supplierName, dueAmount, onClose }: {
   supplierId: number; supplierName: string; dueAmount: number; onClose: () => void;
 }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
   const [f, setF] = useState({
     amount: String(dueAmount > 0 ? dueAmount : ""),
     paymentMethod: "cash",
     date: new Date().toISOString().split("T")[0],
+    invoiceNo: "",
     notes: "",
   });
   const set = (k: string, v: string) => setF(p => ({ ...p, [k]: v }));
@@ -317,7 +329,7 @@ function PayNowModal({ supplierId, supplierName, dueAmount, onClose }: {
           amount: Number(f.amount),
           paymentMethod: f.paymentMethod,
           date: f.date,
-          notes: f.notes || null,
+          notes: [f.invoiceNo.trim() ? `Voucher: ${f.invoiceNo.trim()}` : "", f.notes.trim()].filter(Boolean).join(" · ") || null,
         }),
       });
       const d = await res.json();
@@ -353,9 +365,13 @@ function PayNowModal({ supplierId, supplierName, dueAmount, onClose }: {
             if (!f.amount || Number(f.amount) <= 0) { setError("Amount required"); return; }
             mut.mutate();
           }} className="flex flex-col gap-3">
+            <Field label="Invoice / Voucher No.">
+              <Input value={f.invoiceNo} onChange={e => set("invoiceNo", e.target.value)}
+                placeholder="e.g. INV-001" autoFocus />
+            </Field>
             <Field label="Amount Paid *">
               <Input type="number" min="0.01" step="0.01" value={f.amount}
-                onChange={e => set("amount", e.target.value)} placeholder="0.00" autoFocus />
+                onChange={e => set("amount", e.target.value)} placeholder="0.00" />
             </Field>
             <Field label="Payment Method">
               <select value={f.paymentMethod} onChange={e => set("paymentMethod", e.target.value)}
@@ -409,6 +425,8 @@ export default function SupplierLedger() {
   const [tab, setTab] = useState<"purchases"|"payments">("purchases");
   const [showAddPurchase, setShowAddPurchase] = useState(false);
   const [showPayNow, setShowPayNow] = useState(false);
+  const { user } = useAuth();
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
 
   const { data: supplier } = useQuery<Supplier>({
     queryKey: ["supplier", supplierId],
@@ -457,17 +475,17 @@ export default function SupplierLedger() {
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-xl px-2 py-2 text-center" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
             <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: MUTED }}>Purchased</p>
-            <p className="text-xs font-extrabold leading-tight">${fmt(balance?.totalPurchased ?? 0)}</p>
+            <p className="text-xs font-extrabold leading-tight">{sym}{fmt(balance?.totalPurchased ?? 0)}</p>
           </div>
           <div className="rounded-xl px-2 py-2 text-center" style={{ background: "#D1FAE5" }}>
             <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: GREEN }}>Paid</p>
-            <p className="text-xs font-extrabold leading-tight" style={{ color: GREEN }}>${fmt(balance?.totalPaid ?? 0)}</p>
+            <p className="text-xs font-extrabold leading-tight" style={{ color: GREEN }}>{sym}{fmt(balance?.totalPaid ?? 0)}</p>
           </div>
           <div className="rounded-xl px-2 py-2 text-center"
             style={{ background: totalDue > 0 ? "#FEE2E2" : "#D1FAE5" }}>
             <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: totalDue > 0 ? RED : GREEN }}>Due</p>
             <p className="text-xs font-extrabold leading-tight" style={{ color: totalDue > 0 ? RED : GREEN }}>
-              ${fmt(totalDue)}
+              {sym}{fmt(totalDue)}
             </p>
           </div>
         </div>
@@ -492,7 +510,7 @@ export default function SupplierLedger() {
             style={{ background: "#FEF3C7", border: `1px solid ${AMBER}40` }}>
             <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: AMBER }} />
             <p className="text-xs font-semibold flex-1" style={{ color: "#92400E" }}>
-              ${fmt(totalDue)} still owed to {supplier?.name}
+              {sym}{fmt(totalDue)} still owed to {supplier?.name}
             </p>
             <button onClick={() => setShowPayNow(true)}
               className="text-[10px] font-bold text-white px-2.5 py-1 rounded-lg flex-shrink-0"
@@ -542,13 +560,13 @@ export default function SupplierLedger() {
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
                       <StatusBadge status={p.paymentStatus} />
-                      <p className="text-sm font-bold">${fmt(p.totalAmount)}</p>
+                      <p className="text-sm font-bold">{sym}{fmt(p.totalAmount)}</p>
                     </div>
                   </div>
                   {Number(p.dueAmount) > 0 && (
                     <div className="flex items-center justify-between mt-2 pt-2 border-t" style={{ borderColor: BORDER }}>
                       <span className="text-xs" style={{ color: MUTED }}>
-                        Paid: ${fmt(p.paidAmount)} &nbsp;·&nbsp; Due: <span style={{ color: RED }}>${fmt(p.dueAmount)}</span>
+                        Paid: {sym}{fmt(p.paidAmount)} &nbsp;·&nbsp; Due: <span style={{ color: RED }}>{sym}{fmt(p.dueAmount)}</span>
                       </span>
                     </div>
                   )}
@@ -586,7 +604,7 @@ export default function SupplierLedger() {
                     </p>
                   </div>
                   <p className="text-sm font-bold flex-shrink-0" style={{ color: GREEN }}>
-                    +${fmt(p.amount)}
+                    +{sym}{fmt(p.amount)}
                   </p>
                 </div>
               ))}

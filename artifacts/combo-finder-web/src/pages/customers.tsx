@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Plus, X, Users, AlertCircle, ArrowLeft } from "lucide-react";
+import { Search, Plus, X, Users, AlertCircle, ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
@@ -196,15 +196,16 @@ export default function Customers() {
                     </div>
                   </div>
                 </Link>
-                <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                   <button onClick={() => { setEditCustomer(c); setShowForm(true); }}
-                    className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                    className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-xl transition-all active:scale-95"
                     style={{ background: "hsl(var(--accent))", color: "hsl(var(--primary))" }}>
-                    Edit
+                    <Pencil className="w-3 h-3" /> Edit
                   </button>
                   <button onClick={() => { if (confirm("Delete this customer?")) deleteMut.mutate(c.id); }}
-                    className="text-[10px] font-medium" style={{ color: "hsl(var(--destructive))" }}>
-                    Delete
+                    className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl transition-all active:scale-95"
+                    style={{ background: "#FEF2F2", color: "#DC2626" }}>
+                    <Trash2 className="w-3 h-3" /> Delete
                   </button>
                 </div>
               </div>

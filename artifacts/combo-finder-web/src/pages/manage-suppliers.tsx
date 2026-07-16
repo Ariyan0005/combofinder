@@ -107,16 +107,16 @@ function SupplierFormModal({ onClose, existing }: { onClose: () => void; existin
           }} className="flex flex-col gap-3">
             <Field label="Supplier Name *">
               <Input value={f.name} onChange={e => set("name", e.target.value)}
-                placeholder="e.g. Ali Parts BD" autoFocus />
+                placeholder="e.g. Global Parts Co." autoFocus />
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Phone">
                 <Input value={f.phone} onChange={e => set("phone", e.target.value)}
-                  placeholder="+88 01..." type="tel" />
+                  placeholder="+1 234 567 8900" type="tel" />
               </Field>
               <Field label="WhatsApp">
                 <Input value={f.whatsapp} onChange={e => set("whatsapp", e.target.value)}
-                  placeholder="+88 01..." type="tel" />
+                  placeholder="+1 234 567 8900" type="tel" />
               </Field>
             </div>
             <Field label="Supplies (part types)">
