@@ -16,7 +16,12 @@ if (!connectionString) {
   );
 }
 
-export const pool = new Pool({ connectionString, ssl: process.env.SUPABASE_DATABASE_URL ? { rejectUnauthorized: false } : false });
+// family:4 forces IPv4 socket — VPS cannot reach Supabase over IPv6 (ENETUNREACH)
+export const pool = new Pool({
+  connectionString,
+  ssl: process.env.SUPABASE_DATABASE_URL ? { rejectUnauthorized: false } : false,
+  ...(process.env.SUPABASE_DATABASE_URL ? { family: 4 } : {}),
+});
 export const db = drizzle(pool, { schema });
 
 export * from "./schema";
