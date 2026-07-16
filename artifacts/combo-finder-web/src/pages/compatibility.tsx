@@ -148,12 +148,13 @@ export default function Compatibility() {
   const allCombos = Array.isArray(searchResults?.combos) ? searchResults!.combos : [];
   const brandList = Array.isArray(brands) ? brands.slice(0, 10) : [];
 
-  // Battery brands link to battery-specific pages; all others use standard /brands/:id
-  const BATTERY_SLUGS = ["battery"];
-  const isBatteryMode = BATTERY_SLUGS.includes(selectedSlug);
+  // Section-specific routing: battery and IC get their own pages
+  const isBatteryMode = selectedSlug === "battery";
+  const isIcMode = selectedSlug === "ic";
 
   function brandLink(id: number) {
     if (isBatteryMode) return `/battery-brand/${id}`;
+    if (isIcMode) return `/ic-brand/${id}`;
     return `/brands/${id}`;
   }
 

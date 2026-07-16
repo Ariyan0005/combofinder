@@ -31,6 +31,8 @@ import ManageSuppliers from "@/pages/manage-suppliers";
 import SupplierLedger from "@/pages/supplier-ledger";
 import BatteryBrandPage from "@/pages/battery-brand";
 import BatteryModelPage from "@/pages/battery-model";
+import IcBrandPage from "@/pages/ic-brand";
+import IcModelPage from "@/pages/ic-model";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -96,6 +98,8 @@ function Router() {
             <Route path="/supplier-ledger/:id" component={SupplierLedger} />
             <Route path="/battery-brand/:id" component={BatteryBrandPage} />
             <Route path="/battery-model/:id" component={BatteryModelPage} />
+            <Route path="/ic-brand/:id" component={IcBrandPage} />
+            <Route path="/ic-model/:id" component={IcModelPage} />
             <Route path="/donate" component={Donate} />
             <Route>
               <div className="flex flex-col items-center justify-center h-[60vh] gap-3">

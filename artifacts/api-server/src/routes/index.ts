@@ -30,6 +30,7 @@ import salesRouter from "./sales";
 import ledgerRouter from "./ledger";
 import supplierPurchasesRouter from "./supplier-purchases";
 import batteryCompatRouter from "./battery-compat";
+import icCompatRouter from "./ic-compat";
 
 const router: IRouter = Router();
 
@@ -70,6 +71,7 @@ router.use(monthlyStatsRouter);
 router.use(searchRouter);
 router.use("/knowledge-base", knowledgeBaseRouter);
 router.use(batteryCompatRouter);
+router.use(icCompatRouter);
 router.use("/issues-fixes", issuesFixesRouter);
 router.use("/schematics", schematicsRouter);
 router.use("/videos", videosRouter);

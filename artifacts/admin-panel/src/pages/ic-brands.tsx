@@ -187,7 +187,7 @@ export default function IcBrands() {
               filteredBrands.map((brand) => (
                 <TableRow key={brand.id} className="group hover:bg-muted/30 transition-colors">
                   <TableCell className="font-medium">
-                    <Link href={`/brands/${brand.id}/models`}>
+                    <Link href={`/ic-brands/${brand.id}/models`}>
                       <div className="flex items-center gap-3 cursor-pointer group/link">
                         <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                           {brand.logoUrl ? (
