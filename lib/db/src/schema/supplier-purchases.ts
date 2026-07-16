@@ -15,6 +15,7 @@ export const supplierPurchasesTable = pgTable("supplier_purchases", {
   dueAmount: text("due_amount").notNull(),        // বাকি
   paymentStatus: text("payment_status").notNull().default("credit"), // "paid" | "partial" | "credit"
   purchaseDate: text("purchase_date").notNull(),
+  invoiceNumber: text("invoice_number"),  // groups multiple items under one invoice
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

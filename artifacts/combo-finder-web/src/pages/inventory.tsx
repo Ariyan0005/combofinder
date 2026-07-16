@@ -475,71 +475,92 @@ function AddSupplierModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ─── Stock In Modal ───────────────────────────────────────────────────────────
+// ─── Stock In Modal (multi-item invoice) ─────────────────────────────────────
+type StockInLine = {
+  _key: string; item?: Item;
+  search: string; showDrop: boolean;
+  qty: string; unitPrice: string;
+};
+function newStockLine(item?: Item): StockInLine {
+  return {
+    _key: Math.random().toString(36).slice(2),
+    item, search: item?.partName ?? "", showDrop: false,
+    qty: "1", unitPrice: item?.purchasePrice ? String(item.purchasePrice) : "",
+  };
+}
+
 function StockInModal({ onClose, item: initialItem, suppliers, allItems }: {
   onClose: () => void; item?: Item; suppliers: Supplier[]; allItems: Item[];
 }) {
   const qc = useQueryClient();
   const { user } = useAuth();
   const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? "৳";
-  const [item, setItem] = useState<Item | undefined>(initialItem);
-  const [itemSearch, setItemSearch] = useState("");
-  const [qty, setQty] = useState("1");
+  const today = new Date().toISOString().split("T")[0];
+
+  const [invoiceNo, setInvoiceNo] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState(today);
   const [supplierId, setSupplierId] = useState(String(initialItem?.supplierId ?? ""));
-  const [unitPrice, setUnitPrice] = useState(String(initialItem?.purchasePrice ?? ""));
   const [paidNow, setPaidNow] = useState("0");
   const [notes, setNotes] = useState("");
   const [recordLedger, setRecordLedger] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const supplierName = suppliers.find(s => String(s.id) === supplierId)?.name;
-  const totalAmt = Number(qty) * Number(unitPrice);
-  const dueAmt = Math.max(0, totalAmt - Number(paidNow));
+  const [lines, setLines] = useState<StockInLine[]>([newStockLine(initialItem)]);
 
-  const filteredItems = itemSearch
-    ? allItems.filter(i => (i.partName).toLowerCase().includes(itemSearch.toLowerCase())).slice(0, 6)
-    : [];
+  const supplierName = suppliers.find(s => String(s.id) === supplierId)?.name;
+  const invoiceTotal = lines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0);
+  const dueAmt = Math.max(0, invoiceTotal - (Number(paidNow) || 0));
+  const validLines = lines.filter(l => l.item && Number(l.qty) > 0);
+
+  const patchLine = (key: string, patch: Partial<StockInLine>) =>
+    setLines(prev => prev.map(l => l._key === key ? { ...l, ...patch } : l));
 
   const mut = useMutation({
     mutationFn: async () => {
-      if (!item) throw new Error("No item selected");
-      // 1. Record stock movement
-      const res = await fetch("/api/stock-movements", {
-        method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          inventoryId: item.id, type: "in",
-          quantity: Number(qty),
-          supplierId: supplierId ? Number(supplierId) : null,
-          supplierName: supplierName ?? null,
-          unitPrice: unitPrice || null,
-          totalPrice: unitPrice ? String(totalAmt) : null,
-          notes: notes || null,
-        }),
-      });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error ?? "Failed");
+      if (validLines.length === 0) throw new Error("Select at least one product");
 
-      // 2. Auto-record to supplier ledger if supplier selected and checkbox on
-      if (supplierId && recordLedger && unitPrice) {
-        await fetch("/api/supplier-purchases", {
+      if (supplierId && recordLedger) {
+        // Invoice endpoint — atomically updates stock + ledger in one transaction
+        const res = await fetch("/api/supplier-purchases/invoice", {
           method: "POST", credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             supplierId: Number(supplierId),
             supplierName: supplierName ?? null,
-            inventoryId: item.id,
-            productName: item.partName,
-            quantity: Number(qty),
-            unitPrice: Number(unitPrice),
-            totalAmount: totalAmt,
-            paidAmount: Number(paidNow),
+            invoiceNumber: invoiceNo.trim() || null,
+            purchaseDate,
+            paidAmount: Number(paidNow) || 0,
             notes: notes || null,
-            // no updateStock — stock already updated above
+            items: validLines.map(l => ({
+              inventoryId: l.item!.id,
+              productName: l.item!.partName,
+              quantity: Number(l.qty),
+              unitPrice: Number(l.unitPrice) || 0,
+            })),
           }),
         });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error ?? "Failed");
+        return d;
+      } else {
+        // No supplier: just stock movements (no ledger)
+        for (const l of validLines) {
+          const res = await fetch("/api/stock-movements", {
+            method: "POST", credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              inventoryId: l.item!.id, type: "in",
+              quantity: Number(l.qty),
+              unitPrice: l.unitPrice || null,
+              totalPrice: l.unitPrice ? String(Number(l.qty) * Number(l.unitPrice)) : null,
+              notes: notes || null,
+            }),
+          });
+          const d = await res.json();
+          if (!res.ok) throw new Error(d.error ?? "Failed");
+        }
+        return { ok: true };
       }
-      return d;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inventory"] });
@@ -550,92 +571,167 @@ function StockInModal({ onClose, item: initialItem, suppliers, allItems }: {
         qc.invalidateQueries({ queryKey: ["suppliers-balances"] });
       }
       setSuccess(true);
-      setTimeout(onClose, 1200);
+      setTimeout(onClose, 1400);
     },
     onError: (e: any) => setError(e.message),
   });
 
   return (
-    <ModalShell title="Stock In (Add Stock)" onClose={onClose}>
+    <ModalShell title="Stock In" onClose={onClose}>
       {success ? (
         <div className="text-center py-8">
           <CheckCircle className="w-12 h-12 mx-auto mb-3" style={{ color: "#10B981" }} />
-          <p className="font-bold">Stock added!</p>
-          {supplierId && recordLedger && <p className="text-xs mt-1" style={{ color: MUTED }}>Recorded to supplier ledger</p>}
+          <p className="font-bold">{validLines.length > 1 ? `${validLines.length} items added!` : "Stock added!"}</p>
+          {supplierId && recordLedger && (
+            <p className="text-xs mt-1" style={{ color: MUTED }}>Invoice saved to supplier ledger</p>
+          )}
         </div>
       ) : (
-        <form onSubmit={e => { e.preventDefault(); if (!item) { setError("Select a product"); return; } if (Number(qty) <= 0) { setError("Quantity must be > 0"); return; } mut.mutate(); }}
-          className="flex flex-col gap-3">
-          {/* Item selector when no item pre-selected */}
-          {!item ? (
-            <Field label="Product *">
-              <div className="relative">
-                <Input placeholder="Search product…" value={itemSearch} onChange={e => setItemSearch(e.target.value)} />
-                {filteredItems.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 z-10 mt-1 rounded-xl border overflow-hidden shadow-lg"
-                    style={{ background: CARD, borderColor: BORDER }}>
-                    {filteredItems.map(i => (
-                      <button key={i.id} type="button" onClick={() => { setItem(i); setItemSearch(""); setSupplierId(String(i.supplierId ?? "")); setUnitPrice(String(i.purchasePrice ?? "")); }}
-                        className="w-full text-left px-3 py-2.5 text-sm hover:bg-muted/30 border-b last:border-0"
-                        style={{ borderColor: BORDER }}>
-                        <span className="font-semibold">{i.partName}</span>
-                        <span className="text-xs ml-2" style={{ color: MUTED }}>Stock: {i.quantity}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+        <form onSubmit={e => { e.preventDefault(); setError(""); mut.mutate(); }} className="flex flex-col gap-3">
+          {/* Invoice header */}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Invoice # (optional)">
+              <Input value={invoiceNo} onChange={e => setInvoiceNo(e.target.value)} placeholder="e.g. INV-001" />
             </Field>
-          ) : (
-            <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: "hsl(var(--muted))" }}>
-              <div className="flex-1">
-                <p className="font-semibold text-sm">{item.partName}</p>
-                <p className="text-xs mt-0.5" style={{ color: MUTED }}>Current stock: {item.quantity}</p>
-              </div>
-              <button type="button" onClick={() => setItem(undefined)} style={{ color: MUTED }}><X className="w-4 h-4" /></button>
-            </div>
-          )}
+            <Field label="Date">
+              <Input type="date" value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} />
+            </Field>
+          </div>
           <Field label="Supplier">
-            <Select value={supplierId} onChange={e => { setSupplierId(e.target.value); if (!e.target.value) setRecordLedger(false); else setRecordLedger(true); }}>
+            <Select value={supplierId} onChange={e => {
+              setSupplierId(e.target.value);
+              setRecordLedger(!!e.target.value);
+            }}>
               <option value="">— No supplier —</option>
               {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Quantity *"><Input type="number" min="1" value={qty} onChange={e => setQty(e.target.value)} required /></Field>
-            <Field label="Purchase Price"><Input type="text" inputMode="decimal" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} placeholder="0.00" /></Field>
-          </div>
-          {Number(qty) > 0 && Number(unitPrice) > 0 && (
-            <p className="text-xs font-semibold" style={{ color: PRIMARY }}>
-              Total: {sym}{totalAmt.toLocaleString()}
-            </p>
-          )}
-          {/* Supplier ledger integration */}
-          {supplierId && unitPrice && (
-            <div className="rounded-xl border overflow-hidden" style={{ borderColor: BORDER }}>
-              <label className="flex items-center gap-3 px-3.5 py-3 cursor-pointer">
-                <input type="checkbox" checked={recordLedger} onChange={e => setRecordLedger(e.target.checked)} className="rounded" />
-                <span className="text-sm font-medium">Record to Supplier Ledger</span>
-              </label>
-              {recordLedger && (
-                <div className="px-3.5 pb-3 border-t" style={{ borderColor: BORDER }}>
-                  <div className="pt-2">
-                    <Field label="Paid Now">
-                      <Input type="text" inputMode="decimal" value={paidNow} onChange={e => setPaidNow(e.target.value)} placeholder="0.00" />
-                    </Field>
-                    {dueAmt > 0 && (
-                      <p className="text-xs mt-1.5 font-medium" style={{ color: "#F59E0B" }}>
-                        Due to supplier: {sym}{dueAmt.toLocaleString()}
+
+          {/* Line items */}
+          <div>
+            <label className="text-xs font-semibold block mb-2" style={{ color: MUTED }}>Items *</label>
+            <div className="flex flex-col gap-2">
+              {lines.map((line) => (
+                <div key={line._key} className="rounded-xl border" style={{ borderColor: BORDER }}>
+                  <div className="p-3">
+                    {!line.item ? (
+                      <div className="relative mb-2">
+                        <Input placeholder="Search product…" value={line.search}
+                          onChange={e => patchLine(line._key, { search: e.target.value, showDrop: true })}
+                          onFocus={() => patchLine(line._key, { showDrop: true })}
+                          onBlur={() => setTimeout(() => patchLine(line._key, { showDrop: false }), 150)} />
+                        {line.showDrop && line.search && (() => {
+                          const hits = allItems
+                            .filter(i => i.partName.toLowerCase().includes(line.search.toLowerCase()))
+                            .slice(0, 5);
+                          return hits.length > 0 ? (
+                            <div className="absolute top-full left-0 right-0 z-20 mt-1 rounded-xl border shadow-lg overflow-hidden"
+                              style={{ background: CARD, borderColor: BORDER }}>
+                              {hits.map(i => (
+                                <button key={i.id} type="button"
+                                  onMouseDown={() => patchLine(line._key, {
+                                    item: i, search: i.partName, showDrop: false,
+                                    unitPrice: i.purchasePrice ? String(i.purchasePrice) : "",
+                                  })}
+                                  className="w-full text-left px-3 py-2 text-sm border-b last:border-0"
+                                  style={{ borderColor: BORDER }}>
+                                  <span className="font-medium">{i.partName}</span>
+                                  <span className="text-xs ml-2" style={{ color: MUTED }}>Stock: {i.quantity}</span>
+                                </button>
+                              ))}
+                            </div>
+                          ) : null;
+                        })()}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="text-sm font-semibold">{line.item.partName}</p>
+                          <p className="text-xs" style={{ color: MUTED }}>Current stock: {line.item.quantity}</p>
+                        </div>
+                        <button type="button" style={{ color: MUTED }}
+                          onClick={() => patchLine(line._key, { item: undefined, search: "", unitPrice: "" })}>
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-xs mb-1 font-medium" style={{ color: MUTED }}>Qty *</p>
+                        <Input type="number" min="1" value={line.qty}
+                          onChange={e => patchLine(line._key, { qty: e.target.value })} />
+                      </div>
+                      <div>
+                        <p className="text-xs mb-1 font-medium" style={{ color: MUTED }}>Unit Price</p>
+                        <Input type="text" inputMode="decimal" value={line.unitPrice}
+                          onChange={e => patchLine(line._key, { unitPrice: e.target.value })}
+                          placeholder="0.00" />
+                      </div>
+                    </div>
+                    {Number(line.qty) > 0 && Number(line.unitPrice) > 0 && (
+                      <p className="text-xs mt-1.5 font-semibold text-right" style={{ color: PRIMARY }}>
+                        = {sym}{(Number(line.qty) * Number(line.unitPrice)).toLocaleString()}
                       </p>
                     )}
                   </div>
+                  {lines.length > 1 && (
+                    <button type="button"
+                      onClick={() => setLines(prev => prev.filter(l => l._key !== line._key))}
+                      className="w-full py-1.5 text-xs border-t text-center"
+                      style={{ borderColor: BORDER, color: "#EF4444" }}>
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={() => setLines(prev => [...prev, newStockLine()])}
+              className="mt-2 w-full py-2.5 rounded-xl border border-dashed text-sm font-medium flex items-center justify-center gap-2"
+              style={{ borderColor: PRIMARY, color: PRIMARY }}>
+              <Plus className="w-4 h-4" /> Add Another Item
+            </button>
+          </div>
+
+          {/* Invoice total */}
+          {invoiceTotal > 0 && (
+            <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl font-semibold text-sm"
+              style={{ background: "hsl(var(--muted))" }}>
+              <span>Invoice Total</span>
+              <span style={{ color: PRIMARY }}>{sym}{invoiceTotal.toLocaleString()}</span>
+            </div>
+          )}
+
+          {/* Supplier ledger section */}
+          {supplierId && invoiceTotal > 0 && (
+            <div className="rounded-xl border overflow-hidden" style={{ borderColor: BORDER }}>
+              <label className="flex items-center gap-3 px-3.5 py-3 cursor-pointer">
+                <input type="checkbox" checked={recordLedger}
+                  onChange={e => setRecordLedger(e.target.checked)} />
+                <span className="text-sm font-medium">Record to Supplier Ledger</span>
+              </label>
+              {recordLedger && (
+                <div className="px-3.5 pb-3 pt-2 border-t" style={{ borderColor: BORDER }}>
+                  <Field label="Paid Now">
+                    <Input type="text" inputMode="decimal" value={paidNow}
+                      onChange={e => setPaidNow(e.target.value)} placeholder="0.00" />
+                  </Field>
+                  {dueAmt > 0 && (
+                    <p className="text-xs mt-1.5 font-medium" style={{ color: "#F59E0B" }}>
+                      Due to supplier: {sym}{dueAmt.toLocaleString()}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
           )}
-          <Field label="Notes"><Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Bought from Ali Parts" /></Field>
+
+          <Field label="Notes">
+            <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
+          </Field>
           {error && <p className="text-xs" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
-          <SubmitBtn pending={mut.isPending} label="Add to Stock" pendingLabel="Adding…" />
+          <SubmitBtn pending={mut.isPending}
+            label={validLines.length > 1 ? `Add ${validLines.length} Items to Stock` : "Add to Stock"}
+            pendingLabel="Adding…" />
         </form>
       )}
     </ModalShell>

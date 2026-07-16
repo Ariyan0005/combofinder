@@ -56,16 +56,22 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 type InventoryItem = { id: number; partName: string; quantity: number; purchasePrice?: string; };
+type PurchaseLine = {
+  _key: string; item: InventoryItem | null;
+  search: string; showDrop: boolean;
+  qty: string; unitPrice: string;
+};
+function newPurchaseLine(): PurchaseLine {
+  return { _key: Math.random().toString(36).slice(2), item: null, search: "", showDrop: false, qty: "1", unitPrice: "" };
+}
 
-// ─── Add Purchase Modal ───────────────────────────────────────────────────────
-// Supports selecting an existing inventory item (links purchase → stock auto-update)
-// OR entering a free-text product name for items not yet in inventory.
+// ─── Add Purchase Modal (multi-item invoice) ──────────────────────────────────
 function AddPurchaseModal({ supplierId, supplierName, onClose }: {
   supplierId: number; supplierName: string; onClose: () => void;
 }) {
   const qc = useQueryClient();
+  const today = new Date().toISOString().split("T")[0];
 
-  // Inventory items for search/select
   const { data: inventoryItems = [] } = useQuery<InventoryItem[]>({
     queryKey: ["inventory"],
     queryFn: async () => {
@@ -74,46 +80,40 @@ function AddPurchaseModal({ supplierId, supplierName, onClose }: {
     },
   });
 
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
-  const [itemSearch, setItemSearch] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
-
-  const [f, setF] = useState({
-    quantity: "1", unitPrice: "",
-    paidAmount: "0",
-    purchaseDate: new Date().toISOString().split("T")[0], notes: "",
-  });
-  const set = (k: string, v: string) => setF(p => ({ ...p, [k]: v }));
+  const [invoiceNo, setInvoiceNo] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState(today);
+  const [paidAmount, setPaidAmount] = useState("0");
+  const [notes, setNotes] = useState("");
+  const [lines, setLines] = useState<PurchaseLine[]>([newPurchaseLine()]);
   const [error, setError] = useState("");
 
-  const totalAmount = Number(f.quantity) * Number(f.unitPrice);
-  const dueAmount = Math.max(0, totalAmount - Number(f.paidAmount));
-  const payStatus: "paid"|"partial"|"due" =
-    Number(f.paidAmount) <= 0 ? "due"
-    : dueAmount <= 0 ? "paid"
-    : "partial";
+  const patchLine = (key: string, patch: Partial<PurchaseLine>) =>
+    setLines(prev => prev.map(l => l._key === key ? { ...l, ...patch } : l));
 
-  const filteredItems = itemSearch
-    ? inventoryItems.filter(i => i.partName.toLowerCase().includes(itemSearch.toLowerCase())).slice(0, 6)
-    : [];
+  const invoiceTotal = lines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0);
+  const dueAmount = Math.max(0, invoiceTotal - (Number(paidAmount) || 0));
+  const payStatus = dueAmount <= 0 ? "paid" : Number(paidAmount) <= 0 ? "credit" : "partial";
+  const validLines = lines.filter(l => Number(l.qty) > 0 && Number(l.unitPrice) > 0 && (l.item || l.search.trim()));
+  const stockLines = validLines.filter(l => l.item);
 
   const mut = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/supplier-purchases", {
+      if (validLines.length === 0) throw new Error("Add at least one item with quantity and price");
+      const res = await fetch("/api/supplier-purchases/invoice", {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           supplierId, supplierName,
-          inventoryId: selectedItem?.id ?? null,
-          productName: (selectedItem?.partName ?? itemSearch.trim()) || null,
-          quantity: Number(f.quantity) || 1,
-          unitPrice: Number(f.unitPrice) || null,
-          totalAmount,
-          paidAmount: Number(f.paidAmount),
-          purchaseDate: f.purchaseDate,
-          notes: f.notes || null,
-          // if inventory item selected → also update stock automatically
-          updateStock: !!selectedItem,
+          invoiceNumber: invoiceNo.trim() || null,
+          purchaseDate,
+          paidAmount: Number(paidAmount) || 0,
+          notes: notes || null,
+          items: validLines.map(l => ({
+            inventoryId: l.item?.id ?? null,
+            productName: l.item?.partName ?? l.search.trim(),
+            quantity: Number(l.qty),
+            unitPrice: Number(l.unitPrice),
+          })),
         }),
       });
       const d = await res.json();
@@ -125,7 +125,7 @@ function AddPurchaseModal({ supplierId, supplierName, onClose }: {
       qc.invalidateQueries({ queryKey: ["supplier-balance", supplierId] });
       qc.invalidateQueries({ queryKey: ["supplier-payments", supplierId] });
       qc.invalidateQueries({ queryKey: ["suppliers-balances"] });
-      if (selectedItem) qc.invalidateQueries({ queryKey: ["inventory"] });
+      if (stockLines.length > 0) qc.invalidateQueries({ queryKey: ["inventory"] });
       onClose();
     },
     onError: (e: any) => setError(e.message),
@@ -137,96 +137,132 @@ function AddPurchaseModal({ supplierId, supplierName, onClose }: {
       <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl"
         style={{ background: CARD }}>
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b" style={{ borderColor: BORDER }}>
-          <h2 className="font-bold text-base">Add Purchase</h2>
-          <button onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center"
+          <h2 className="font-bold text-base">Purchase Invoice</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center"
             style={{ background: "hsl(var(--muted))", color: MUTED }}>
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="px-5 py-5 overflow-y-auto" style={{ maxHeight: "75vh" }}>
           <form onSubmit={e => {
-            e.preventDefault();
-            if (!selectedItem && !itemSearch.trim()) { setError("Select or enter a product"); return; }
-            if (!f.unitPrice || Number(f.unitPrice) <= 0) { setError("Unit price is required"); return; }
-            if (Number(f.paidAmount) > totalAmount) { setError("Paid can't exceed total"); return; }
+            e.preventDefault(); setError("");
+            if (validLines.length === 0) { setError("Add at least one item with quantity and price"); return; }
             mut.mutate();
           }} className="flex flex-col gap-3">
 
-            {/* Product selector */}
-            <Field label="Product *">
-              {selectedItem ? (
-                <div className="flex items-center gap-2 px-3.5 py-3 rounded-xl border"
-                  style={{ borderColor: BORDER, background: BG }}>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold">{selectedItem.partName}</p>
-                    <p className="text-xs mt-0.5" style={{ color: MUTED }}>Stock: {selectedItem.quantity} · Stock will update automatically</p>
-                  </div>
-                  <button type="button" onClick={() => { setSelectedItem(null); setItemSearch(""); }}
-                    style={{ color: MUTED }}>
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <div className="relative">
-                  <Input
-                    value={itemSearch}
-                    onChange={e => { setItemSearch(e.target.value); setShowDropdown(true); }}
-                    onFocus={() => setShowDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
-                    placeholder="Search inventory or type product name…" />
-                  {showDropdown && filteredItems.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 z-10 mt-1 rounded-xl border overflow-hidden shadow-lg"
-                      style={{ background: CARD, borderColor: BORDER }}>
-                      {filteredItems.map(i => (
-                        <button key={i.id} type="button"
-                          onMouseDown={() => {
-                            setSelectedItem(i);
-                            setItemSearch(i.partName);
-                            setF(p => ({ ...p, unitPrice: String(i.purchasePrice ?? "") }));
-                            setShowDropdown(false);
-                          }}
-                          className="w-full text-left px-3 py-2.5 text-sm border-b last:border-0"
-                          style={{ borderColor: BORDER }}>
-                          <span className="font-semibold">{i.partName}</span>
-                          <span className="text-xs ml-2" style={{ color: MUTED }}>Stock: {i.quantity}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {itemSearch && !showDropdown && filteredItems.length === 0 && (
-                    <p className="text-xs mt-1" style={{ color: MUTED }}>Not in inventory — will record purchase only</p>
-                  )}
-                </div>
-              )}
-            </Field>
-
+            {/* Invoice header */}
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Quantity">
-                <Input type="number" min="1" value={f.quantity} onChange={e => set("quantity", e.target.value)} />
+              <Field label="Invoice # (optional)">
+                <Input value={invoiceNo} onChange={e => setInvoiceNo(e.target.value)} placeholder="e.g. INV-001" />
               </Field>
-              <Field label="Unit Price *">
-                <Input type="number" min="0" step="0.01" value={f.unitPrice}
-                  onChange={e => set("unitPrice", e.target.value)} placeholder="0.00" />
+              <Field label="Purchase Date">
+                <Input type="date" value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} />
               </Field>
             </div>
 
-            {Number(f.quantity) > 0 && Number(f.unitPrice) > 0 && (
-              <p className="text-xs font-semibold" style={{ color: PRIMARY }}>
-                Total: {Number(f.quantity)} × {Number(f.unitPrice)} = {totalAmount.toLocaleString()}
-              </p>
+            {/* Line items */}
+            <div>
+              <label className="text-xs font-semibold block mb-2" style={{ color: MUTED }}>Items *</label>
+              <div className="flex flex-col gap-2">
+                {lines.map((line) => (
+                  <div key={line._key} className="rounded-xl border" style={{ borderColor: BORDER }}>
+                    <div className="p-3">
+                      {/* Product selector */}
+                      {!line.item ? (
+                        <div className="relative mb-2">
+                          <Input placeholder="Search inventory or type product name…"
+                            value={line.search}
+                            onChange={e => patchLine(line._key, { search: e.target.value, showDrop: true })}
+                            onFocus={() => patchLine(line._key, { showDrop: true })}
+                            onBlur={() => setTimeout(() => patchLine(line._key, { showDrop: false }), 150)} />
+                          {line.showDrop && line.search && (() => {
+                            const hits = inventoryItems
+                              .filter(i => i.partName.toLowerCase().includes(line.search.toLowerCase()))
+                              .slice(0, 5);
+                            return hits.length > 0 ? (
+                              <div className="absolute top-full left-0 right-0 z-20 mt-1 rounded-xl border shadow-lg overflow-hidden"
+                                style={{ background: CARD, borderColor: BORDER }}>
+                                {hits.map(i => (
+                                  <button key={i.id} type="button"
+                                    onMouseDown={() => patchLine(line._key, {
+                                      item: i, search: i.partName, showDrop: false,
+                                      unitPrice: i.purchasePrice ? String(i.purchasePrice) : "",
+                                    })}
+                                    className="w-full text-left px-3 py-2 text-sm border-b last:border-0"
+                                    style={{ borderColor: BORDER }}>
+                                    <span className="font-medium">{i.partName}</span>
+                                    <span className="text-xs ml-2" style={{ color: MUTED }}>Stock: {i.quantity}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            ) : null;
+                          })()}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <p className="text-sm font-semibold">{line.item.partName}</p>
+                            <p className="text-xs" style={{ color: MUTED }}>
+                              Stock: {line.item.quantity} · ✓ Stock will update
+                            </p>
+                          </div>
+                          <button type="button"
+                            onClick={() => patchLine(line._key, { item: null, search: "", unitPrice: "" })}
+                            style={{ color: MUTED }}>
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <p className="text-xs mb-1 font-medium" style={{ color: MUTED }}>Qty</p>
+                          <Input type="number" min="1" value={line.qty}
+                            onChange={e => patchLine(line._key, { qty: e.target.value })} />
+                        </div>
+                        <div>
+                          <p className="text-xs mb-1 font-medium" style={{ color: MUTED }}>Unit Price *</p>
+                          <Input type="text" inputMode="decimal" value={line.unitPrice}
+                            onChange={e => patchLine(line._key, { unitPrice: e.target.value })}
+                            placeholder="0.00" />
+                        </div>
+                      </div>
+                      {Number(line.qty) > 0 && Number(line.unitPrice) > 0 && (
+                        <p className="text-xs mt-1.5 font-semibold text-right" style={{ color: PRIMARY }}>
+                          = {(Number(line.qty) * Number(line.unitPrice)).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                    {lines.length > 1 && (
+                      <button type="button"
+                        onClick={() => setLines(prev => prev.filter(l => l._key !== line._key))}
+                        className="w-full py-1.5 text-xs border-t text-center"
+                        style={{ borderColor: BORDER, color: RED }}>
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <button type="button" onClick={() => setLines(prev => [...prev, newPurchaseLine()])}
+                className="mt-2 w-full py-2.5 rounded-xl border border-dashed text-sm font-medium flex items-center justify-center gap-2"
+                style={{ borderColor: PRIMARY, color: PRIMARY }}>
+                <Plus className="w-4 h-4" /> Add Item
+              </button>
+            </div>
+
+            {/* Total + payment */}
+            {invoiceTotal > 0 && (
+              <div className="px-3.5 py-2.5 rounded-xl flex justify-between text-sm font-semibold"
+                style={{ background: "hsl(var(--muted))" }}>
+                <span>Invoice Total</span>
+                <span style={{ color: PRIMARY }}>{fmt(invoiceTotal)}</span>
+              </div>
             )}
-
-            <Field label="Purchase Date">
-              <Input type="date" value={f.purchaseDate} onChange={e => set("purchaseDate", e.target.value)} />
-            </Field>
             <Field label="Paid Now">
-              <Input type="number" min="0" step="0.01" value={f.paidAmount}
-                onChange={e => set("paidAmount", e.target.value)} placeholder="0.00" />
+              <Input type="number" min="0" step="0.01" value={paidAmount}
+                onChange={e => setPaidAmount(e.target.value)} placeholder="0.00" />
             </Field>
-
-            {/* Due preview */}
-            {Number(f.unitPrice) > 0 && (
+            {invoiceTotal > 0 && (
               <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm"
                 style={{ background: dueAmount > 0 ? "#FEF3C7" : "#D1FAE5" }}>
                 <span className="font-medium" style={{ color: dueAmount > 0 ? AMBER : GREEN }}>
@@ -238,15 +274,17 @@ function AddPurchaseModal({ supplierId, supplierName, onClose }: {
                 </span>
               </div>
             )}
-
             <Field label="Notes">
-              <Input value={f.notes} onChange={e => set("notes", e.target.value)} placeholder="Optional" />
+              <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
             </Field>
             {error && <p className="text-xs" style={{ color: RED }}>{error}</p>}
             <button type="submit" disabled={mut.isPending}
               className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-60 mt-1"
               style={{ background: PRIMARY }}>
-              {mut.isPending ? "Saving…" : selectedItem ? "Add Purchase & Update Stock" : "Add Purchase"}
+              {mut.isPending ? "Saving…"
+                : stockLines.length > 0
+                  ? `Save & Update Stock (${validLines.length} item${validLines.length > 1 ? "s" : ""})`
+                  : `Save Invoice (${validLines.length} item${validLines.length > 1 ? "s" : ""})`}
             </button>
           </form>
         </div>

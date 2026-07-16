@@ -190,6 +190,120 @@ router.post("/", async (req, res) => {
   }
 });
 
+// POST /api/supplier-purchases/invoice — batch purchase invoice (multiple items, one transaction)
+// Creates N stock movements + N purchase records atomically, all sharing one invoiceNumber.
+router.post("/invoice", async (req, res) => {
+  try {
+    const userId = getUid(req, res); if (!userId) return;
+    const { supplierId, supplierName, invoiceNumber, purchaseDate, paidAmount, notes, items } = req.body;
+
+    if (!supplierId) return res.status(400).json({ error: "supplierId is required" });
+    if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: "At least one item is required" });
+
+    const paid = parseAmount(paidAmount ?? 0);
+    const today = purchaseDate || new Date().toISOString().split("T")[0];
+
+    // Build line items with totals
+    const lineItems = items.map((item: any) => {
+      const qty = Math.max(1, Number(item.quantity) || 1);
+      const unitPrice = Math.max(0, Number(item.unitPrice) || 0);
+      return { ...item, qty, unitPrice, lineTotal: qty * unitPrice };
+    });
+
+    const invoiceTotal = lineItems.reduce((s: number, i: any) => s + i.lineTotal, 0);
+
+    // Auto-generate invoice number if not provided
+    const invNum: string = (invoiceNumber as string)?.trim() ||
+      `PO-${today.replace(/-/g, "")}-${Math.floor(Math.random() * 9000 + 1000)}`;
+
+    const result = await db.transaction(async (tx) => {
+      const createdPurchases: any[] = [];
+
+      for (const line of lineItems) {
+        // Proportional payment per line item
+        const linePaid = invoiceTotal > 0
+          ? Math.round((line.lineTotal / invoiceTotal) * paid * 100) / 100
+          : 0;
+        const lineDue = Math.max(0, Math.round((line.lineTotal - linePaid) * 100) / 100);
+        const lineStatus = lineDue <= 0 ? "paid" : linePaid <= 0 ? "credit" : "partial";
+
+        let movementId: number | null = null;
+
+        // Update stock if inventory item provided
+        if (line.inventoryId) {
+          const [updatedItem] = await tx.update(inventoryTable)
+            .set({
+              quantity: sql`${inventoryTable.quantity} + ${line.qty}`,
+              updatedAt: new Date(),
+              ...(supplierName ? { supplier: String(supplierName) } : {}),
+            })
+            .where(eq(inventoryTable.id, Number(line.inventoryId)))
+            .returning();
+
+          if (updatedItem) {
+            const [movement] = await tx.insert(stockMovementsTable).values({
+              inventoryId: Number(line.inventoryId),
+              type: "in",
+              quantity: line.qty,
+              supplierId: Number(supplierId),
+              supplierName: supplierName ? String(supplierName) : null,
+              unitPrice: line.unitPrice > 0 ? String(line.unitPrice) : null,
+              totalPrice: String(line.lineTotal),
+              notes: notes ? String(notes).slice(0, 500) : null,
+            }).returning();
+            movementId = movement.id;
+          }
+        }
+
+        // Create purchase record
+        const [purchase] = await tx.insert(supplierPurchasesTable).values({
+          userId,
+          supplierId: Number(supplierId),
+          supplierName: supplierName ? String(supplierName) : null,
+          stockMovementId: movementId,
+          inventoryId: line.inventoryId ? Number(line.inventoryId) : null,
+          productName: line.productName ? String(line.productName).slice(0, 300) : null,
+          quantity: line.qty,
+          totalAmount: String(line.lineTotal),
+          paidAmount: String(linePaid),
+          dueAmount: String(lineDue),
+          paymentStatus: lineStatus,
+          purchaseDate: today,
+          invoiceNumber: invNum,
+          notes: notes ? String(notes).slice(0, 500) : null,
+        }).returning();
+
+        createdPurchases.push(purchase);
+      }
+
+      // Record lump-sum payment entry if any paid
+      let payment = null;
+      if (paid > 0) {
+        const [p] = await tx.insert(supplierPaymentsTable).values({
+          userId,
+          supplierId: Number(supplierId),
+          supplierName: supplierName ? String(supplierName) : null,
+          purchaseId: null,
+          amount: String(paid),
+          paymentMethod: "cash",
+          date: today,
+          notes: `Invoice ${invNum}`,
+        }).returning();
+        payment = p;
+      }
+
+      return { invoiceNumber: invNum, total: invoiceTotal, paid, items: createdPurchases, payment };
+    });
+
+    res.status(201).json(result);
+  } catch (err: any) {
+    const status = err.status ?? 500;
+    if (status < 500) return res.status(status).json({ error: err.message });
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to create purchase invoice" });
+  }
+});
+
 // POST /api/supplier-purchases/:id/pay  — make a payment against a purchase
 router.post("/:id/pay", async (req, res) => {
   try {
