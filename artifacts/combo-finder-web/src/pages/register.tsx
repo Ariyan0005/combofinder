@@ -203,6 +203,42 @@ function AppleIcon() {
   );
 }
 
+// ── Common email domains for typo detection ────────────────────────────────────
+const COMMON_DOMAINS = [
+  "gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com",
+  "live.com", "aol.com", "protonmail.com", "mail.com", "googlemail.com",
+  "ymail.com", "msn.com", "yahoo.co.uk", "yahoo.in", "rediffmail.com",
+  "zoho.com", "fastmail.com", "hey.com",
+];
+
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
+  );
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+  return dp[m][n];
+}
+
+function detectEmailTypo(email: string): string | null {
+  const atIdx = email.lastIndexOf("@");
+  if (atIdx < 1) return null;
+  const domain = email.slice(atIdx + 1).toLowerCase().trim();
+  if (!domain || !domain.includes(".")) return null;
+  if (COMMON_DOMAINS.includes(domain)) return null; // exact match → no typo
+  let best: string | null = null;
+  let bestDist = Infinity;
+  for (const d of COMMON_DOMAINS) {
+    const dist = levenshtein(domain, d);
+    if (dist < bestDist) { bestDist = dist; best = d; }
+  }
+  return bestDist <= 2 ? best : null; // warn only for close typos (1–2 edits)
+}
+
 // ── Main Register page ─────────────────────────────────────────────────────────
 export default function Register() {
   const { refreshUser } = useAuth();
@@ -225,6 +261,7 @@ export default function Register() {
 
   // Real-time email availability
   const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
+  const [emailTypo, setEmailTypo] = useState<string | null>(null); // suggested correct domain
   const emailCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // OTP verify state
@@ -271,8 +308,21 @@ export default function Register() {
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm(p => ({ ...p, [k]: e.target.value }));
-    if (k === "email") setDupEmail(false);
+    if (k === "email") {
+      setDupEmail(false);
+      setEmailTypo(detectEmailTypo(e.target.value));
+    }
   };
+
+  function applyTypoFix() {
+    if (!emailTypo) return;
+    const atIdx = form.email.lastIndexOf("@");
+    if (atIdx < 1) return;
+    const fixed = form.email.slice(0, atIdx + 1) + emailTypo;
+    setForm(p => ({ ...p, email: fixed }));
+    setEmailTypo(null);
+    checkEmail(fixed);
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -285,6 +335,7 @@ export default function Register() {
     if (!agreed) { setError("Please agree to the Terms and Privacy Policy"); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError("Enter a valid email address"); return; }
     if (emailStatus === "taken") { setDupEmail(true); return; }
+    if (emailTypo) { setError("Please fix the email address typo before continuing"); return; }
     setLoading(true);
     try {
       const currency = COUNTRY_CURRENCY[form.country] ?? "USD";
@@ -332,7 +383,7 @@ export default function Register() {
         setOtp("");
         setForm(p => ({ ...p, email: "", password: "" }));
         setEmailStatus("idle");
-        setError("Your registration expired (10-minute window passed). Please fill the form again.");
+        setError("Your registration expired (15-minute window passed). Please fill the form again.");
         return;
       }
       if (!res.ok) throw new Error(data.error ?? "Verification failed");
@@ -425,7 +476,7 @@ export default function Register() {
           {step === "form" && (<>
           <div className="mb-3">
             <h1 className="text-xl font-extrabold">Create Account</h1>
-            <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Set up your ComboFinder shop</p>
+            <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Set up your ComboFinder app</p>
           </div>
 
           {/* Social buttons */}
@@ -470,19 +521,31 @@ export default function Register() {
               </label>
               <div className="relative">
                 <input type="email" placeholder="Enter your email" value={form.email}
-                  onChange={e => { set("email")(e); checkEmail(e.target.value); setEmailStatus("idle"); if (emailCheckTimer.current) clearTimeout(emailCheckTimer.current); setEmailStatus("checking"); checkEmail(e.target.value); }}
+                  onChange={e => { set("email")(e); checkEmail(e.target.value); }}
                   className={`${inputCls} pr-10`} dir="ltr"
-                  style={{ ...iStyle, borderColor: dupEmail ? "hsl(var(--destructive))" : emailStatus === "available" ? "#22c55e" : "hsl(var(--border))" }}
-                  onFocus={e => { e.currentTarget.style.borderColor = dupEmail ? "hsl(var(--destructive))" : emailStatus === "available" ? "#22c55e" : "hsl(var(--primary))"; }}
-                  onBlur={e => { e.currentTarget.style.borderColor = dupEmail ? "hsl(var(--destructive))" : emailStatus === "available" ? "#22c55e" : "hsl(var(--border))"; }}
+                  style={{ ...iStyle, borderColor: dupEmail ? "hsl(var(--destructive))" : emailTypo ? "#f59e0b" : emailStatus === "available" ? "#22c55e" : "hsl(var(--border))" }}
+                  onFocus={e => { e.currentTarget.style.borderColor = dupEmail ? "hsl(var(--destructive))" : emailTypo ? "#f59e0b" : emailStatus === "available" ? "#22c55e" : "hsl(var(--primary))"; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = dupEmail ? "hsl(var(--destructive))" : emailTypo ? "#f59e0b" : emailStatus === "available" ? "#22c55e" : "hsl(var(--border))"; }}
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2">
-                  {emailStatus === "checking" && <Loader2 className="w-4 h-4 animate-spin" style={{ color: "hsl(var(--muted-foreground))" }} />}
-                  {emailStatus === "available" && <CheckCircle2 className="w-4 h-4" style={{ color: "#22c55e" }} />}
-                  {emailStatus === "taken" && <XCircle className="w-4 h-4" style={{ color: "hsl(var(--destructive))" }} />}
+                  {emailStatus === "checking" && !emailTypo && <Loader2 className="w-4 h-4 animate-spin" style={{ color: "hsl(var(--muted-foreground))" }} />}
+                  {emailStatus === "available" && !emailTypo && <CheckCircle2 className="w-4 h-4" style={{ color: "#22c55e" }} />}
+                  {emailStatus === "taken" && !emailTypo && <XCircle className="w-4 h-4" style={{ color: "hsl(var(--destructive))" }} />}
+                  {emailTypo && <span className="text-base">⚠️</span>}
                 </span>
               </div>
-              {dupEmail && (
+              {emailTypo && (
+                <div className="mt-1.5 px-3 py-2 rounded-xl text-sm flex items-center justify-between gap-2"
+                  style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #f59e0b" }}>
+                  <span>Typo detected — did you mean <strong>{form.email.slice(0, form.email.lastIndexOf("@") + 1)}{emailTypo}</strong>?</span>
+                  <button type="button" onClick={applyTypoFix}
+                    className="shrink-0 font-bold underline"
+                    style={{ color: "#b45309" }}>
+                    Fix it
+                  </button>
+                </div>
+              )}
+              {dupEmail && !emailTypo && (
                 <div className="mt-1.5 px-3 py-2 rounded-xl text-sm"
                   style={{ background: "hsl(var(--destructive) / 0.08)", color: "hsl(var(--destructive))" }}>
                   This email is already registered.{" "}
