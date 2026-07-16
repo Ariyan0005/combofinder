@@ -198,7 +198,7 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
     quality: existing?.quality ?? "",
     brand: existing?.brand ?? "",
     quantity: String(existing?.quantity ?? ""),
-    minStock: String(existing?.minStock ?? "0"),
+    minStock: existing ? String(existing.minStock) : "",
     purchasePrice: String(existing?.purchasePrice ?? ""),
     sellingPrice: String(existing?.sellingPrice ?? ""),
     supplierId: String(existing?.supplierId ?? ""),
@@ -255,7 +255,7 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
       }}
         className="flex flex-col gap-3">
         <Field label="Product Name *">
-          <Input value={form.partName} onChange={e => set("partName", e.target.value)} placeholder="e.g. iPhone 13 Display" required />
+          <Input value={form.partName} onChange={e => set("partName", e.target.value)} placeholder="Enter product name" required />
         </Field>
         <Field label="Category">
           <Select value={parentCatId} onChange={e => { setParentCatId(e.target.value); setSubCatId(""); }}>
@@ -283,7 +283,7 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
         <Field label="Quality *">
           <Select value={form.quality} onChange={e => set("quality", e.target.value)} required>
             <option value="">— Select Quality —</option>
-            {["Original","OEM","Copy","Refurbished","Used","Reconditioned"].map(q => <option key={q} value={q}>{q}</option>)}
+            {["Brand New","Original","OEM","Copy","Refurbished","Used","Reconditioned"].map(q => <option key={q} value={q}>{q}</option>)}
           </Select>
         </Field>
         <Field label="Brand / Company">
@@ -293,10 +293,10 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
           {/* Quantity only in edit mode — initial stock is set via Stock In */}
           {isEdit
             ? <Field label="Quantity"><Input type="number" min="0" value={form.quantity} onChange={e => set("quantity", e.target.value)} placeholder="0" /></Field>
-            : <Field label="Min Stock Alert"><Input type="number" min="0" value={form.minStock} onChange={e => set("minStock", e.target.value)} placeholder="2" /></Field>
+            : <Field label="Min Stock Alert"><Input type="number" min="0" value={form.minStock} onChange={e => set("minStock", e.target.value)} placeholder="" /></Field>
           }
           {isEdit
-            ? <Field label="Min Stock Alert"><Input type="number" min="0" value={form.minStock} onChange={e => set("minStock", e.target.value)} placeholder="2" /></Field>
+            ? <Field label="Min Stock Alert"><Input type="number" min="0" value={form.minStock} onChange={e => set("minStock", e.target.value)} placeholder="" /></Field>
             : <Field label="Selling Price"><Input type="text" inputMode="decimal" value={form.sellingPrice} onChange={e => set("sellingPrice", e.target.value)} placeholder="0.00" /></Field>
           }
           {/* Edit mode: show purchase + selling price */}
