@@ -29,6 +29,7 @@ import stockMovementsRouter from "./stock-movements";
 import salesRouter from "./sales";
 import ledgerRouter from "./ledger";
 import supplierPurchasesRouter from "./supplier-purchases";
+import batteryCompatRouter from "./battery-compat";
 
 const router: IRouter = Router();
 
@@ -68,6 +69,7 @@ router.use(statsRouter); // stats router reads userId from session internally â€
 router.use(monthlyStatsRouter);
 router.use(searchRouter);
 router.use("/knowledge-base", knowledgeBaseRouter);
+router.use(batteryCompatRouter);
 router.use("/issues-fixes", issuesFixesRouter);
 router.use("/schematics", schematicsRouter);
 router.use("/videos", videosRouter);

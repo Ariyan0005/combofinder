@@ -148,6 +148,15 @@ export default function Compatibility() {
   const allCombos = Array.isArray(searchResults?.combos) ? searchResults!.combos : [];
   const brandList = Array.isArray(brands) ? brands.slice(0, 10) : [];
 
+  // Battery brands link to battery-specific pages; all others use standard /brands/:id
+  const BATTERY_SLUGS = ["battery"];
+  const isBatteryMode = BATTERY_SLUGS.includes(selectedSlug);
+
+  function brandLink(id: number) {
+    if (isBatteryMode) return `/battery-brand/${id}`;
+    return `/brands/${id}`;
+  }
+
   function modelLink(id: number) {
     return selectedSlug !== ALL ? `/models/${id}?category=${selectedSlug}` : `/models/${id}`;
   }
@@ -288,7 +297,7 @@ export default function Compatibility() {
                       const pal = brandPalette(b.name);
                       const initials = b.name.split(/[\s/]/).map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
                       return (
-                        <Link key={b.id} href={`/brands/${b.id}`}>
+                        <Link key={b.id} href={brandLink(b.id)}>
                           <div onClick={() => handleSearchSelect(b.name)}
                             className="flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-all hover:shadow-sm"
                             style={{ borderColor: BORDER, background: CARD }}>
@@ -386,14 +395,18 @@ export default function Compatibility() {
                   const pal = brandPalette(b.name);
                   const initials = b.name.split(/[\s/]/).map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
                   return (
-                    <Link key={b.id} href={`/brands/${b.id}`}>
+                    <Link key={b.id} href={brandLink(b.id)}>
                       <div className="flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-all hover:shadow-sm"
                         style={{ borderColor: BORDER, background: CARD }}>
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-black"
                           style={{ background: pal.bg, color: pal.color }}>{initials}</div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold truncate">{b.name}</p>
-                          {b.modelCount != null && <p className="text-[10px]" style={{ color: MUTED }}>{b.modelCount} models</p>}
+                          {b.modelCount != null && (
+                            <p className="text-[10px]" style={{ color: MUTED }}>
+                              {isBatteryMode ? `${b.modelCount} battery models` : `${b.modelCount} models`}
+                            </p>
+                          )}
                         </div>
                         <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: MUTED }} />
                       </div>

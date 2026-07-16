@@ -8,6 +8,8 @@ import { AuthProvider, useAuth } from "@/context/auth-context";
 import Dashboard from "@/pages/dashboard";
 import Brands from "@/pages/brands";
 import BatteryBrands from "@/pages/battery-brands";
+import BatteryModels from "@/pages/battery-models";
+import BatteryCompat from "@/pages/battery-compat";
 import IcBrands from "@/pages/ic-brands";
 import BrandModels from "@/pages/brand-models";
 import ModelDetail from "@/pages/model-detail";
@@ -88,6 +90,8 @@ function Router() {
         {/* Database */}
         <Route path="/brands" component={Brands} />
         <Route path="/battery-brands" component={BatteryBrands} />
+        <Route path="/battery-brands/:id/models" component={BatteryModels} />
+        <Route path="/battery-models/:id/compat" component={BatteryCompat} />
         <Route path="/ic-brands" component={IcBrands} />
         <Route path="/brands/:id/models" component={BrandModels} />
         <Route path="/models/:id" component={ModelDetail} />

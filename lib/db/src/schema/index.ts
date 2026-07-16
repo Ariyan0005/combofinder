@@ -24,3 +24,4 @@ export * from "./sales";
 export * from "./ledger";
 export * from "./password-reset-tokens";
 export * from "./supplier-purchases";
+export * from "./battery-compat";
