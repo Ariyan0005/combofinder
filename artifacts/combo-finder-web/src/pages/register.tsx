@@ -353,7 +353,7 @@ export default function Register() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: regEmail }),
       });
-      setResendCooldown(60);
+      setResendCooldown(300);
     } catch {}
     finally { setResendLoading(false); }
   }

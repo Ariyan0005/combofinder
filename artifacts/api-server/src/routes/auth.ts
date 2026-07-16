@@ -165,7 +165,7 @@ async function sendPasswordResetEmail(name: string, email: string, code: string)
     html: `<div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#ffffff;">
       <h2 style="color:#0080DB;margin-bottom:8px;">Password Reset</h2>
       <p style="color:#374151;font-size:15px;line-height:1.6;">Hi <strong>${name}</strong>,</p>
-      <p style="color:#374151;font-size:15px;line-height:1.6;">Use the code below to reset your password. It expires in <strong>1 hour</strong>.</p>
+      <p style="color:#374151;font-size:15px;line-height:1.6;">Use the code below to reset your password. It expires in <strong>15 minutes</strong>.</p>
       <div style="margin:24px 0;text-align:center;">
         <div style="display:inline-block;background:#F3F4F6;border-radius:12px;padding:18px 40px;">
           <span style="font-size:36px;font-weight:800;letter-spacing:8px;color:#0080DB;">${code}</span>
@@ -173,7 +173,7 @@ async function sendPasswordResetEmail(name: string, email: string, code: string)
       </div>
       <p style="color:#6B7280;font-size:13px;">If you didn't request this, ignore this email — your password won't change.</p>
     </div>`,
-    text: `ComboFinder Password Reset\n\nYour reset code: ${code}\n\nThis code expires in 1 hour.\n\nIf you didn't request this, ignore this email.`,
+    text: `ComboFinder Password Reset\n\nYour reset code: ${code}\n\nThis code expires in 15 minutes.\n\nIf you didn't request this, ignore this email.`,
   });
 }
 
@@ -189,7 +189,7 @@ async function sendVerificationEmail(name: string, email: string, code: string):
       html: `<div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#ffffff;">
         <h2 style="color:#0080DB;margin-bottom:8px;">Verify Your Email</h2>
         <p style="color:#374151;font-size:15px;line-height:1.6;">Hi <strong>${name}</strong>,</p>
-        <p style="color:#374151;font-size:15px;line-height:1.6;">Use the code below to activate your ComboFinder account. It expires in <strong>24 hours</strong>.</p>
+        <p style="color:#374151;font-size:15px;line-height:1.6;">Use the code below to activate your ComboFinder account. It expires in <strong>15 minutes</strong>.</p>
         <div style="margin:24px 0;text-align:center;">
           <div style="display:inline-block;background:#F3F4F6;border-radius:12px;padding:18px 40px;">
             <span style="font-size:36px;font-weight:800;letter-spacing:8px;color:#0080DB;">${code}</span>
@@ -197,7 +197,7 @@ async function sendVerificationEmail(name: string, email: string, code: string):
         </div>
         <p style="color:#6B7280;font-size:13px;">If you didn't create this account, you can ignore this email.</p>
       </div>`,
-      text: `ComboFinder — Verify Your Email\n\nYour verification code: ${code}\n\nThis code expires in 24 hours.`,
+      text: `ComboFinder — Verify Your Email\n\nYour verification code: ${code}\n\nThis code expires in 15 minutes.`,
     });
     return true;
   } catch (err) {
@@ -238,6 +238,10 @@ router.get("/auth/check-email", async (req, res) => {
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     res.json({ available: false }); return;
   }
+  // Block disposable and invalid domains before showing green tick
+  if (isDisposableEmail(email)) { res.json({ available: false }); return; }
+  const mxOk = await hasMxRecord(email);
+  if (!mxOk) { res.json({ available: false }); return; }
   try {
     const existing = await db.select({ id: usersTable.id })
       .from(usersTable).where(eq(usersTable.email, email)).limit(1);
@@ -274,10 +278,28 @@ router.post("/auth/register", async (req, res) => {
   try {
     // Check for duplicate email — wrapped so missing column never crashes register
     try {
-      const existing = await db.select({ id: usersTable.id })
+      const existing = await db.select({ id: usersTable.id, isActive: usersTable.isActive, isApproved: usersTable.isApproved })
         .from(usersTable).where(eq(usersTable.email, normalizedEmail)).limit(1);
       if (existing.length > 0) {
-        res.status(409).json({ error: "Email already registered. Please login instead." }); return;
+        const existingUser = existing[0];
+        // Unverified account with expired OTP → delete and allow fresh registration
+        if (!existingUser.isActive && !existingUser.isApproved) {
+          const expiredToken = await db.select({ id: passwordResetTokensTable.id })
+            .from(passwordResetTokensTable)
+            .where(and(
+              eq(passwordResetTokensTable.userId, existingUser.id),
+              lt(passwordResetTokensTable.expiresAt, new Date())
+            )).limit(1);
+          if (expiredToken.length > 0) {
+            // OTP expired — wipe old unverified record so registration can proceed
+            await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, existingUser.id)).catch(() => {});
+            await db.delete(usersTable).where(eq(usersTable.id, existingUser.id)).catch(() => {});
+          } else {
+            res.status(409).json({ error: "Email already registered. Please login instead." }); return;
+          }
+        } else {
+          res.status(409).json({ error: "Email already registered. Please login instead." }); return;
+        }
       }
     } catch { /* email column may not exist yet — skip duplicate check */ }
 
@@ -312,13 +334,13 @@ router.post("/auth/register", async (req, res) => {
       } else { throw insertErr; }
     }
 
-    // Generate 6-digit verification OTP (10 min expiry)
+    // Generate 6-digit verification OTP (15 min expiry)
     // Wrapped in try/catch — if password_reset_tokens table is missing on the VPS,
     // fall back to immediate activation instead of crashing registration entirely.
     let otpStored = false;
     const verifyCode = String(Math.floor(100000 + Math.random() * 900000));
     try {
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
       await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, user.id)).catch(() => {});
       await db.insert(passwordResetTokensTable).values({ userId: user.id, token: verifyCode, expiresAt });
       otpStored = true;
@@ -388,7 +410,7 @@ router.post("/auth/verify-email", async (req, res) => {
       if (expiredTokens.length > 0 && !user.isApproved) {
         // Token existed but expired — clean up the unverified account
         await db.delete(usersTable).where(eq(usersTable.id, user.id)).catch(() => {});
-        res.status(410).json({ error: "Registration expired. The 10-minute window has passed. Please register again.", expired: true }); return;
+        res.status(410).json({ error: "Registration expired. The 15-minute window has passed. Please register again.", expired: true }); return;
       }
       res.status(400).json({ error: "Invalid verification code. Please check and try again." }); return;
     }
@@ -422,8 +444,26 @@ router.post("/auth/resend-verification", async (req, res) => {
     const users = await db.select().from(usersTable).where(eq(usersTable.email, normalizedEmail)).limit(1);
     if (users.length === 0 || users[0].isApproved) { res.json({ success: true }); return; }
     const user = users[0];
+
+    // 5-minute rate limit — check if a token was already issued recently
+    const recentToken = await db.select({ expiresAt: passwordResetTokensTable.expiresAt })
+      .from(passwordResetTokensTable)
+      .where(eq(passwordResetTokensTable.userId, user.id))
+      .limit(1);
+    if (recentToken.length > 0) {
+      const issuedAt = new Date(recentToken[0].expiresAt.getTime() - 15 * 60 * 1000);
+      const secondsSinceIssued = Math.floor((Date.now() - issuedAt.getTime()) / 1000);
+      const cooldownSeconds = 5 * 60; // 5 minutes
+      if (secondsSinceIssued < cooldownSeconds) {
+        const waitSeconds = cooldownSeconds - secondsSinceIssued;
+        const waitMin = Math.ceil(waitSeconds / 60);
+        res.status(429).json({ error: `Please wait ${waitMin} minute${waitMin > 1 ? "s" : ""} before requesting a new code.`, retryAfter: waitSeconds });
+        return;
+      }
+    }
+
     const verifyCode = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
     await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, user.id)).catch(() => {});
     await db.insert(passwordResetTokensTable).values({ userId: user.id, token: verifyCode, expiresAt });
     await sendVerificationEmail(user.name, user.email, verifyCode);
@@ -582,7 +622,7 @@ router.post("/auth/forgot-password", async (req, res) => {
 
     // Generate 6-digit code
     const code = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     await db.insert(passwordResetTokensTable).values({
       userId: user.id,
