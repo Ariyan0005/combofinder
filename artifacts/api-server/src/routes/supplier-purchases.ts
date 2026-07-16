@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, supplierPurchasesTable, supplierPaymentsTable, suppliersTable } from "@workspace/db";
+import { db, supplierPurchasesTable, supplierPaymentsTable, suppliersTable, stockMovementsTable, inventoryTable } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 
 const router = Router();
@@ -89,12 +89,14 @@ router.get("/balances", async (req, res) => {
 });
 
 // POST /api/supplier-purchases  — record a new purchase
+// If `updateStock: true` and `inventoryId` provided, atomically creates a stock movement too.
 router.post("/", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
     const {
-      supplierId, supplierName, stockMovementId, inventoryId, productName,
+      supplierId, supplierName, inventoryId, productName,
       quantity, totalAmount, paidAmount, purchaseDate, notes,
+      updateStock, unitPrice,
     } = req.body;
 
     if (!supplierId) return res.status(400).json({ error: "supplierId is required" });
@@ -103,6 +105,8 @@ router.post("/", async (req, res) => {
     const total = parseAmount(totalAmount);
     const paid = parseAmount(paidAmount ?? 0);
     const due = Math.max(0, total - paid);
+    const qty = quantity ? Number(quantity) : 1;
+    const unitPriceStr = unitPrice ? String(Number(unitPrice)) : null;
 
     let paymentStatus: string;
     if (due <= 0) paymentStatus = "paid";
@@ -111,14 +115,64 @@ router.post("/", async (req, res) => {
 
     const today = purchaseDate || new Date().toISOString().split("T")[0];
 
+    // ── Atomic: create stock movement + purchase record ────────────────────────
+    if (updateStock && inventoryId) {
+      const result = await db.transaction(async (tx) => {
+        // Increase inventory quantity
+        const [updatedItem] = await tx.update(inventoryTable)
+          .set({
+            quantity: sql`${inventoryTable.quantity} + ${qty}`,
+            updatedAt: new Date(),
+            ...(supplierName ? { supplier: String(supplierName) } : {}),
+          })
+          .where(eq(inventoryTable.id, Number(inventoryId)))
+          .returning();
+
+        if (!updatedItem) throw Object.assign(new Error("Inventory item not found"), { status: 404 });
+
+        // Insert stock movement record
+        const [movement] = await tx.insert(stockMovementsTable).values({
+          inventoryId: Number(inventoryId),
+          type: "in",
+          quantity: qty,
+          supplierId: Number(supplierId),
+          supplierName: supplierName ? String(supplierName) : null,
+          unitPrice: unitPriceStr,
+          totalPrice: String(total),
+          notes: notes ? String(notes).slice(0, 500) : null,
+        }).returning();
+
+        // Insert supplier purchase linked to the movement
+        const [purchase] = await tx.insert(supplierPurchasesTable).values({
+          userId,
+          supplierId: Number(supplierId),
+          supplierName: supplierName ? String(supplierName) : null,
+          stockMovementId: movement.id,
+          inventoryId: Number(inventoryId),
+          productName: productName ? String(productName).slice(0, 300) : (updatedItem.partName ?? null),
+          quantity: qty,
+          totalAmount: String(total),
+          paidAmount: String(paid),
+          dueAmount: String(due),
+          paymentStatus,
+          purchaseDate: today,
+          notes: notes ? String(notes).slice(0, 500) : null,
+        }).returning();
+
+        return { purchase, movement, updatedItem };
+      });
+      return res.status(201).json(result);
+    }
+
+    // ── Standard purchase record (no stock update) ─────────────────────────────
     const [row] = await db.insert(supplierPurchasesTable).values({
       userId,
       supplierId: Number(supplierId),
       supplierName: supplierName ? String(supplierName) : null,
-      stockMovementId: stockMovementId ? Number(stockMovementId) : null,
+      stockMovementId: null,
       inventoryId: inventoryId ? Number(inventoryId) : null,
       productName: productName ? String(productName).slice(0, 300) : null,
-      quantity: quantity ? Number(quantity) : 1,
+      quantity: qty,
       totalAmount: String(total),
       paidAmount: String(paid),
       dueAmount: String(due),
@@ -128,7 +182,12 @@ router.post("/", async (req, res) => {
     }).returning();
 
     res.status(201).json(row);
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to create purchase" }); }
+  } catch (err: any) {
+    const status = err.status ?? 500;
+    if (status < 500) return res.status(status).json({ error: err.message });
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to create purchase" });
+  }
 });
 
 // POST /api/supplier-purchases/:id/pay  — make a payment against a purchase

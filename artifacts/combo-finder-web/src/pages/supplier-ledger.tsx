@@ -55,24 +55,47 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+type InventoryItem = { id: number; partName: string; quantity: number; purchasePrice?: string; };
+
 // ─── Add Purchase Modal ───────────────────────────────────────────────────────
+// Supports selecting an existing inventory item (links purchase → stock auto-update)
+// OR entering a free-text product name for items not yet in inventory.
 function AddPurchaseModal({ supplierId, supplierName, onClose }: {
   supplierId: number; supplierName: string; onClose: () => void;
 }) {
   const qc = useQueryClient();
+
+  // Inventory items for search/select
+  const { data: inventoryItems = [] } = useQuery<InventoryItem[]>({
+    queryKey: ["inventory"],
+    queryFn: async () => {
+      const r = await fetch("/api/inventory", { credentials: "include" });
+      return r.json();
+    },
+  });
+
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [itemSearch, setItemSearch] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+
   const [f, setF] = useState({
-    productName: "", quantity: "1",
-    totalAmount: "", paidAmount: "0",
+    quantity: "1", unitPrice: "",
+    paidAmount: "0",
     purchaseDate: new Date().toISOString().split("T")[0], notes: "",
   });
   const set = (k: string, v: string) => setF(p => ({ ...p, [k]: v }));
   const [error, setError] = useState("");
 
-  const dueAmount = Math.max(0, Number(f.totalAmount) - Number(f.paidAmount));
+  const totalAmount = Number(f.quantity) * Number(f.unitPrice);
+  const dueAmount = Math.max(0, totalAmount - Number(f.paidAmount));
   const payStatus: "paid"|"partial"|"due" =
     Number(f.paidAmount) <= 0 ? "due"
     : dueAmount <= 0 ? "paid"
     : "partial";
+
+  const filteredItems = itemSearch
+    ? inventoryItems.filter(i => i.partName.toLowerCase().includes(itemSearch.toLowerCase())).slice(0, 6)
+    : [];
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -81,12 +104,16 @@ function AddPurchaseModal({ supplierId, supplierName, onClose }: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           supplierId, supplierName,
-          productName: f.productName || null,
+          inventoryId: selectedItem?.id ?? null,
+          productName: (selectedItem?.partName ?? itemSearch.trim()) || null,
           quantity: Number(f.quantity) || 1,
-          totalAmount: Number(f.totalAmount),
+          unitPrice: Number(f.unitPrice) || null,
+          totalAmount,
           paidAmount: Number(f.paidAmount),
           purchaseDate: f.purchaseDate,
           notes: f.notes || null,
+          // if inventory item selected → also update stock automatically
+          updateStock: !!selectedItem,
         }),
       });
       const d = await res.json();
@@ -98,6 +125,7 @@ function AddPurchaseModal({ supplierId, supplierName, onClose }: {
       qc.invalidateQueries({ queryKey: ["supplier-balance", supplierId] });
       qc.invalidateQueries({ queryKey: ["supplier-payments", supplierId] });
       qc.invalidateQueries({ queryKey: ["suppliers-balances"] });
+      if (selectedItem) qc.invalidateQueries({ queryKey: ["inventory"] });
       onClose();
     },
     onError: (e: any) => setError(e.message),
@@ -119,41 +147,98 @@ function AddPurchaseModal({ supplierId, supplierName, onClose }: {
         <div className="px-5 py-5 overflow-y-auto" style={{ maxHeight: "75vh" }}>
           <form onSubmit={e => {
             e.preventDefault();
-            if (!f.totalAmount || Number(f.totalAmount) <= 0) { setError("Total amount required"); return; }
-            if (Number(f.paidAmount) > Number(f.totalAmount)) { setError("Paid can't exceed total"); return; }
+            if (!selectedItem && !itemSearch.trim()) { setError("Select or enter a product"); return; }
+            if (!f.unitPrice || Number(f.unitPrice) <= 0) { setError("Unit price is required"); return; }
+            if (Number(f.paidAmount) > totalAmount) { setError("Paid can't exceed total"); return; }
             mut.mutate();
           }} className="flex flex-col gap-3">
-            <Field label="Product / Item Name">
-              <Input value={f.productName} onChange={e => set("productName", e.target.value)}
-                placeholder="e.g. iPhone 13 LCD" />
+
+            {/* Product selector */}
+            <Field label="Product *">
+              {selectedItem ? (
+                <div className="flex items-center gap-2 px-3.5 py-3 rounded-xl border"
+                  style={{ borderColor: BORDER, background: BG }}>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold">{selectedItem.partName}</p>
+                    <p className="text-xs mt-0.5" style={{ color: MUTED }}>Stock: {selectedItem.quantity} · Stock will update automatically</p>
+                  </div>
+                  <button type="button" onClick={() => { setSelectedItem(null); setItemSearch(""); }}
+                    style={{ color: MUTED }}>
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Input
+                    value={itemSearch}
+                    onChange={e => { setItemSearch(e.target.value); setShowDropdown(true); }}
+                    onFocus={() => setShowDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+                    placeholder="Search inventory or type product name…" />
+                  {showDropdown && filteredItems.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 z-10 mt-1 rounded-xl border overflow-hidden shadow-lg"
+                      style={{ background: CARD, borderColor: BORDER }}>
+                      {filteredItems.map(i => (
+                        <button key={i.id} type="button"
+                          onMouseDown={() => {
+                            setSelectedItem(i);
+                            setItemSearch(i.partName);
+                            setF(p => ({ ...p, unitPrice: String(i.purchasePrice ?? "") }));
+                            setShowDropdown(false);
+                          }}
+                          className="w-full text-left px-3 py-2.5 text-sm border-b last:border-0"
+                          style={{ borderColor: BORDER }}>
+                          <span className="font-semibold">{i.partName}</span>
+                          <span className="text-xs ml-2" style={{ color: MUTED }}>Stock: {i.quantity}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {itemSearch && !showDropdown && filteredItems.length === 0 && (
+                    <p className="text-xs mt-1" style={{ color: MUTED }}>Not in inventory — will record purchase only</p>
+                  )}
+                </div>
+              )}
             </Field>
+
             <div className="grid grid-cols-2 gap-3">
               <Field label="Quantity">
                 <Input type="number" min="1" value={f.quantity} onChange={e => set("quantity", e.target.value)} />
               </Field>
-              <Field label="Purchase Date">
-                <Input type="date" value={f.purchaseDate} onChange={e => set("purchaseDate", e.target.value)} />
+              <Field label="Unit Price *">
+                <Input type="number" min="0" step="0.01" value={f.unitPrice}
+                  onChange={e => set("unitPrice", e.target.value)} placeholder="0.00" />
               </Field>
             </div>
-            <Field label="Total Amount *">
-              <Input type="number" min="0" step="0.01" value={f.totalAmount}
-                onChange={e => set("totalAmount", e.target.value)} placeholder="0.00" />
+
+            {Number(f.quantity) > 0 && Number(f.unitPrice) > 0 && (
+              <p className="text-xs font-semibold" style={{ color: PRIMARY }}>
+                Total: {Number(f.quantity)} × {Number(f.unitPrice)} = {totalAmount.toLocaleString()}
+              </p>
+            )}
+
+            <Field label="Purchase Date">
+              <Input type="date" value={f.purchaseDate} onChange={e => set("purchaseDate", e.target.value)} />
             </Field>
             <Field label="Paid Now">
               <Input type="number" min="0" step="0.01" value={f.paidAmount}
                 onChange={e => set("paidAmount", e.target.value)} placeholder="0.00" />
             </Field>
+
             {/* Due preview */}
-            <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm"
-              style={{ background: dueAmount > 0 ? "#FEF3C7" : "#D1FAE5" }}>
-              <span className="font-medium" style={{ color: dueAmount > 0 ? AMBER : GREEN }}>
-                {dueAmount > 0 ? `Due: $${fmt(dueAmount)}` : "✓ Fully Paid"}
-              </span>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white"
-                style={{ background: payStatus === "paid" ? GREEN : payStatus === "partial" ? AMBER : RED }}>
-                {payStatus === "paid" ? "PAID" : payStatus === "partial" ? "PARTIAL" : "CREDIT"}
-              </span>
-            </div>
+            {Number(f.unitPrice) > 0 && (
+              <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm"
+                style={{ background: dueAmount > 0 ? "#FEF3C7" : "#D1FAE5" }}>
+                <span className="font-medium" style={{ color: dueAmount > 0 ? AMBER : GREEN }}>
+                  {dueAmount > 0 ? `Due: ${fmt(dueAmount)}` : "✓ Fully Paid"}
+                </span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white"
+                  style={{ background: payStatus === "paid" ? GREEN : payStatus === "partial" ? AMBER : RED }}>
+                  {payStatus === "paid" ? "PAID" : payStatus === "partial" ? "PARTIAL" : "CREDIT"}
+                </span>
+              </div>
+            )}
+
             <Field label="Notes">
               <Input value={f.notes} onChange={e => set("notes", e.target.value)} placeholder="Optional" />
             </Field>
@@ -161,7 +246,7 @@ function AddPurchaseModal({ supplierId, supplierName, onClose }: {
             <button type="submit" disabled={mut.isPending}
               className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-60 mt-1"
               style={{ background: PRIMARY }}>
-              {mut.isPending ? "Saving…" : "Add Purchase"}
+              {mut.isPending ? "Saving…" : selectedItem ? "Add Purchase & Update Stock" : "Add Purchase"}
             </button>
           </form>
         </div>

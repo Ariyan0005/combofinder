@@ -181,6 +181,7 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
   onClose: () => void; existing?: Item; suppliers: Supplier[]; categories: Category[];
 }) {
   const qc = useQueryClient();
+  const isEdit = !!(existing && existing.id > 0);
 
   // Split existing categoryId into parent + sub for two-step UX
   const existingCat = existing?.categoryId ? categories.find(c => c.id === existing.categoryId) : undefined;
@@ -217,7 +218,6 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
 
   const mut = useMutation({
     mutationFn: async () => {
-          const isEdit = !!(existing && existing.id > 0);
       const url = isEdit ? `/api/inventory/${existing!.id}` : `/api/inventory`;
       const res = await fetch(url, {
         method: isEdit ? "PUT" : "POST",
@@ -246,11 +246,10 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
   );
 
   return (
-    <ModalShell title={existing ? "Edit Product" : "Add Product"} onClose={onClose}>
+    <ModalShell title={isEdit ? "Edit Product" : "Add Product"} onClose={onClose}>
       <form onSubmit={e => {
         e.preventDefault();
         if (!form.partName) { setError("Product name required"); return; }
-        if (!form.purchasePrice || isNaN(Number(form.purchasePrice))) { setError("Purchase price is required"); return; }
         if (!form.quality) { setError("Please select a quality"); return; }
         mut.mutate();
       }}
@@ -272,12 +271,15 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
             </Select>
           </Field>
         )}
-        <Field label="Supplier">
-          <Select value={form.supplierId} onChange={e => set("supplierId", e.target.value)}>
-            <option value="">— No supplier —</option>
-            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </Select>
-        </Field>
+        {/* Supplier only shown when editing — for new products use Supplier Ledger */}
+        {isEdit && (
+          <Field label="Supplier">
+            <Select value={form.supplierId} onChange={e => set("supplierId", e.target.value)}>
+              <option value="">— No supplier —</option>
+              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </Select>
+          </Field>
+        )}
         <Field label="Quality *">
           <Select value={form.quality} onChange={e => set("quality", e.target.value)} required>
             <option value="">— Select Quality —</option>
@@ -288,11 +290,29 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
           <Input value={form.brand} onChange={e => set("brand", e.target.value)} placeholder="e.g. Samsung, Apple, Huawei…" />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Quantity"><Input type="number" min="0" value={form.quantity} onChange={e => set("quantity", e.target.value)} placeholder="0" /></Field>
-          <Field label="Min Stock Alert"><Input type="number" min="0" value={form.minStock} onChange={e => set("minStock", e.target.value)} placeholder="2" /></Field>
-          <Field label="Purchase Price *"><Input type="text" inputMode="decimal" value={form.purchasePrice} onChange={e => set("purchasePrice", e.target.value)} placeholder="0.00" required /></Field>
-          <Field label="Selling Price"><Input type="text" inputMode="decimal" value={form.sellingPrice} onChange={e => set("sellingPrice", e.target.value)} placeholder="0.00" /></Field>
+          {/* Quantity only in edit mode — initial stock is set via Stock In */}
+          {isEdit
+            ? <Field label="Quantity"><Input type="number" min="0" value={form.quantity} onChange={e => set("quantity", e.target.value)} placeholder="0" /></Field>
+            : <Field label="Min Stock Alert"><Input type="number" min="0" value={form.minStock} onChange={e => set("minStock", e.target.value)} placeholder="2" /></Field>
+          }
+          {isEdit
+            ? <Field label="Min Stock Alert"><Input type="number" min="0" value={form.minStock} onChange={e => set("minStock", e.target.value)} placeholder="2" /></Field>
+            : <Field label="Selling Price"><Input type="text" inputMode="decimal" value={form.sellingPrice} onChange={e => set("sellingPrice", e.target.value)} placeholder="0.00" /></Field>
+          }
+          {/* Edit mode: show purchase + selling price */}
+          {isEdit && (
+            <>
+              <Field label="Purchase Price"><Input type="text" inputMode="decimal" value={form.purchasePrice} onChange={e => set("purchasePrice", e.target.value)} placeholder="0.00" /></Field>
+              <Field label="Selling Price"><Input type="text" inputMode="decimal" value={form.sellingPrice} onChange={e => set("sellingPrice", e.target.value)} placeholder="0.00" /></Field>
+            </>
+          )}
         </div>
+        {/* Hint for new products */}
+        {!isEdit && (
+          <p className="text-xs px-1" style={{ color: MUTED }}>
+            💡 Stock quantity &amp; purchase price are recorded per batch via <strong>Stock In</strong>
+          </p>
+        )}
         <Field label="Barcode / QR Code">
           <div className="flex gap-2">
             <Input value={form.barcode} onChange={e => set("barcode", e.target.value)} placeholder="Scan or type barcode" />
@@ -467,10 +487,14 @@ function StockInModal({ onClose, item: initialItem, suppliers, allItems }: {
   const [qty, setQty] = useState("1");
   const [supplierId, setSupplierId] = useState(String(initialItem?.supplierId ?? ""));
   const [unitPrice, setUnitPrice] = useState(String(initialItem?.purchasePrice ?? ""));
+  const [paidNow, setPaidNow] = useState("0");
   const [notes, setNotes] = useState("");
+  const [recordLedger, setRecordLedger] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const supplierName = suppliers.find(s => String(s.id) === supplierId)?.name;
+  const totalAmt = Number(qty) * Number(unitPrice);
+  const dueAmt = Math.max(0, totalAmt - Number(paidNow));
 
   const filteredItems = itemSearch
     ? allItems.filter(i => (i.partName).toLowerCase().includes(itemSearch.toLowerCase())).slice(0, 6)
@@ -479,6 +503,7 @@ function StockInModal({ onClose, item: initialItem, suppliers, allItems }: {
   const mut = useMutation({
     mutationFn: async () => {
       if (!item) throw new Error("No item selected");
+      // 1. Record stock movement
       const res = await fetch("/api/stock-movements", {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -488,17 +513,42 @@ function StockInModal({ onClose, item: initialItem, suppliers, allItems }: {
           supplierId: supplierId ? Number(supplierId) : null,
           supplierName: supplierName ?? null,
           unitPrice: unitPrice || null,
-          totalPrice: unitPrice ? String(Number(unitPrice) * Number(qty)) : null,
+          totalPrice: unitPrice ? String(totalAmt) : null,
           notes: notes || null,
         }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error ?? "Failed");
+
+      // 2. Auto-record to supplier ledger if supplier selected and checkbox on
+      if (supplierId && recordLedger && unitPrice) {
+        await fetch("/api/supplier-purchases", {
+          method: "POST", credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            supplierId: Number(supplierId),
+            supplierName: supplierName ?? null,
+            inventoryId: item.id,
+            productName: item.partName,
+            quantity: Number(qty),
+            unitPrice: Number(unitPrice),
+            totalAmount: totalAmt,
+            paidAmount: Number(paidNow),
+            notes: notes || null,
+            // no updateStock — stock already updated above
+          }),
+        });
+      }
       return d;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inventory"] });
       qc.invalidateQueries({ queryKey: ["stock-movements"] });
+      if (supplierId && recordLedger) {
+        qc.invalidateQueries({ queryKey: ["supplier-purchases"] });
+        qc.invalidateQueries({ queryKey: ["supplier-balance"] });
+        qc.invalidateQueries({ queryKey: ["suppliers-balances"] });
+      }
       setSuccess(true);
       setTimeout(onClose, 1200);
     },
@@ -511,6 +561,7 @@ function StockInModal({ onClose, item: initialItem, suppliers, allItems }: {
         <div className="text-center py-8">
           <CheckCircle className="w-12 h-12 mx-auto mb-3" style={{ color: "#10B981" }} />
           <p className="font-bold">Stock added!</p>
+          {supplierId && recordLedger && <p className="text-xs mt-1" style={{ color: MUTED }}>Recorded to supplier ledger</p>}
         </div>
       ) : (
         <form onSubmit={e => { e.preventDefault(); if (!item) { setError("Select a product"); return; } if (Number(qty) <= 0) { setError("Quantity must be > 0"); return; } mut.mutate(); }}
@@ -545,19 +596,42 @@ function StockInModal({ onClose, item: initialItem, suppliers, allItems }: {
             </div>
           )}
           <Field label="Supplier">
-            <Select value={supplierId} onChange={e => setSupplierId(e.target.value)}>
+            <Select value={supplierId} onChange={e => { setSupplierId(e.target.value); if (!e.target.value) setRecordLedger(false); else setRecordLedger(true); }}>
               <option value="">— No supplier —</option>
               {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Quantity *"><Input type="number" min="1" value={qty} onChange={e => setQty(e.target.value)} required /></Field>
-            <Field label="Unit Price"><Input type="text" inputMode="decimal" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} placeholder="0.00" /></Field>
+            <Field label="Purchase Price"><Input type="text" inputMode="decimal" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} placeholder="0.00" /></Field>
           </div>
-          {qty && unitPrice && (
+          {Number(qty) > 0 && Number(unitPrice) > 0 && (
             <p className="text-xs font-semibold" style={{ color: PRIMARY }}>
-              Total: {sym}{(Number(qty) * Number(unitPrice)).toLocaleString()}
+              Total: {sym}{totalAmt.toLocaleString()}
             </p>
+          )}
+          {/* Supplier ledger integration */}
+          {supplierId && unitPrice && (
+            <div className="rounded-xl border overflow-hidden" style={{ borderColor: BORDER }}>
+              <label className="flex items-center gap-3 px-3.5 py-3 cursor-pointer">
+                <input type="checkbox" checked={recordLedger} onChange={e => setRecordLedger(e.target.checked)} className="rounded" />
+                <span className="text-sm font-medium">Record to Supplier Ledger</span>
+              </label>
+              {recordLedger && (
+                <div className="px-3.5 pb-3 border-t" style={{ borderColor: BORDER }}>
+                  <div className="pt-2">
+                    <Field label="Paid Now">
+                      <Input type="text" inputMode="decimal" value={paidNow} onChange={e => setPaidNow(e.target.value)} placeholder="0.00" />
+                    </Field>
+                    {dueAmt > 0 && (
+                      <p className="text-xs mt-1.5 font-medium" style={{ color: "#F59E0B" }}>
+                        Due to supplier: {sym}{dueAmt.toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
           <Field label="Notes"><Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Bought from Ali Parts" /></Field>
           {error && <p className="text-xs" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
