@@ -16,11 +16,14 @@ if (!connectionString) {
   );
 }
 
+// Detect Supabase URL by hostname pattern — applies to both SUPABASE_DATABASE_URL and DATABASE_URL
+const isSupabase = /supabase\.com|supabase\.co/.test(connectionString);
+
 // family:4 forces IPv4 socket — VPS cannot reach Supabase over IPv6 (ENETUNREACH)
 export const pool = new Pool({
   connectionString,
-  ssl: process.env.SUPABASE_DATABASE_URL ? { rejectUnauthorized: false } : false,
-  ...(process.env.SUPABASE_DATABASE_URL ? { family: 4 } : {}),
+  ssl: isSupabase ? { rejectUnauthorized: false } : false,
+  ...(isSupabase ? { family: 4 } : {}),
 });
 export const db = drizzle(pool, { schema });
 
