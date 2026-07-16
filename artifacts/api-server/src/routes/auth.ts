@@ -313,10 +313,30 @@ router.post("/auth/register", async (req, res) => {
     }
 
     // Generate 6-digit verification OTP (10 min expiry)
+    // Wrapped in try/catch — if password_reset_tokens table is missing on the VPS,
+    // fall back to immediate activation instead of crashing registration entirely.
+    let otpStored = false;
     const verifyCode = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, user.id)).catch(() => {});
-    await db.insert(passwordResetTokensTable).values({ userId: user.id, token: verifyCode, expiresAt });
+    try {
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, user.id)).catch(() => {});
+      await db.insert(passwordResetTokensTable).values({ userId: user.id, token: verifyCode, expiresAt });
+      otpStored = true;
+    } catch (otpErr) {
+      console.error("OTP insert failed (password_reset_tokens table may be missing) — activating user immediately:", otpErr);
+    }
+
+    if (!otpStored) {
+      // OTP table missing — activate immediately so registration is not blocked
+      await db.update(usersTable).set({ isActive: true, isApproved: true }).where(eq(usersTable.id, user.id)).catch(() => {});
+      (req.session as any).authenticated = true;
+      (req.session as any).userId = user.id;
+      (req.session as any).userName = user.name;
+      (req.session as any).userRole = user.accountType;
+      (req.session as any).userCurrency = user.currency ?? "USD";
+      res.json({ success: true, requiresVerification: false, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan, currency: user.currency ?? "USD" } });
+      return;
+    }
 
     const emailSent = await sendVerificationEmail(user.name, user.email, verifyCode);
     if (!emailSent) {

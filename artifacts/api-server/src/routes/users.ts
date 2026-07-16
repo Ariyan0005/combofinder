@@ -46,11 +46,29 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { password, ...rest } = req.body;
-    const values: Record<string, any> = { ...rest, updatedAt: new Date() };
-    if (password) {
-      if (password.length < 6) { res.status(400).json({ error: "Password must be at least 6 characters" }); return; }
-      values.passwordHash = hashPassword(password);
+    const b = req.body;
+    if (!b.name || !b.email) {
+      res.status(400).json({ error: "Name and email are required" }); return;
+    }
+    // Whitelist fields to prevent empty-string timestamps and unknown columns crashing Drizzle
+    const values: Record<string, any> = {
+      name: String(b.name).trim(),
+      email: String(b.email).trim().toLowerCase(),
+      updatedAt: new Date(),
+    };
+    if (b.phone !== undefined)              values.phone = b.phone || null;
+    if (b.accountType !== undefined)        values.accountType = String(b.accountType);
+    if (b.subscriptionPlan !== undefined)   values.subscriptionPlan = String(b.subscriptionPlan);
+    if (b.subscriptionStatus !== undefined) values.subscriptionStatus = String(b.subscriptionStatus);
+    if (b.subscriptionExpiresAt)            values.subscriptionExpiresAt = new Date(b.subscriptionExpiresAt);
+    if (b.isActive !== undefined)           values.isActive = Boolean(b.isActive);
+    if (b.isApproved !== undefined)         values.isApproved = Boolean(b.isApproved);
+    if (b.country !== undefined)            values.country = b.country || null;
+    if (b.shopName !== undefined)           values.shopName = b.shopName || null;
+    if (b.currency !== undefined)           values.currency = b.currency || null;
+    if (b.password) {
+      if (b.password.length < 6) { res.status(400).json({ error: "Password must be at least 6 characters" }); return; }
+      values.passwordHash = hashPassword(b.password);
     }
     const [row] = await db.insert(usersTable).values(values).returning();
     const { passwordHash: _, ...safe } = row;
