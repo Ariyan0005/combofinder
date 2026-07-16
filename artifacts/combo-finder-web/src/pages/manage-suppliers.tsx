@@ -259,18 +259,18 @@ export default function ManageSuppliers() {
                         <p className="text-xs truncate mt-0.5" style={{ color: MUTED }}>{s.partTypes}</p>
                       )}
                     </div>
-                    {/* Actions */}
-                    <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                    {/* Actions — side by side */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
                       <button
                         onClick={() => { setEditSupplier(s); setShowForm(true); }}
-                        className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                        style={{ background: "hsl(var(--accent))", color: PRIMARY }}>
+                        className="text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors"
+                        style={{ borderColor: PRIMARY, color: PRIMARY, background: `${PRIMARY}12` }}>
                         Edit
                       </button>
                       <button
                         onClick={() => { if (confirm(`Delete "${s.name}"?`)) deleteMut.mutate(s.id); }}
-                        className="text-[10px] font-medium"
-                        style={{ color: "hsl(var(--destructive))" }}>
+                        className="text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors"
+                        style={{ borderColor: "hsl(var(--destructive))", color: "hsl(var(--destructive))", background: "hsl(var(--destructive) / 0.08)" }}>
                         Delete
                       </button>
                     </div>

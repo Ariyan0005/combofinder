@@ -453,54 +453,54 @@ export default function SupplierLedger() {
           </div>
         </div>
 
-        {/* Balance summary cards */}
+        {/* Balance summary cards — compact single row */}
         <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-2xl p-3 text-center" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
-            <p className="text-[10px] font-semibold mb-1" style={{ color: MUTED }}>Purchased</p>
-            <p className="text-sm font-extrabold">${fmt(balance?.totalPurchased ?? 0)}</p>
+          <div className="rounded-xl px-2 py-2 text-center" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+            <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: MUTED }}>Purchased</p>
+            <p className="text-xs font-extrabold leading-tight">${fmt(balance?.totalPurchased ?? 0)}</p>
           </div>
-          <div className="rounded-2xl p-3 text-center" style={{ background: "#D1FAE5" }}>
-            <p className="text-[10px] font-semibold mb-1" style={{ color: GREEN }}>Paid</p>
-            <p className="text-sm font-extrabold" style={{ color: GREEN }}>${fmt(balance?.totalPaid ?? 0)}</p>
+          <div className="rounded-xl px-2 py-2 text-center" style={{ background: "#D1FAE5" }}>
+            <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: GREEN }}>Paid</p>
+            <p className="text-xs font-extrabold leading-tight" style={{ color: GREEN }}>${fmt(balance?.totalPaid ?? 0)}</p>
           </div>
-          <div className="rounded-2xl p-3 text-center"
+          <div className="rounded-xl px-2 py-2 text-center"
             style={{ background: totalDue > 0 ? "#FEE2E2" : "#D1FAE5" }}>
-            <p className="text-[10px] font-semibold mb-1" style={{ color: totalDue > 0 ? RED : GREEN }}>Due</p>
-            <p className="text-sm font-extrabold" style={{ color: totalDue > 0 ? RED : GREEN }}>
+            <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: totalDue > 0 ? RED : GREEN }}>Due</p>
+            <p className="text-xs font-extrabold leading-tight" style={{ color: totalDue > 0 ? RED : GREEN }}>
               ${fmt(totalDue)}
             </p>
           </div>
         </div>
 
-        {/* Due alert + Pay Now */}
+        {/* Due alert + action buttons row — combined to save space */}
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowAddPurchase(true)}
+            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl font-bold text-xs text-white flex-1"
+            style={{ background: PRIMARY }}>
+            <ShoppingCart className="w-3.5 h-3.5" /> Add Purchase
+          </button>
+          <button onClick={() => setShowPayNow(true)}
+            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl font-bold text-xs text-white flex-1"
+            style={{ background: GREEN }}>
+            <CreditCard className="w-3.5 h-3.5" /> Record Payment
+          </button>
+        </div>
+
+        {/* Due alert (compact, only when due > 0) */}
         {totalDue > 0 && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl"
-            style={{ background: "#FEF3C7", border: `1px solid ${AMBER}` }}>
-            <AlertCircle className="w-4 h-4 flex-shrink-0" style={{ color: AMBER }} />
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
+            style={{ background: "#FEF3C7", border: `1px solid ${AMBER}40` }}>
+            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: AMBER }} />
             <p className="text-xs font-semibold flex-1" style={{ color: "#92400E" }}>
               ${fmt(totalDue)} still owed to {supplier?.name}
             </p>
             <button onClick={() => setShowPayNow(true)}
-              className="text-xs font-bold text-white px-3 py-1.5 rounded-xl"
+              className="text-[10px] font-bold text-white px-2.5 py-1 rounded-lg flex-shrink-0"
               style={{ background: GREEN }}>
               Pay Now
             </button>
           </div>
         )}
-
-        {/* Action buttons */}
-        <div className="grid grid-cols-2 gap-3">
-          <button onClick={() => setShowAddPurchase(true)}
-            className="flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-sm text-white"
-            style={{ background: PRIMARY }}>
-            <ShoppingCart className="w-4 h-4" /> Add Purchase
-          </button>
-          <button onClick={() => setShowPayNow(true)}
-            className="flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-sm text-white"
-            style={{ background: GREEN }}>
-            <CreditCard className="w-4 h-4" /> Record Payment
-          </button>
-        </div>
 
         {/* Tabs */}
         <div className="flex gap-1 p-1 rounded-2xl" style={{ background: "hsl(var(--muted))" }}>
