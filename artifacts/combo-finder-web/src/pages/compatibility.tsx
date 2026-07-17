@@ -36,15 +36,6 @@ function categoryColor(name: string) {
   return BRAND_PALETTES[name.charCodeAt(0) % BRAND_PALETTES.length];
 }
 
-function getRecentSearches(): string[] {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) ?? "[]"); } catch { return []; }
-}
-function addRecentSearch(q: string) {
-  const arr = getRecentSearches().filter(s => s !== q).slice(0, 9);
-  arr.unshift(q);
-  localStorage.setItem(LS_KEY, JSON.stringify(arr));
-}
-
 const MUTED = "hsl(var(--muted-foreground))";
 const BORDER = "hsl(var(--border))";
 const CARD  = "hsl(var(--card))";
