@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useRef } from "react";
 import {
   Wrench, Users, Package, CheckCircle, Bell, ChevronRight,
   ShoppingCart, BarChart2, Wallet, Receipt, Battery,
-  Cpu, CreditCard, LayoutDashboard, MessageCircle, Zap,
+  Cpu, CreditCard, LayoutDashboard, MessageCircle, Zap, Megaphone, X,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/context/auth-context";
@@ -80,6 +81,34 @@ function CfToolIcon({ type, color, size = 24 }: { type: "display" | "battery" | 
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const [showNotif, setShowNotif] = useState(false);
+  const bellRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Close panel when clicking outside
+  useEffect(() => {
+    if (!showNotif) return;
+    function handleClick(e: MouseEvent) {
+      if (
+        bellRef.current && !bellRef.current.contains(e.target as Node) &&
+        panelRef.current && !panelRef.current.contains(e.target as Node)
+      ) setShowNotif(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showNotif]);
+
+  // Announcements from admin
+  const { data: allAnnouncements = [] } = useQuery<any[]>({
+    queryKey: ["announcements"],
+    queryFn: () => fetch(`/api/announcements`, { credentials: "include" }).then(r => r.json()),
+    refetchInterval: 60_000,
+  });
+  const announcements = allAnnouncements.filter((a: any) => {
+    if (!a.isPublished) return false;
+    if (a.expiresAt && new Date(a.expiresAt) < new Date()) return false;
+    return true;
+  });
 
   const { data: stats } = useQuery<{
     totalCustomers?: number;
@@ -118,8 +147,9 @@ export default function Dashboard() {
             <p className="text-[11px] font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>
               {greeting()},
             </p>
-            <h1 className="text-lg font-extrabold leading-tight mt-0.5">
-              {user?.name ?? "Technician"} 👋
+            <h1 className="text-lg font-extrabold leading-tight mt-0.5 flex items-center gap-2">
+              {user?.name ?? "Technician"}
+              <span className="w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/30 inline-block" title="Online" />
             </h1>
           </div>
           <div className="flex items-center gap-2">
@@ -149,10 +179,72 @@ export default function Dashboard() {
               </a>
             )}
             {/* Bell / Notifications */}
-            <button className="w-9 h-9 rounded-full border flex items-center justify-center"
-              style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
-              <Bell className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
-            </button>
+            <div className="relative">
+              <button
+                ref={bellRef}
+                onClick={() => setShowNotif(v => !v)}
+                className="w-9 h-9 rounded-full border flex items-center justify-center transition-colors"
+                style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}
+              >
+                <Bell className="w-4 h-4" style={{ color: announcements.length > 0 ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }} />
+                {announcements.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                    {announcements.length > 9 ? "9+" : announcements.length}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification panel */}
+              {showNotif && (
+                <div
+                  ref={panelRef}
+                  className="absolute right-0 top-full mt-2 z-50 rounded-2xl border shadow-xl overflow-hidden"
+                  style={{ width: 300, borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "hsl(var(--border))" }}>
+                    <div className="flex items-center gap-2">
+                      <Megaphone className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
+                      <span className="text-sm font-bold">Announcements</span>
+                    </div>
+                    <button onClick={() => setShowNotif(false)}>
+                      <X className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
+                    </button>
+                  </div>
+
+                  {/* Body */}
+                  <div className="max-h-72 overflow-y-auto divide-y" style={{ divideColor: "hsl(var(--border))" }}>
+                    {announcements.length === 0 ? (
+                      <div className="px-4 py-6 text-center text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        No announcements
+                      </div>
+                    ) : (
+                      announcements.map((a: any) => (
+                        <div key={a.id} className="px-4 py-3 space-y-0.5">
+                          <div className="flex items-start gap-2">
+                            <span
+                              className="mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                              style={{
+                                background: a.priority === "High" ? "#FEE2E2" : a.priority === "Low" ? "#F0FDF4" : "#EEF2FF",
+                                color:      a.priority === "High" ? "#DC2626" : a.priority === "Low" ? "#16A34A" : "hsl(var(--primary))",
+                              }}
+                            >
+                              {a.priority ?? "Normal"}
+                            </span>
+                            <p className="text-xs font-semibold leading-snug">{a.title}</p>
+                          </div>
+                          {a.content && (
+                            <p className="text-[11px] pl-0 leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
+                              {a.content}
+                            </p>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
