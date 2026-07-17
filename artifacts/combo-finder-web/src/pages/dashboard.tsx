@@ -45,7 +45,7 @@ const CF_TOOLS = [
   {
     label: "Display\nCompatibility",
     iconType: "display" as const,
-    href: "/compatibility?type=Display",
+    href: "/compatibility?category=display",
     color: "#6248FF",
     bg: "#EEF2FF",
     desc: "Screen swap guide",
@@ -53,7 +53,7 @@ const CF_TOOLS = [
   {
     label: "Battery\nCompatibility",
     iconType: "battery" as const,
-    href: "/compatibility?type=Battery",
+    href: "/compatibility?category=battery",
     color: "#10B981",
     bg: "#ECFDF5",
     desc: "Safe replacements",
