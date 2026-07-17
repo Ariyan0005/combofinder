@@ -125,7 +125,11 @@ export default function IcModelPage() {
                     style={{ background: p.bg, color: p.color }}>{initials}</div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{d.deviceName}</p>
-                    {d.notes && <p className="text-[11px] mt-0.5 truncate" style={{ color: MUTED }}>{d.notes}</p>}
+                    {d.notes && (
+                      <p className="text-[11px] mt-0.5 truncate font-semibold" style={{ color: PRIMARY }}>
+                        Part: {d.notes}
+                      </p>
+                    )}
                   </div>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                     style={{ background: "#ECFDF5", color: "#10B981" }}>Compatible</span>

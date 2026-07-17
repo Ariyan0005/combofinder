@@ -123,8 +123,8 @@ export default function IcCompat() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="font-semibold text-xs uppercase tracking-wider">Device Name</TableHead>
-              <TableHead className="font-semibold text-xs uppercase tracking-wider hidden sm:table-cell">Notes</TableHead>
+              <TableHead className="font-semibold text-xs uppercase tracking-wider">Device Model</TableHead>
+              <TableHead className="font-semibold text-xs uppercase tracking-wider hidden sm:table-cell">Part Name</TableHead>
               <TableHead className="font-semibold text-xs uppercase tracking-wider hidden sm:table-cell">Added</TableHead>
               <TableHead className="text-right font-semibold text-xs uppercase tracking-wider">Delete</TableHead>
             </TableRow>
@@ -175,12 +175,12 @@ export default function IcCompat() {
           <DialogHeader><DialogTitle>Add Compatible Device</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-1.5">
-              <Label>Device Name *</Label>
+              <Label>Device Model *</Label>
               <Input value={singleDevice} onChange={e => setSingleDevice(e.target.value)} placeholder="e.g. Samsung Galaxy S21" autoFocus />
             </div>
             <div className="space-y-1.5">
-              <Label>Notes</Label>
-              <Input value={singleNotes} onChange={e => setSingleNotes(e.target.value)} placeholder="Optional" />
+              <Label>Part Name</Label>
+              <Input value={singleNotes} onChange={e => setSingleNotes(e.target.value)} placeholder="e.g. Power IC, Charging IC" />
             </div>
           </div>
           <DialogFooter>
@@ -197,11 +197,11 @@ export default function IcCompat() {
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Bulk Add Compatible Devices</DialogTitle></DialogHeader>
           <div className="space-y-3 py-4">
-            <p className="text-sm text-muted-foreground">One device name per line.</p>
+            <p className="text-sm text-muted-foreground">One device model per line. Optionally add part name after a comma.</p>
             <Textarea
               value={bulkText}
               onChange={e => setBulkText(e.target.value)}
-              placeholder={"Samsung Galaxy S21\nXiaomi Mi 11\nOnePlus 9 Pro"}
+              placeholder={"Samsung Galaxy S21\nXiaomi Mi 11, Power IC\nOnePlus 9 Pro"}
               rows={8} className="text-sm"
             />
           </div>

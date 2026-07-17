@@ -5,8 +5,18 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 
-const LS_KEY = "cf_recent_searches";
+// Per-section isolated recent searches
 const ALL = "all";
+
+function lsKey(slug: string) { return `cf_recent_${slug}`; }
+function getRecentSearches(slug: string): string[] {
+  try { return JSON.parse(localStorage.getItem(lsKey(slug)) ?? "[]"); } catch { return []; }
+}
+function addRecentSearch(slug: string, q: string) {
+  const arr = getRecentSearches(slug).filter(s => s !== q).slice(0, 9);
+  arr.unshift(q);
+  localStorage.setItem(lsKey(slug), JSON.stringify(arr));
+}
 
 const BRAND_PALETTES = [
   { bg: "#EEF2FF", color: "#6366F1" },
@@ -47,7 +57,7 @@ function readCategoryFromUrl(): string {
 export default function Compatibility() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [recentSearches, setRecentSearches] = useState<string[]>(getRecentSearches);
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => getRecentSearches(readCategoryFromUrl() || "display"));
   const [categories, setCategories] = useState<any[]>([]);
   const [selectedSlug, setSelectedSlug] = useState<string>(() => readCategoryFromUrl());
   const [showDropdown, setShowDropdown] = useState(false);
@@ -133,14 +143,19 @@ export default function Compatibility() {
     enabled: debouncedQuery.length < 2,
   });
 
+  // Reload recent searches whenever the selected section changes
+  useEffect(() => {
+    setRecentSearches(getRecentSearches(selectedSlug));
+  }, [selectedSlug]);
+
   function handleSearchSelect(q: string) {
-    addRecentSearch(q);
-    setRecentSearches(getRecentSearches());
+    addRecentSearch(selectedSlug, q);
+    setRecentSearches(getRecentSearches(selectedSlug));
   }
 
   function removeRecent(q: string) {
-    const arr = getRecentSearches().filter(s => s !== q);
-    localStorage.setItem(LS_KEY, JSON.stringify(arr));
+    const arr = getRecentSearches(selectedSlug).filter(s => s !== q);
+    localStorage.setItem(lsKey(selectedSlug), JSON.stringify(arr));
     setRecentSearches(arr);
   }
 
