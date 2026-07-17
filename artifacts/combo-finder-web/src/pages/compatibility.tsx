@@ -232,26 +232,17 @@ export default function Compatibility() {
             ) : (
               <Layers className="w-3.5 h-3.5" style={{ color: MUTED }} />
             )}
-            <span>{selectedSlug === ALL ? "Part Type" : selectedCategory?.name ?? "Part Type"}</span>
+            <span>{selectedSlug === ALL ? "Part Type" : (selectedCategory?.slug === "ic" ? "IC Match" : selectedCategory?.name ?? "Part Type")}</span>
             <ChevronDown className="w-3.5 h-3.5 opacity-60" />
           </button>
 
           {showDropdown && (
             <div className="absolute right-0 top-full mt-1.5 z-50 rounded-2xl border shadow-lg overflow-hidden min-w-[150px]"
               style={{ borderColor: BORDER, background: CARD }}>
-              <button
-                key={ALL}
-                onClick={() => selectCategory(ALL)}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-left transition-colors hover:bg-muted/50"
-                style={selectedSlug === ALL ? { color: PRIMARY, fontWeight: 700 } : { color: "hsl(var(--foreground))" }}
-              >
-                <Layers className="w-3.5 h-3.5" style={{ color: selectedSlug === ALL ? PRIMARY : MUTED }} />
-                All
-                {selectedSlug === ALL && <span className="ml-auto text-primary">✓</span>}
-              </button>
               {categories.map((c: any) => {
                 const pal = categoryColor(c.name);
                 const isActive = selectedSlug === c.slug;
+                const label = c.slug === "ic" ? "IC Match" : c.name;
                 return (
                   <button
                     key={c.slug}
@@ -260,7 +251,7 @@ export default function Compatibility() {
                     style={isActive ? { color: PRIMARY, fontWeight: 700 } : { color: "hsl(var(--foreground))" }}
                   >
                     <span className="w-3.5 h-3.5 rounded-md flex-shrink-0" style={{ background: pal.color }} />
-                    {c.name}
+                    {label}
                     {isActive && <span className="ml-auto text-primary">✓</span>}
                   </button>
                 );
@@ -275,7 +266,7 @@ export default function Compatibility() {
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
             style={{ background: categoryColor(selectedCategory.name).bg, color: categoryColor(selectedCategory.name).color }}>
-            {selectedCategory.name} Compatibility
+            {selectedCategory.slug === "ic" ? "IC Match" : selectedCategory.name} Compatibility
           </span>
         </div>
       )}
