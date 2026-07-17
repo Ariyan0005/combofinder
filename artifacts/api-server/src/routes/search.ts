@@ -1,6 +1,9 @@
 import { Router, type IRouter } from "express";
 import { ilike, eq, or, sql, and } from "drizzle-orm";
-import { db, brandsTable, modelsTable, compatibilitiesTable, categoriesTable } from "@workspace/db";
+import {
+  db, brandsTable, modelsTable, compatibilitiesTable, categoriesTable,
+  icModelsTable, batteryModelsTable,
+} from "@workspace/db";
 import { SearchModelsQueryParams } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -12,6 +15,13 @@ router.get("/search", async (req, res): Promise<void> => {
   const q = params.data.q?.trim() ?? "";
   const brandId = params.data.brand_id;
   const categoryId = req.query.category_id ? Number(req.query.category_id) : undefined;
+
+  // Look up category slug so we can branch for IC / Battery
+  let categorySlug: string | undefined;
+  if (categoryId) {
+    const [cat] = await db.select({ slug: categoriesTable.slug }).from(categoriesTable).where(eq(categoriesTable.id, categoryId));
+    categorySlug = cat?.slug;
+  }
 
   const brandSelect = {
     id: brandsTable.id,
@@ -60,7 +70,7 @@ router.get("/search", async (req, res): Promise<void> => {
         .leftJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
         .where(and(or(ilike(modelsTable.name, `%${q}%`), ilike(brandsTable.name, `%${q}%`)), categoryWhere))
         .groupBy(modelsTable.id, brandsTable.name),
-      // Compatibility entries matching by name (e.g. IC number, battery model code)
+      // Compatibility entries matching by name (e.g. display part name)
       db.select(comboSelect).from(compatibilitiesTable)
         .innerJoin(modelsTable, eq(modelsTable.id, compatibilitiesTable.modelId))
         .innerJoin(brandsTable, eq(brandsTable.id, modelsTable.brandId))
@@ -69,8 +79,58 @@ router.get("/search", async (req, res): Promise<void> => {
         .orderBy(compatibilitiesTable.name)
         .limit(20),
     ]);
+
+    // IC number search — only when IC category is active
+    if (categorySlug === "ic") {
+      const icModels = await db
+        .select({
+          id: icModelsTable.id,
+          icNumber: icModelsTable.icNumber,
+          description: icModelsTable.description,
+          package: icModelsTable.package,
+          brandId: icModelsTable.brandId,
+          brandName: brandsTable.name,
+        })
+        .from(icModelsTable)
+        .innerJoin(brandsTable, eq(brandsTable.id, icModelsTable.brandId))
+        .where(
+          or(
+            ilike(icModelsTable.icNumber, `%${q}%`),
+            ilike(icModelsTable.description, `%${q}%`),
+          )
+        )
+        .orderBy(icModelsTable.icNumber)
+        .limit(30);
+      res.json({ brands, models, combos, icModels }); return;
+    }
+
+    // Battery model search — only when Battery category is active
+    if (categorySlug === "battery") {
+      const batteryModels = await db
+        .select({
+          id: batteryModelsTable.id,
+          modelNumber: batteryModelsTable.modelNumber,
+          capacity: batteryModelsTable.capacity,
+          voltage: batteryModelsTable.voltage,
+          brandId: batteryModelsTable.brandId,
+          brandName: brandsTable.name,
+        })
+        .from(batteryModelsTable)
+        .innerJoin(brandsTable, eq(brandsTable.id, batteryModelsTable.brandId))
+        .where(
+          or(
+            ilike(batteryModelsTable.modelNumber, `%${q}%`),
+            ilike(batteryModelsTable.capacity, `%${q}%`),
+          )
+        )
+        .orderBy(batteryModelsTable.modelNumber)
+        .limit(30);
+      res.json({ brands, models, combos, batteryModels }); return;
+    }
+
     res.json({ brands, models, combos }); return;
   }
+
   if (brandId) {
     const [brands, models] = await Promise.all([
       db.select(brandSelect).from(brandsTable)
@@ -85,6 +145,7 @@ router.get("/search", async (req, res): Promise<void> => {
     ]);
     res.json({ brands, models }); return;
   }
+
   const [brands, models] = await Promise.all([
     db.select(brandSelect).from(brandsTable)
       .leftJoin(modelsTable, eq(modelsTable.brandId, brandsTable.id))
