@@ -1,0 +1,424 @@
+Skip to content
+
+C
+combofinder
+1 project
+
+
+
+
+Help
+
+Advisor Center
+Usage
+
+Current billing cycle
+
+All projects
+Organization is on the Free Plan
+
+24 Jun 2026 - 24 Jul 2026
+
+Usage Summary
+
+Your plan includes a limited amount of usage. If exceeded, you may experience restrictions, as you are currently not billed for overages. It may take up to 1 hour to refresh.
+
+More information
+
+How billing works
+
+Supabase Plans
+
+You have not exceeded your Free Plan quota in this billing cycle.
+
+Database Size
+
+0.028 / 0.5 GB (6%)
+Egress
+
+0.036 / 5 GB (<1%)
+Cached Egress
+
+0 / 5 GB 
+Monthly Active Users
+
+0 / 50,000 MAU 
+Monthly Active Third-Party Users
+
+0 / 50,000 MAU 
+Storage Size
+
+0 / 1 GB 
+Realtime Concurrent Peak Connections
+
+0 / 200 
+Realtime Messages
+
+0 / 2,000,000 
+Edge Function Invocations
+
+0 / 500,000 
+Monthly Active SSO Users
+
+Unavailable in plan 
+Upgrade
+Storage Image Transformations
+
+Unavailable in plan 
+Upgrade
+Egress
+
+Amount of data transmitted over all network connections
+
+Egress
+
+Contains any outgoing traffic including Database, Storage, Realtime, Auth, API, Edge Functions, Pooler and Log Drains.
+
+Billing is based on the total sum of uncached egress in GB throughout your billing period.
+
+Egress via cache hits is billed separately.
+
+More information
+
+Documentation
+
+Egress usage
+
+Included in Free Plan
+
+5 GB
+
+Used in period
+
+0.04 GB
+
+Overage in period
+
+0 GB
+
+Egress per day
+
+The breakdown of different egress types is inclusive of cached egress, even though it is billed separately. The data refreshes every hour.
+
+27 Jun
+01 Jul
+05 Jul
+09 Jul
+13 Jul
+17 Jul
+0
+1MB
+3MB
+5MB
+Shared Pooler Egress (100.0%):
+
+2.007MB
+
+16 Jul 2026
+
+Cached Egress
+
+Contains any outgoing traffic that is served from a cache hit. Includes API, Storage and Edge Functions.
+
+Billing is based on the total sum of cached egress in GB throughout your billing period.
+
+More information
+
+Documentation
+
+Cached Egress usage
+
+Included in Free Plan
+
+5 GB
+
+Used in period
+
+0.00 GB
+
+Overage in period
+
+0 GB
+
+Cached Egress per day
+
+The data refreshes every hour.
+
+No data in period
+
+May take up to 24 hours to show
+
+Database & Storage Size
+
+Amount of resources your project is consuming
+
+Database size
+
+Database size refers to the actual amount of space used by all your database objects, as reported by Postgres.
+
+More information
+
+Documentation
+
+Database size usage
+
+Included in Free Plan
+
+0.5 GB per project
+
+Max database size
+
+26.76 MB
+
+Current database size per project
+
+amgt.salalah@gmail.com's Project
+Manage Database Size
+26.76 MB
+Database Size
+
+Storage Size
+
+Sum of all objects in your storage buckets.
+
+Billing is prorated down to the hour and will be displayed GB-Hrs.
+
+More information
+
+Storage
+
+Storage Size usage
+
+Included in Free Plan
+
+1 GB
+
+Average in period
+
+0.00 GB
+
+Overage in period
+
+0 GB
+
+Average Storage Size per day
+
+The data refreshes every hour.
+
+No data in period
+
+May take up to 24 hours to show
+
+Activity
+
+Usage statistics that reflect the activity of your project
+
+Monthly Active Users
+
+Users who log in or refresh their token count towards MAU.
+
+Billing is based on the sum of distinct users requesting your API throughout the billing period. Resets every billing cycle.
+
+More information
+
+Auth
+
+Monthly Active Users usage
+
+Included in Free Plan
+
+50,000
+
+Cumulative in period
+
+0
+
+Overage in period
+
+0
+
+Cumulative Monthly Active Users in billing period
+
+The data is refreshed over a period of 24 hours and resets at the beginning of every billing period.
+
+The data points are relative to the beginning of your billing period and will reset with your billing period.
+
+No data in period
+
+May take up to 24 hours to show
+
+Monthly Active SSO Users
+
+SSO users who log in or refresh their token count towards SSO MAU.
+
+Billing is based on the sum of distinct Single Sign-On users requesting your API throughout the billing period. Resets every billing cycle.
+
+More information
+
+SSO with SAML 2.0
+
+Not included in plan
+
+You need to be on a higher plan in order to use this feature.
+
+Upgrade plan
+Storage Image Transformations
+
+We count all images that were transformed in the billing period, ignoring any transformations.
+
+Usage example: You transform one image with four different size transformations and another image with just a single transformation. It counts as two, as only two images were transformed.
+
+Billing is based on the count of (origin) images that used transformations throughout the billing period. Resets every billing cycle.
+
+More information
+
+Documentation
+
+Not included in plan
+
+You need to be on a higher plan in order to use this feature.
+
+Upgrade plan
+Edge Function Invocations
+
+Every serverless function invocation independent of response status is counted.
+
+Billing is based on the sum of all invocations throughout your billing period.
+
+More information
+
+Edge Functions
+
+Edge Function Invocations usage
+
+Included in Free Plan
+
+500,000
+
+Used in period
+
+0
+
+Overage in period
+
+0
+
+Edge Function Invocations per day
+
+The data refreshes every hour.
+
+No data in period
+
+May take up to 24 hours to show
+
+Realtime Messages
+
+Count of messages going through Realtime. Includes database changes, broadcast and presence.
+
+Usage example: If you do a database change and 5 clients listen to that change via Realtime, that's 5 messages. If you broadcast a message and 4 clients listen to that, that's 5 messages (1 message sent, 4 received).
+
+Billing is based on the total amount of messages throughout your billing period.
+
+More information
+
+Realtime Limits
+
+Realtime Messages usage
+
+Included in Free Plan
+
+2,000,000
+
+Used in period
+
+0
+
+Overage in period
+
+0
+
+Realtime Messages per day
+
+The data refreshes every hour.
+
+No data in period
+
+May take up to 24 hours to show
+
+Realtime Concurrent Peak Connections
+
+Total number of successful connections. Connections attempts are not counted towards usage.
+
+Billing is based on the maximum amount of concurrent peak connections throughout your billing period.
+
+More information
+
+Realtime Limits
+
+Realtime Concurrent Peak Connections usage
+
+Included in Free Plan
+
+200
+
+Max in period
+
+0
+
+Overage in period
+
+0
+
+Max Realtime Concurrent Peak Connections per day
+
+The data refreshes every hour.
+
+No data in period
+
+May take up to 24 hours to show
+
+Pipelines
+
+Usage statistics related to your pipelines
+
+Pipeline Backfill Data
+
+Total amount of backfill/initial copy data processed across all projects.
+
+Billing is based on the total amount of backfill/initial copy data processed in Gigabyte.
+
+More information
+
+Pipelines
+
+Pipeline Backfill Data usage
+
+Pipeline Backfill Data per day
+
+The data refreshes every hour.
+
+No data in period
+
+May take up to 24 hours to show
+
+Pipeline Replicated Data
+
+Total amount of replicated data processed across all projects.
+
+Billing is based on the total amount of replicated data processed in Gigabyte.
+
+More information
+
+Pipelines
+
+Pipeline Replicated Data usage
+
+Pipeline Replicated Data per day
+
+The data refreshes every hour.
+
+No data in period
+
+May take up to 24 hours to show
+
+Usage | combofinder | Supabase0
