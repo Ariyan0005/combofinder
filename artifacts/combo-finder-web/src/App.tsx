@@ -1,6 +1,7 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/context/auth-context";
+import { MigrationProvider } from "@/context/migration-context";
 import MainLayout from "@/components/layout/main-layout";
 
 import Splash from "@/pages/splash";
@@ -119,7 +120,9 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
         <AuthProvider>
-          <Router />
+          <MigrationProvider>
+            <Router />
+          </MigrationProvider>
         </AuthProvider>
       </WouterRouter>
     </QueryClientProvider>

@@ -31,6 +31,7 @@ import ledgerRouter from "./ledger";
 import supplierPurchasesRouter from "./supplier-purchases";
 import batteryCompatRouter from "./battery-compat";
 import icCompatRouter from "./ic-compat";
+import migrateRouter from "./migrate";
 
 const router: IRouter = Router();
 
@@ -95,5 +96,6 @@ router.use("/supplier-purchases", requireUserAuth, supplierPurchasesRouter);
 router.use("/users", usersRouter);
 router.use("/subscriptions", subscriptionsRouter);
 router.use("/documents", documentsRouter);
+router.use(requireUserAuth, migrateRouter);
 
 export default router;

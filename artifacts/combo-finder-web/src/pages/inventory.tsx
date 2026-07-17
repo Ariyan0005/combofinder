@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/context/auth-context";
+import { localInventory } from "@/lib/local-store";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD:"$",EUR:"€",GBP:"£",BDT:"৳",INR:"₹",PKR:"₨",NPR:"रू",LKR:"Rs",AED:"د.إ",
@@ -216,21 +217,39 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
   const subCats = parentCatId ? categories.filter(c => c.parentId === Number(parentCatId)) : [];
   const finalCategoryId = subCatId || parentCatId;
 
+  const { user: addProductUser } = useAuth();
+  const isAddProductFree = addProductUser?.plan === "Free" || !addProductUser?.plan;
+
   const mut = useMutation({
     mutationFn: async () => {
+      const body = {
+        ...form,
+        partName: form.partName,
+        partType: form.partType ?? "General",
+        quantity: Number(form.quantity) || 0,
+        minStock: Number(form.minStock),
+        supplierId: form.supplierId ? Number(form.supplierId) : null,
+        categoryId: finalCategoryId ? Number(finalCategoryId) : null,
+      };
+
+      // ── Free plan: local storage ────────────────────────────────────────────
+      if (isAddProductFree && addProductUser?.id) {
+        const uid = addProductUser.id;
+        if (!isEdit && localInventory.getAll(uid).length >= 50) {
+          throw new Error("Free plan limit: সর্বোচ্চ ৫০টি inventory item। Pro-তে upgrade করুন।");
+        }
+        return isEdit
+          ? localInventory.update(uid, existing!.id, body)
+          : localInventory.create(uid, body);
+      }
+
+      // ── Pro plan: server ────────────────────────────────────────────────────
       const url = isEdit ? `/api/inventory/${existing!.id}` : `/api/inventory`;
       const res = await fetch(url, {
         method: isEdit ? "PUT" : "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          partName: form.partName,
-          quantity: Number(form.quantity) || 0,
-          minStock: Number(form.minStock),
-          supplierId: form.supplierId ? Number(form.supplierId) : null,
-          categoryId: finalCategoryId ? Number(finalCategoryId) : null,
-        }),
+        body: JSON.stringify(body),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error ?? "Failed");
@@ -1045,9 +1064,15 @@ export default function Inventory() {
   const [editCategory, setEditCategory] = useState<Category | undefined>();
   const qc = useQueryClient();
 
+  const isInvFreePlan = user?.plan === "Free" || !user?.plan;
+
   const { data: items = [], isLoading } = useQuery<Item[]>({
     queryKey: ["inventory"],
-    queryFn: async () => { const d = await fetch("/api/inventory", { credentials: "include" }).then(r => r.json()); return Array.isArray(d) ? d : []; },
+    queryFn: async () => {
+      if (isInvFreePlan && user?.id) return localInventory.getAll(user.id);
+      const d = await fetch("/api/inventory", { credentials: "include" }).then(r => r.json());
+      return Array.isArray(d) ? d : [];
+    },
     enabled: !isGuest && !!user,
   });
   const { data: suppliers = [] } = useQuery<Supplier[]>({
@@ -1062,7 +1087,13 @@ export default function Inventory() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: number) => fetch(`/api/inventory/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
+    mutationFn: (id: number) => {
+      if (isInvFreePlan && user?.id) {
+        localInventory.delete(user.id, id);
+        return Promise.resolve({ success: true });
+      }
+      return fetch(`/api/inventory/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json());
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["inventory"] }); setShowSheet(false); },
   });
 

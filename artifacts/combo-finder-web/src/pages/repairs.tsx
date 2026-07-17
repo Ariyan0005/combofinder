@@ -5,6 +5,7 @@ import { Plus, Search, X, Wrench, UserPlus, Package, Trash2, ChevronDown, Check,
 import { ProtectedPage } from "@/components/protected-page";
 import { generateRepairPdf, generateRepairPdfBlob } from "@/lib/invoice-pdf";
 import { useAuth } from "@/context/auth-context";
+import { localRepairs, localInventory } from "@/lib/local-store";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$", EUR: "€", GBP: "£", BDT: "৳", INR: "₹",
@@ -310,16 +311,19 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
   const [localIsPaid, setLocalIsPaid] = useState(!!repair.isPaid);
   const [localAdvancePaid, setLocalAdvancePaid] = useState(repair.advancePaid);
 
+  const { user: summaryUser } = useAuth();
+  const isSummaryFree = summaryUser?.plan === "Free" || !summaryUser?.plan;
+
   const statusMut = useMutation<Repair, Error, { newStatus: string; reason?: string }>({
     mutationFn: async ({ newStatus, reason }) => {
+      const updated = { ...repair, status: newStatus, notes: newStatus === "Cancelled" && reason ? reason : repair.notes };
+      if (isSummaryFree && summaryUser?.id) {
+        return localRepairs.update(summaryUser.id, repair.id, updated) as Repair;
+      }
       const res = await fetch(`/api/repairs/${repair.id}`, {
         method: "PUT", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...repair,
-          status: newStatus,
-          notes: newStatus === "Cancelled" && reason ? reason : repair.notes,
-        }),
+        body: JSON.stringify(updated),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Failed"); }
       return res.json();
@@ -334,17 +338,19 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
 
   const paymentMut = useMutation<Repair, Error, { newAdvance: string; newIsPaid: boolean }>({
     mutationFn: async ({ newAdvance, newIsPaid }) => {
+      const updated = {
+        ...repair, status,
+        notes: status === "Cancelled" ? cancelReason : (repair.notes ?? null),
+        advancePaid: newAdvance || null,
+        isPaid: newIsPaid,
+      };
+      if (isSummaryFree && summaryUser?.id) {
+        return localRepairs.update(summaryUser.id, repair.id, updated) as Repair;
+      }
       const res = await fetch(`/api/repairs/${repair.id}`, {
         method: "PUT", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...repair,
-          status,
-          // Preserve cancellation reason — don't let ...repair's stale notes overwrite it
-          notes: status === "Cancelled" ? cancelReason : (repair.notes ?? null),
-          advancePaid: newAdvance || null,
-          isPaid: newIsPaid,
-        }),
+        body: JSON.stringify(updated),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Failed"); }
       return res.json();
@@ -705,6 +711,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 // ─── Repair form (create / edit) ──────────────────────────────────────────────
 function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Repair }) {
   const qc = useQueryClient();
+  const { user: repairFormUser } = useAuth();
+  const isRepairFormFree = repairFormUser?.plan === "Free" || !repairFormUser?.plan;
   const [customerId, setCustomerId] = useState<number | undefined>(existing?.customerId ?? undefined);
   const [form, setForm] = useState({
     customerName:  existing?.customerName  ?? "",
@@ -735,7 +743,6 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
 
   const mut = useMutation({
     mutationFn: async () => {
-      const url = existing ? `/api/repairs/${existing.id}` : `/api/repairs`;
       const body = {
         ...form,
         customerId: customerId ?? null,
@@ -745,6 +752,27 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
         advancePaid: form.advancePaid || null,
         isPaid: form.isPaid,
       };
+
+      // ── Free plan: local storage ─────────────────────────────────────────────
+      if (isRepairFormFree && repairFormUser?.id) {
+        const uid = repairFormUser.id;
+        // Check monthly limit (30 repairs)
+        if (!existing && localRepairs.countThisMonth(uid) >= 30) {
+          throw new Error("Free plan limit: ৩০টি repair/মাস। Pro-তে upgrade করুন।");
+        }
+        const saved = existing
+          ? localRepairs.update(uid, existing.id, body)
+          : localRepairs.create(uid, body);
+        // Deduct parts from local inventory
+        if (!existing && parts.length > 0) {
+          parts.forEach(p => localInventory.deductStock(uid, p.inventoryId, Number(p.qty) || 1));
+          qc.invalidateQueries({ queryKey: ["inventory"] });
+        }
+        return saved;
+      }
+
+      // ── Pro plan: server ─────────────────────────────────────────────────────
+      const url = existing ? `/api/repairs/${existing.id}` : `/api/repairs`;
       const res = await fetch(url, {
         method: existing ? "PUT" : "POST",
         credentials: "include",
@@ -1096,14 +1124,25 @@ export default function Repairs() {
   const [viewRepair, setViewRepair] = useState<Repair | undefined>();
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const qc = useQueryClient();
+  const { user: repairPageUser } = useAuth();
+  const isFreePlan = repairPageUser?.plan === "Free" || !repairPageUser?.plan;
 
   const { data: repairs = [], isLoading } = useQuery<Repair[]>({
     queryKey: ["repairs"],
-    queryFn: () => fetch("/api/repairs", { credentials: "include" }).then(r => r.json()),
+    queryFn: () => {
+      if (isFreePlan && repairPageUser?.id) return Promise.resolve(localRepairs.getAll(repairPageUser.id));
+      return fetch("/api/repairs", { credentials: "include" }).then(r => r.json());
+    },
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: number) => fetch(`/api/repairs/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
+    mutationFn: (id: number) => {
+      if (isFreePlan && repairPageUser?.id) {
+        localRepairs.delete(repairPageUser.id, id);
+        return Promise.resolve({ success: true });
+      }
+      return fetch(`/api/repairs/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json());
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["repairs"] }); qc.invalidateQueries({ queryKey: ["stats"] }); },
   });
 
