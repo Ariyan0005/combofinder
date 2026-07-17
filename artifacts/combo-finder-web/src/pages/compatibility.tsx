@@ -77,7 +77,8 @@ export default function Compatibility() {
     queryFn: () => fetch(`/api/categories`, { credentials: "include" }).then(r => r.json()),
   });
   useEffect(() => {
-    if (Array.isArray(cats)) setCategories(cats);
+    // ISP & Pinout has its own dedicated page — exclude it from this dropdown
+    if (Array.isArray(cats)) setCategories(cats.filter((c: any) => c.slug !== "isp-pinout"));
   }, [cats]);
 
   // Default the selection to "Display" when no category is in the URL

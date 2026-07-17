@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Search, Trash2, X, ExternalLink, ZoomIn, Cpu, RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SingleModelPicker } from "@/components/brand-model-picker";
 
 type Pinout = {
   id: number;
@@ -32,7 +31,14 @@ function brandPalette(name: string) {
 }
 
 // ── Add Form ──────────────────────────────────────────────────────────────────
-function AddPinoutModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function AddPinoutModal({
+  onClose, onSaved, brandSuggestions, modelSuggestions,
+}: {
+  onClose: () => void;
+  onSaved: () => void;
+  brandSuggestions: string[];
+  modelSuggestions: string[];
+}) {
   const [brand,  setBrand]  = useState("");
   const [model,  setModel]  = useState("");
   const [title,  setTitle]  = useState("");
@@ -41,8 +47,17 @@ function AddPinoutModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
   const [err,    setErr]    = useState("");
   const [saving, setSaving] = useState(false);
 
+  function handleBrandChange(val: string) {
+    setBrand(val);
+    if (val && model && !title.trim()) setTitle(`${val} ${model} ISP Pinout`);
+  }
+  function handleModelChange(val: string) {
+    setModel(val);
+    if (brand && val && !title.trim()) setTitle(`${brand} ${val} ISP Pinout`);
+  }
+
   async function save() {
-    if (!brand.trim() || !model.trim()) { setErr("Pick a brand and model"); return; }
+    if (!brand.trim() || !model.trim()) { setErr("Brand and model are required"); return; }
     if (!title.trim() || !imgUrl.trim()) { setErr("Title and Image URL are required"); return; }
     setSaving(true); setErr("");
     try {
@@ -77,15 +92,36 @@ function AddPinoutModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
           </button>
         </div>
 
-        <SingleModelPicker
-          brandName={brand}
-          modelName={model}
-          onChange={(b, m) => {
-            setBrand(b); setModel(m);
-            if (b && m && !title.trim()) setTitle(`${b} ${m} ISP Pinout`);
-          }}
-        />
-        <p className="text-xs text-muted-foreground -mt-2">Picked from your Brands &amp; Models list, so it always matches correctly.</p>
+        {/* Independent brand + model inputs — not tied to display brands */}
+        <datalist id="isp-brand-list">
+          {brandSuggestions.map(b => <option key={b} value={b} />)}
+        </datalist>
+        <datalist id="isp-model-list">
+          {modelSuggestions.map(m => <option key={m} value={m} />)}
+        </datalist>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground block mb-1">Brand *</label>
+            <input
+              list="isp-brand-list"
+              value={brand}
+              onChange={e => handleBrandChange(e.target.value)}
+              placeholder="e.g. Samsung"
+              className="w-full px-3 py-2 rounded-lg border border-border bg-input text-sm text-foreground outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground block mb-1">Model *</label>
+            <input
+              list="isp-model-list"
+              value={model}
+              onChange={e => handleModelChange(e.target.value)}
+              placeholder="e.g. A05s"
+              className="w-full px-3 py-2 rounded-lg border border-border bg-input text-sm text-foreground outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+        </div>
 
         <div>
           <label className="text-xs font-semibold text-muted-foreground block mb-1">Title *</label>
@@ -171,6 +207,14 @@ export default function IspPinoutAdmin() {
         (p.deviceBrand ?? "").toLowerCase().includes(search.toLowerCase())
       )
     : raw;
+
+  // Unique brand + model suggestions for the add form (independent of display brands)
+  const brandSuggestions = useMemo(() =>
+    Array.from(new Set(raw.map(p => p.deviceBrand).filter(Boolean) as string[])).sort(),
+    [raw]);
+  const modelSuggestions = useMemo(() =>
+    Array.from(new Set(raw.map(p => p.deviceModel).filter(Boolean) as string[])).sort(),
+    [raw]);
 
   // Group by brand
   const byBrand: Record<string, Pinout[]> = {};
@@ -323,6 +367,8 @@ export default function IspPinoutAdmin() {
         <AddPinoutModal
           onClose={() => setShowAdd(false)}
           onSaved={() => qc.invalidateQueries({ queryKey: ["admin-isp-pinouts"] })}
+          brandSuggestions={brandSuggestions}
+          modelSuggestions={modelSuggestions}
         />
       )}
       {zoomed && zoomed.fileUrl && (
