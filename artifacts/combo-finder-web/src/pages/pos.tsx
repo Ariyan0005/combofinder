@@ -299,63 +299,66 @@ function CartContents({
 }) {
   return (
     <div className="flex flex-col h-full">
-      {/* All content scrollable together so cart items are never hidden */}
-      <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="px-4 pb-2 pt-1">
-          {cart.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10" style={{ color: MUTED }}>
-              <ShoppingCart className="w-10 h-10 mb-3 opacity-30" />
-              <p className="text-sm font-medium">Cart is empty</p>
-              <p className="text-xs mt-1">Tap a product to add it</p>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {cart.map(l => (
-                <div key={l.item.id} className="rounded-xl border p-3 space-y-2.5"
-                  style={{ borderColor: BORDER, background: CARD }}>
-                  {/* Name + remove */}
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold leading-snug flex-1">{l.item.partName}</p>
-                    <button onClick={() => removeLine(l.item.id)} className="flex-shrink-0 mt-0.5"
-                      style={{ color: "hsl(var(--destructive))" }}>
-                      <Trash2 className="w-3.5 h-3.5" />
+
+      {/* ── Zone 1: Cart items — max 3 visible, scrollable ── */}
+      <div className="overflow-y-auto flex-shrink-0 px-4 pt-2 pb-1"
+        style={{ maxHeight: "15.5rem" }}>
+        {cart.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8" style={{ color: MUTED }}>
+            <ShoppingCart className="w-10 h-10 mb-3 opacity-30" />
+            <p className="text-sm font-medium">Cart is empty</p>
+            <p className="text-xs mt-1">Tap a product to add it</p>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {cart.map(l => (
+              <div key={l.item.id} className="rounded-xl border p-3 space-y-2.5"
+                style={{ borderColor: BORDER, background: CARD }}>
+                {/* Name + remove */}
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold leading-snug flex-1">{l.item.partName}</p>
+                  <button onClick={() => removeLine(l.item.id)} className="flex-shrink-0 mt-0.5"
+                    style={{ color: "hsl(var(--destructive))" }}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                {/* Price × Qty = Total */}
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 flex-1 min-w-0">
+                    <span className="text-xs font-medium flex-shrink-0" style={{ color: MUTED }}>{sym}</span>
+                    <input type="number" min="0" value={l.unitPrice}
+                      onChange={e => changePrice(l.item.id, e.target.value)}
+                      className="w-20 text-sm font-semibold px-2 py-1.5 rounded-lg border outline-none"
+                      style={{ borderColor: BORDER }} />
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button onClick={() => changeQty(l.item.id, -1)}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center border transition-colors hover:bg-muted/40"
+                      style={{ borderColor: BORDER }}>
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-sm font-bold w-6 text-center">{l.quantity}</span>
+                    <button onClick={() => changeQty(l.item.id, 1)} disabled={l.quantity >= l.item.quantity}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center border disabled:opacity-30 transition-colors hover:bg-muted/40"
+                      style={{ borderColor: BORDER }}>
+                      <Plus className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  {/* Price × Qty = Total */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 flex-1 min-w-0">
-                      <span className="text-xs font-medium flex-shrink-0" style={{ color: MUTED }}>{sym}</span>
-                      <input type="number" min="0" value={l.unitPrice}
-                        onChange={e => changePrice(l.item.id, e.target.value)}
-                        className="w-20 text-sm font-semibold px-2 py-1.5 rounded-lg border outline-none"
-                        style={{ borderColor: BORDER }} />
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <button onClick={() => changeQty(l.item.id, -1)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center border transition-colors hover:bg-muted/40"
-                        style={{ borderColor: BORDER }}>
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="text-sm font-bold w-6 text-center">{l.quantity}</span>
-                      <button onClick={() => changeQty(l.item.id, 1)} disabled={l.quantity >= l.item.quantity}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center border disabled:opacity-30 transition-colors hover:bg-muted/40"
-                        style={{ borderColor: BORDER }}>
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    <span className="text-sm font-bold min-w-[56px] text-right flex-shrink-0" style={{ color: PRIMARY }}>
-                      {sym}{(l.unitPrice * l.quantity).toLocaleString()}
-                    </span>
-                  </div>
+                  <span className="text-sm font-bold min-w-[56px] text-right flex-shrink-0" style={{ color: PRIMARY }}>
+                    {sym}{(l.unitPrice * l.quantity).toLocaleString()}
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
-      {/* Checkout section — scrolls with cart items */}
-      {cart.length > 0 && (
-        <div className="border-t px-4 pt-3 pb-4 space-y-3" style={{ borderColor: BORDER }}>
+      {cart.length > 0 && (<>
+
+        {/* ── Zone 2: Customer / payment form — scrollable middle ── */}
+        <div className="flex-1 overflow-y-auto min-h-0 border-t px-4 pt-3 space-y-3"
+          style={{ borderColor: BORDER }}>
 
           {/* Customer */}
           <div>
@@ -441,22 +444,24 @@ function CartContents({
             </div>
           )}
 
-          {error && <p className="text-xs" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
+          {error && <p className="text-xs pb-1" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
+        </div>
 
+        {/* ── Zone 3: Checkout — always pinned at bottom ── */}
+        <div className="flex-shrink-0 border-t px-4 pt-3 pb-4 space-y-2" style={{ borderColor: BORDER }}>
           <button onClick={() => checkoutMut.mutate()} disabled={checkoutMut.isPending}
             className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-60 transition-opacity"
             style={{ background: PRIMARY }}>
             {checkoutMut.isPending ? "Processing…" : `Checkout · ${sym}${total.toLocaleString()}`}
           </button>
-
           <Link href="/invoices">
-            <button className="w-full py-2 text-xs font-semibold text-center" style={{ color: MUTED }}>
+            <button className="w-full py-1.5 text-xs font-semibold text-center" style={{ color: MUTED }}>
               View Invoices &amp; Returns
             </button>
           </Link>
         </div>
-      )}
-      </div>{/* end overflow-y-auto */}
+
+      </>)}
     </div>
   );
 }
@@ -715,10 +720,10 @@ export default function Pos() {
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setShowMobileCart(false)} />
           <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl flex flex-col overflow-hidden"
-            style={{ background: BG, height: "90dvh" }}>
+            style={{ background: BG, height: "94dvh" }}>
             {/* Drawer handle + header */}
-            <div className="flex-shrink-0 px-4 pt-3 pb-2 border-b" style={{ borderColor: BORDER }}>
-              <div className="w-10 h-1 rounded-full mx-auto mb-3" style={{ background: BORDER }} />
+            <div className="flex-shrink-0 px-4 pt-2 pb-2 border-b" style={{ borderColor: BORDER }}>
+              <div className="w-10 h-1 rounded-full mx-auto mb-2" style={{ background: BORDER }} />
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="w-4 h-4" style={{ color: PRIMARY }} />
