@@ -35,6 +35,7 @@ import BatteryModelPage from "@/pages/battery-model";
 import IcBrandPage from "@/pages/ic-brand";
 import IcModelPage from "@/pages/ic-model";
 import Privacy from "@/pages/privacy";
+import Terms from "@/pages/terms";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -62,6 +63,7 @@ function Router() {
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/donate" component={Donate} />
         <Route path="/privacy" component={Privacy} />
+        <Route path="/terms" component={Terms} />
         <Route component={Splash} />
       </Switch>
     );
@@ -105,6 +107,7 @@ function Router() {
             <Route path="/ic-model/:id" component={IcModelPage} />
             <Route path="/donate" component={Donate} />
             <Route path="/privacy" component={Privacy} />
+            <Route path="/terms" component={Terms} />
             <Route>
               <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
                 <p className="text-4xl font-bold">404</p>
