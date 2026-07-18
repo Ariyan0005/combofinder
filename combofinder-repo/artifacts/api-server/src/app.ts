@@ -3,6 +3,7 @@ import cors from "cors";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import pinoHttp from "pino-http";
+import { rateLimit } from "express-rate-limit";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
@@ -82,6 +83,39 @@ app.use(
     },
   }),
 );
+
+// ── Rate limiting ──────────────────────────────────────────────────────────────
+// Auth endpoints (login, register, forgot-password, etc.) — very strict.
+// 10 attempts per 15 minutes per IP to slow brute-force attacks.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later." },
+  skip: () => !isProd, // disabled in dev for convenience
+});
+
+// General API — moderate.
+// 300 requests per minute per IP; prevents scraping/DoS.
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 300,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later." },
+  skip: () => !isProd,
+});
+
+// Apply auth limiter to all sensitive auth mutation routes
+app.use("/api/auth/login",               authLimiter);
+app.use("/api/auth/register",            authLimiter);
+app.use("/api/auth/forgot-password",     authLimiter);
+app.use("/api/auth/reset-password",      authLimiter);
+app.use("/api/auth/resend-verification", authLimiter);
+
+// Apply general limiter to the entire API
+app.use("/api", apiLimiter);
 
 app.use("/api", router);
 
