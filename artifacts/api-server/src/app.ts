@@ -1,9 +1,12 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+
+const PgSession = connectPgSimple(session);
 
 const app: Express = express();
 
@@ -41,6 +44,14 @@ app.use(
     secret: process.env["SESSION_SECRET"] ?? "combofinder-secret",
     resave: false,
     saveUninitialized: false,
+    // Persist sessions in PostgreSQL so they survive server restarts.
+    // Without this, every restart wipes all sessions → users get 401 on backup.
+    store: new PgSession({
+      conString: process.env["DATABASE_URL"],
+      tableName: "user_sessions",
+      createTableIfMissing: true,   // auto-creates the table on first run
+      ttl: 7 * 24 * 60 * 60,       // 7 days in seconds
+    }),
     cookie: {
       httpOnly: true,
       secure: isProd,        // Send only over HTTPS in production

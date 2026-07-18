@@ -175,10 +175,10 @@ export default function Settings() {
     const mins  = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days  = Math.floor(diff / 86400000);
-    if (mins < 2)   return "এইমাত্র";
-    if (mins < 60)  return `${mins} মিনিট আগে`;
-    if (hours < 24) return `${hours} ঘণ্টা আগে`;
-    return `${days} দিন আগে`;
+    if (mins < 2)   return "Just now";
+    if (mins < 60)  return `${mins} min ago`;
+    if (hours < 24) return `${hours} hr ago`;
+    return `${days} day${days > 1 ? "s" : ""} ago`;
   }
 
   // Profile modal
@@ -470,33 +470,27 @@ export default function Settings() {
             <p className="text-xs font-bold uppercase tracking-wide"
               style={{ color: "hsl(var(--muted-foreground))" }}>Data & Backup</p>
 
-            {/* Last backup status line */}
-            <div className="flex items-center justify-between">
-              <p className="text-sm leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
-                আপনার সব data এই device-এ safe আছে।
-                নতুন device-এ restore করতে নিচের button ব্যবহার করুন।
-              </p>
-            </div>
-            <div className="flex items-center gap-2 rounded-xl px-3 py-2"
+            {/* Last backup status — WhatsApp style */}
+            <div className="flex items-center gap-2 rounded-xl px-3 py-2.5"
               style={{ background: "hsl(var(--muted))" }}>
               {lastBackupTs ? (
                 <>
                   <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#10B981" }} />
                   <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                    সর্বশেষ backup: <strong>{fmtLastBackup(lastBackupTs)}</strong> · প্রতিদিন auto-backup হয়
+                    Backed up <strong>{fmtLastBackup(lastBackupTs)}</strong> · Auto-backup is on
                   </span>
                 </>
               ) : (
                 <>
                   <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "hsl(var(--muted-foreground))" }} />
                   <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                    এখনো backup হয়নি · নিচের button চাপুন বা আবার login করুন
+                    Not backed up yet · Tap the button below
                   </span>
                 </>
               )}
             </div>
 
-            {/* ── Send Backup ── */}
+            {/* ── Back Up Now ── */}
             <button
               type="button"
               disabled={backupSending}
@@ -512,12 +506,13 @@ export default function Settings() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ data }),
                   });
+                  if (res.status === 401) throw new Error("SESSION_EXPIRED");
                   if (!res.ok) throw new Error("Failed");
                   setBackupStatus("success");
                   const now = Date.now();
                   localStorage.setItem(`cf_last_backup_${user.id}`, String(now));
                   setLastBackupTs(now);
-                } catch {
+                } catch (e: any) {
                   setBackupStatus("error");
                 } finally {
                   setBackupSending(false);
@@ -526,38 +521,38 @@ export default function Settings() {
               className="w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 disabled:opacity-60"
               style={{ background: "hsl(var(--primary))" }}>
               {backupSending ? (
-                <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Backup পাঠানো হচ্ছে…</>
+                <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Backing up…</>
               ) : backupStatus === "success" ? (
-                <><CheckCircle2 className="w-4 h-4" /> Backup Email পাঠানো হয়েছে ✅</>
+                <><CheckCircle2 className="w-4 h-4" /> Backup Complete ✓</>
               ) : (
-                <><Mail className="w-4 h-4" /> Email-এ Backup পাঠান</>
+                <><Mail className="w-4 h-4" /> Back Up Now</>
               )}
             </button>
             {backupStatus === "error" && (
               <p className="text-xs text-center" style={{ color: "hsl(var(--destructive))" }}>
-                Backup পাঠাতে সমস্যা হয়েছে। আবার চেষ্টা করুন।
+                Backup failed. Please log out and log back in, then try again.
               </p>
             )}
             {backupStatus === "success" && (
               <p className="text-xs text-center" style={{ color: "hsl(var(--muted-foreground))" }}>
-                📧 আপনার email-এ confirmation এসেছে। নতুন device-এ restore করতে নিচের button ব্যবহার করুন।
+                Your data is saved. To restore on a new device, log in there and tap "Restore from Backup".
               </p>
             )}
 
             {/* ── Restore Backup ── */}
             <div className="border rounded-xl p-3" style={{ borderColor: "hsl(var(--border))" }}>
               <p className="text-xs font-semibold mb-2" style={{ color: "hsl(var(--muted-foreground))" }}>
-                📲 নতুন Device-এ Restore
+                📲 Restore to a New Device
               </p>
               <p className="text-xs mb-3 leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
-                এই account-এর সর্বশেষ backup থেকে সব data এই device-এ ফিরিয়ে আনবে।
+                Replaces local data on this device with your latest cloud backup.
               </p>
               <button
                 type="button"
                 disabled={restoring}
                 onClick={async () => {
                   if (!user?.id) return;
-                  if (!confirm("এই device-এর বর্তমান local data মুছে backup থেকে restore হবে। নিশ্চিত?")) return;
+                  if (!confirm("This will replace all local data on this device with your backup. Continue?")) return;
                   setRestoring(true);
                   setRestoreStatus("idle");
                   setRestoreMsg("");
@@ -566,18 +561,19 @@ export default function Settings() {
                       method: "POST",
                       credentials: "include",
                     });
-                    if (res.status === 404) throw new Error("কোনো backup পাওয়া যায়নি। আগে Email Backup করুন।");
-                    if (!res.ok) throw new Error("Restore ব্যর্থ হয়েছে।");
+                    if (res.status === 404) throw new Error("No backup found. Back up first using the button above.");
+                    if (res.status === 401) throw new Error("Session expired. Please log out and log back in.");
+                    if (!res.ok) throw new Error("Restore failed. Please try again.");
                     const { data } = await res.json();
                     const { imported, errors } = importLocalBackup(user.id, data);
                     if (errors.length && !imported.length) throw new Error(errors[0]);
                     setRestoreStatus("success");
-                    setRestoreMsg(imported.join(", ") + " restore হয়েছে ✅");
+                    setRestoreMsg(imported.join(", ") + " restored ✓");
                     // Refresh all queries so UI reflects restored data
                     qc.invalidateQueries();
                   } catch (e: any) {
                     setRestoreStatus("error");
-                    setRestoreMsg(e.message ?? "Restore ব্যর্থ হয়েছে।");
+                    setRestoreMsg(e.message ?? "Restore failed. Please try again.");
                   } finally {
                     setRestoring(false);
                   }
@@ -585,9 +581,9 @@ export default function Settings() {
                 className="w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
                 style={{ background: "hsl(var(--muted))", color: "hsl(var(--foreground))" }}>
                 {restoring ? (
-                  <><span className="w-3.5 h-3.5 border-2 border-current/40 border-t-current rounded-full animate-spin" /> Restore হচ্ছে…</>
+                  <><span className="w-3.5 h-3.5 border-2 border-current/40 border-t-current rounded-full animate-spin" /> Restoring…</>
                 ) : (
-                  <><RotateCcw className="w-3.5 h-3.5" /> Backup থেকে Restore করুন</>
+                  <><RotateCcw className="w-3.5 h-3.5" /> Restore from Backup</>
                 )}
               </button>
               {restoreStatus === "success" && (
@@ -599,8 +595,8 @@ export default function Settings() {
             </div>
 
             <p className="text-xs text-center leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
-              ☁️ Pro-তে upgrade করলে data automatically cloud-এ থাকবে — যেকোনো device থেকে access।{" "}
-              <a href="/subscription" className="font-bold" style={{ color: "hsl(var(--primary))" }}>Upgrade করুন →</a>
+              ☁️ Upgrade to Pro and your data syncs automatically across all devices.{" "}
+              <a href="/subscription" className="font-bold" style={{ color: "hsl(var(--primary))" }}>Upgrade →</a>
             </p>
           </div>
         )}

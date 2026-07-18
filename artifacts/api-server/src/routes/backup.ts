@@ -72,31 +72,31 @@ router.post("/backup/save", async (req: any, res: any) => {
         transporter.sendMail({
           from: `"${FROM_NAME()}" <${FROM_EMAIL()}>`,
           to: `"${user.name}" <${user.email}>`,
-          subject: "ComboFinder — Backup সফল হয়েছে ✅",
+          subject: "ComboFinder — Backup Successful ✅",
           html: `<div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#ffffff;">
-            <h2 style="color:#0080DB;margin-bottom:8px;">Backup সফল হয়েছে! ✅</h2>
-            <p style="color:#374151;font-size:15px;line-height:1.6;">হ্যালো <strong>${user.name}</strong>,</p>
+            <h2 style="color:#0080DB;margin-bottom:8px;">Backup Successful! ✅</h2>
+            <p style="color:#374151;font-size:15px;line-height:1.6;">Hello <strong>${user.name}</strong>,</p>
             <p style="color:#374151;font-size:15px;line-height:1.6;">
-              আপনার ComboFinder data <strong>${backupDate}</strong>-তে backup হয়েছে।
+              Your ComboFinder data was backed up on <strong>${backupDate}</strong>.
             </p>
             <div style="background:#F9FAFB;border-radius:12px;padding:16px 20px;margin:20px 0;">
               <p style="margin:0 0 8px;font-weight:600;color:#111827;">Backed up data:</p>
               <ul style="margin:0;padding-left:16px;color:#374151;font-size:14px;">${countLines || "<li>No data</li>"}</ul>
             </div>
             <div style="background:#EFF6FF;border-radius:12px;padding:16px 20px;margin:20px 0;border-left:4px solid #0080DB;">
-              <p style="margin:0;font-size:14px;color:#1E40AF;font-weight:600;">📱 নতুন Device-এ Restore করতে:</p>
+              <p style="margin:0;font-size:14px;color:#1E40AF;font-weight:600;">📱 To Restore on a New Device:</p>
               <ol style="margin:8px 0 0;padding-left:16px;color:#1E40AF;font-size:13px;line-height:1.8;">
-                <li>নতুন device-এ ComboFinder-এ login করুন</li>
-                <li>Settings → Data & Backup যান</li>
-                <li>"Restore from Backup" button-এ tap করুন</li>
-                <li>সব data আপনার device-এ ফিরে আসবে ✅</li>
+                <li>Log in to ComboFinder on your new device</li>
+                <li>Go to Settings → Data &amp; Backup</li>
+                <li>Tap the "Restore from Backup" button</li>
+                <li>All your data will be back ✅</li>
               </ol>
             </div>
             <p style="color:#6B7280;font-size:12px;margin-top:24px;">
-              Backup আপনার account-এ সংরক্ষিত আছে — যতদিন account active থাকবে, restore করা যাবে।
+              Your backup is stored securely in your account — it can be restored at any time while your account is active.
             </p>
           </div>`,
-          text: `ComboFinder Backup সফল!\n\nDate: ${backupDate}\n\nRestore করতে: নতুন device-এ login করুন → Settings → Restore from Backup`,
+          text: `ComboFinder Backup Successful!\n\nDate: ${backupDate}\n\nTo restore: Log in on your new device → Settings → Restore from Backup`,
         }).catch(() => {}); // non-blocking
       }
     }
