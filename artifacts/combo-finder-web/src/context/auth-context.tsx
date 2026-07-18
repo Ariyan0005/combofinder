@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { exportAllLocalData } from "@/lib/local-store";
+import { silentDriveBackup } from "@/lib/google-drive";
 
 export type UserInfo = {
   id?: number;
@@ -31,30 +32,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
 
-  // Silent auto-backup: runs once per 24 h after login, no email sent
-  async function silentAutoBackup(userId: number, plan: string) {
-    if (plan === "Pro") return; // Pro users have server data — no local backup needed
-    const key = `cf_last_backup_${userId}`;
-    const last = localStorage.getItem(key);
-    if (last && Date.now() - Number(last) < 24 * 60 * 60 * 1000) return; // within 24 h
-    try {
-      const data = exportAllLocalData(userId);
-      const res = await fetch(`/api/backup/save?auto=1`, {
-        method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data }),
-      });
-      if (res.ok) localStorage.setItem(key, String(Date.now()));
-    } catch {}
-  }
-
   async function fetchMe() {
     const r = await fetch(`/api/auth/me`, { credentials: "include" });
     const data = await r.json() as { authenticated: boolean; user?: UserInfo };
     if (data.authenticated && data.user) {
       setUser(data.user);
+      // Free users: auto-backup to Google Drive (silent — only if already connected)
       if (data.user.id && data.user.plan !== "Pro") {
-        silentAutoBackup(data.user.id, data.user.plan ?? "Free").catch(() => {});
+        const uid = data.user.id;
+        silentDriveBackup(uid, () => exportAllLocalData(uid)).catch(() => {});
       }
     } else setUser(null);
   }
@@ -81,7 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsGuest(false);
     sessionStorage.removeItem("cf_guest");
     if (data.user?.id && data.user?.plan !== "Pro") {
-      silentAutoBackup(data.user.id, data.user.plan ?? "Free").catch(() => {});
+      const uid = data.user.id;
+      silentDriveBackup(uid, () => exportAllLocalData(uid)).catch(() => {});
     }
   }
 

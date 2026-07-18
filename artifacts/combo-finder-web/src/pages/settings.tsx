@@ -1,9 +1,17 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
-import { Store, User, Lock, Bell, ChevronRight, Check, X, Globe, Eye, EyeOff, Search, Mail, RotateCcw, CheckCircle2, AlertCircle } from "lucide-react";
+import { Store, User, Lock, Bell, ChevronRight, Check, X, Globe, Eye, EyeOff, Search, RotateCcw, CheckCircle2, AlertCircle, CloudOff } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
 import { exportAllLocalData, importLocalBackup } from "@/lib/local-store";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  isGDriveConnected,
+  requestGDriveToken,
+  uploadToDrive,
+  downloadFromDrive,
+  clearGDriveToken,
+  getStoredToken,
+} from "@/lib/google-drive";
 
 const CURRENCIES = [
   // Major / Most-used
@@ -154,15 +162,18 @@ const INPUT_STYLE = { borderColor: "hsl(var(--border))", background: "hsl(var(--
 export default function Settings() {
   const { user, refreshUser } = useAuth();
 
-  // Backup state
+  // Google Drive backup state
+  const [gDriveConnected, setGDriveConnected] = useState(() => isGDriveConnected());
   const [backupSending, setBackupSending] = useState(false);
   const [backupStatus, setBackupStatus] = useState<"idle"|"success"|"error">("idle");
+  const [backupErr, setBackupErr] = useState("");
   const [restoring, setRestoring] = useState(false);
   const [restoreStatus, setRestoreStatus] = useState<"idle"|"success"|"error">("idle");
   const [restoreMsg, setRestoreMsg] = useState("");
+  const [connecting, setConnecting] = useState(false);
   const qc = useQueryClient();
 
-  // Last backup timestamp (read from localStorage, refreshed after manual backup)
+  // Last backup timestamp
   const [lastBackupTs, setLastBackupTs] = useState<number | null>(() => {
     if (!user?.id) return null;
     const v = localStorage.getItem(`cf_last_backup_${user.id}`);
@@ -179,6 +190,26 @@ export default function Settings() {
     if (mins < 60)  return `${mins} min ago`;
     if (hours < 24) return `${hours} hr ago`;
     return `${days} day${days > 1 ? "s" : ""} ago`;
+  }
+
+  async function handleConnectDrive() {
+    setConnecting(true);
+    try {
+      await requestGDriveToken();
+      setGDriveConnected(true);
+    } catch (e: any) {
+      alert(e.message ?? "Google Drive connection failed");
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  function handleDisconnectDrive() {
+    if (!confirm("Disconnect Google Drive? Auto-backup will stop.")) return;
+    clearGDriveToken();
+    setGDriveConnected(false);
+    setBackupStatus("idle");
+    setRestoreStatus("idle");
   }
 
   // Profile modal
@@ -470,129 +501,178 @@ export default function Settings() {
             <p className="text-xs font-bold uppercase tracking-wide"
               style={{ color: "hsl(var(--muted-foreground))" }}>Data & Backup</p>
 
-            {/* Last backup status — WhatsApp style */}
+            {/* Status bar — WhatsApp style */}
             <div className="flex items-center gap-2 rounded-xl px-3 py-2.5"
               style={{ background: "hsl(var(--muted))" }}>
-              {lastBackupTs ? (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#10B981" }} />
-                  <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                    Backed up <strong>{fmtLastBackup(lastBackupTs)}</strong> · Auto-backup is on
-                  </span>
-                </>
+              {gDriveConnected ? (
+                lastBackupTs ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#10B981" }} />
+                    <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      Backed up to Google Drive <strong>{fmtLastBackup(lastBackupTs)}</strong> · Auto-backup on
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#F59E0B" }} />
+                    <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      Google Drive connected · Not backed up yet
+                    </span>
+                  </>
+                )
               ) : (
                 <>
-                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "hsl(var(--muted-foreground))" }} />
+                  <CloudOff className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "hsl(var(--muted-foreground))" }} />
                   <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                    Not backed up yet · Tap the button below
+                    Connect Google Drive to enable backup
                   </span>
                 </>
               )}
             </div>
 
-            {/* ── Back Up Now ── */}
-            <button
-              type="button"
-              disabled={backupSending}
-              onClick={async () => {
-                if (!user?.id) return;
-                setBackupSending(true);
-                setBackupStatus("idle");
-                try {
-                  const data = exportAllLocalData(user.id);
-                  const res = await fetch("/api/backup/save", {
-                    method: "POST",
-                    credentials: "include",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ data }),
-                  });
-                  if (res.status === 401) throw new Error("SESSION_EXPIRED");
-                  if (!res.ok) throw new Error("Failed");
-                  setBackupStatus("success");
-                  const now = Date.now();
-                  localStorage.setItem(`cf_last_backup_${user.id}`, String(now));
-                  setLastBackupTs(now);
-                } catch (e: any) {
-                  setBackupStatus("error");
-                } finally {
-                  setBackupSending(false);
-                }
-              }}
-              className="w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 disabled:opacity-60"
-              style={{ background: "hsl(var(--primary))" }}>
-              {backupSending ? (
-                <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Backing up…</>
-              ) : backupStatus === "success" ? (
-                <><CheckCircle2 className="w-4 h-4" /> Backup Complete ✓</>
-              ) : (
-                <><Mail className="w-4 h-4" /> Back Up Now</>
-              )}
-            </button>
-            {backupStatus === "error" && (
-              <p className="text-xs text-center" style={{ color: "hsl(var(--destructive))" }}>
-                Backup failed. Please log out and log back in, then try again.
-              </p>
-            )}
-            {backupStatus === "success" && (
-              <p className="text-xs text-center" style={{ color: "hsl(var(--muted-foreground))" }}>
-                Your data is saved. To restore on a new device, log in there and tap "Restore from Backup".
-              </p>
-            )}
-
-            {/* ── Restore Backup ── */}
-            <div className="border rounded-xl p-3" style={{ borderColor: "hsl(var(--border))" }}>
-              <p className="text-xs font-semibold mb-2" style={{ color: "hsl(var(--muted-foreground))" }}>
-                📲 Restore to a New Device
-              </p>
-              <p className="text-xs mb-3 leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
-                Replaces local data on this device with your latest cloud backup.
-              </p>
+            {!gDriveConnected ? (
+              /* ── Connect Google Drive ── */
               <button
                 type="button"
-                disabled={restoring}
-                onClick={async () => {
-                  if (!user?.id) return;
-                  if (!confirm("This will replace all local data on this device with your backup. Continue?")) return;
-                  setRestoring(true);
-                  setRestoreStatus("idle");
-                  setRestoreMsg("");
-                  try {
-                    const res = await fetch("/api/backup/restore", {
-                      method: "POST",
-                      credentials: "include",
-                    });
-                    if (res.status === 404) throw new Error("No backup found. Back up first using the button above.");
-                    if (res.status === 401) throw new Error("Session expired. Please log out and log back in.");
-                    if (!res.ok) throw new Error("Restore failed. Please try again.");
-                    const { data } = await res.json();
-                    const { imported, errors } = importLocalBackup(user.id, data);
-                    if (errors.length && !imported.length) throw new Error(errors[0]);
-                    setRestoreStatus("success");
-                    setRestoreMsg(imported.join(", ") + " restored ✓");
-                    // Refresh all queries so UI reflects restored data
-                    qc.invalidateQueries();
-                  } catch (e: any) {
-                    setRestoreStatus("error");
-                    setRestoreMsg(e.message ?? "Restore failed. Please try again.");
-                  } finally {
-                    setRestoring(false);
-                  }
-                }}
-                className="w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
-                style={{ background: "hsl(var(--muted))", color: "hsl(var(--foreground))" }}>
-                {restoring ? (
-                  <><span className="w-3.5 h-3.5 border-2 border-current/40 border-t-current rounded-full animate-spin" /> Restoring…</>
+                disabled={connecting}
+                onClick={handleConnectDrive}
+                className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2.5 border-2 disabled:opacity-60 transition-all"
+                style={{ borderColor: "hsl(var(--primary))", color: "hsl(var(--primary))", background: "hsl(var(--primary) / 0.06)" }}>
+                {connecting ? (
+                  <><span className="w-4 h-4 border-2 border-current/40 border-t-current rounded-full animate-spin" /> Connecting…</>
                 ) : (
-                  <><RotateCcw className="w-3.5 h-3.5" /> Restore from Backup</>
+                  <>
+                    {/* Google Drive icon */}
+                    <svg className="w-5 h-5" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
+                      <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                      <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
+                      <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
+                      <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+                      <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+                      <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+                    </svg>
+                    Connect Google Drive
+                  </>
                 )}
               </button>
-              {restoreStatus === "success" && (
-                <p className="text-xs mt-2 text-center font-semibold" style={{ color: "#10B981" }}>{restoreMsg}</p>
-              )}
-              {restoreStatus === "error" && (
-                <p className="text-xs mt-2 text-center" style={{ color: "hsl(var(--destructive))" }}>{restoreMsg}</p>
-              )}
-            </div>
+            ) : (
+              <>
+                {/* ── Back Up Now ── */}
+                <button
+                  type="button"
+                  disabled={backupSending}
+                  onClick={async () => {
+                    if (!user?.id) return;
+                    setBackupSending(true);
+                    setBackupStatus("idle");
+                    setBackupErr("");
+                    try {
+                      let token = getStoredToken();
+                      if (!token) token = await requestGDriveToken();
+                      const data = exportAllLocalData(user.id);
+                      await uploadToDrive(data, token);
+                      const now = Date.now();
+                      localStorage.setItem(`cf_last_backup_${user.id}`, String(now));
+                      setLastBackupTs(now);
+                      setBackupStatus("success");
+                    } catch (e: any) {
+                      setBackupStatus("error");
+                      setBackupErr(e.message ?? "Backup failed");
+                    } finally {
+                      setBackupSending(false);
+                    }
+                  }}
+                  className="w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 disabled:opacity-60"
+                  style={{ background: "hsl(var(--primary))" }}>
+                  {backupSending ? (
+                    <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Backing up…</>
+                  ) : backupStatus === "success" ? (
+                    <><CheckCircle2 className="w-4 h-4" /> Backup Complete ✓</>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
+                        <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#fff"/>
+                        <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#fff"/>
+                        <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#fff"/>
+                        <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#fff"/>
+                        <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#fff"/>
+                        <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#fff"/>
+                      </svg>
+                      Back Up to Google Drive
+                    </>
+                  )}
+                </button>
+                {backupStatus === "error" && (
+                  <p className="text-xs text-center" style={{ color: "hsl(var(--destructive))" }}>
+                    {backupErr || "Backup failed. Please try again."}
+                  </p>
+                )}
+                {backupStatus === "success" && (
+                  <p className="text-xs text-center" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    Saved to Google Drive. Restore on any device by signing in and tapping "Restore".
+                  </p>
+                )}
+
+                {/* ── Restore from Drive ── */}
+                <div className="border rounded-xl p-3" style={{ borderColor: "hsl(var(--border))" }}>
+                  <p className="text-xs font-semibold mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    📲 Restore to This Device
+                  </p>
+                  <p className="text-xs mb-3 leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    Replaces local data with your latest Google Drive backup.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={restoring}
+                    onClick={async () => {
+                      if (!user?.id) return;
+                      if (!confirm("This will replace all local data on this device with your Google Drive backup. Continue?")) return;
+                      setRestoring(true);
+                      setRestoreStatus("idle");
+                      setRestoreMsg("");
+                      try {
+                        let token = getStoredToken();
+                        if (!token) token = await requestGDriveToken();
+                        const data = await downloadFromDrive(token);
+                        if (!data) throw new Error("No backup found in Google Drive. Back up first.");
+                        const { imported, errors } = importLocalBackup(user.id, data);
+                        if (errors.length && !imported.length) throw new Error(errors[0]);
+                        setRestoreStatus("success");
+                        setRestoreMsg(imported.join(", ") + " restored ✓");
+                        qc.invalidateQueries();
+                      } catch (e: any) {
+                        setRestoreStatus("error");
+                        setRestoreMsg(e.message ?? "Restore failed. Please try again.");
+                      } finally {
+                        setRestoring(false);
+                      }
+                    }}
+                    className="w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                    style={{ background: "hsl(var(--muted))", color: "hsl(var(--foreground))" }}>
+                    {restoring ? (
+                      <><span className="w-3.5 h-3.5 border-2 border-current/40 border-t-current rounded-full animate-spin" /> Restoring…</>
+                    ) : (
+                      <><RotateCcw className="w-3.5 h-3.5" /> Restore from Drive</>
+                    )}
+                  </button>
+                  {restoreStatus === "success" && (
+                    <p className="text-xs mt-2 text-center font-semibold" style={{ color: "#10B981" }}>{restoreMsg}</p>
+                  )}
+                  {restoreStatus === "error" && (
+                    <p className="text-xs mt-2 text-center" style={{ color: "hsl(var(--destructive))" }}>{restoreMsg}</p>
+                  )}
+                </div>
+
+                {/* Disconnect */}
+                <button
+                  type="button"
+                  onClick={handleDisconnectDrive}
+                  className="w-full text-xs py-2 rounded-xl font-medium flex items-center justify-center gap-1.5 transition-colors"
+                  style={{ color: "hsl(var(--muted-foreground))" }}>
+                  <CloudOff className="w-3.5 h-3.5" /> Disconnect Google Drive
+                </button>
+              </>
+            )}
 
             <p className="text-xs text-center leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
               ☁️ Upgrade to Pro and your data syncs automatically across all devices.{" "}
