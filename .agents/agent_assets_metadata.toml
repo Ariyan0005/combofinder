@@ -6,3 +6,9 @@ id = "noFZNGjFiwmgpoC7VQfzJ"
 uri = "file://attached_assets/iunlockd-logo.jpg"
 type = "image"
 title = "iunlockd.com Logo — Google OAuth-এ আপলোড করুন"
+
+[[outputs]]
+id = "Qq151c9o8NsBbTqt4pVAp"
+uri = "file://attached_assets/combofinder-logo.png"
+type = "image"
+title = "ComboFinder Logo — Google OAuth-এ আপলোড করুন"
