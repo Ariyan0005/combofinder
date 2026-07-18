@@ -252,20 +252,26 @@ export const localSales = {
   getAll(uid: number): any[] {
     return read<any>(sKey(uid));
   },
+  getById(uid: number, id: number): any | null {
+    return read<any>(sKey(uid)).find((s: any) => s.id === id) ?? null;
+  },
   create(uid: number, data: any): any {
-    const items = read<any>(sKey(uid));
+    const list = read<any>(sKey(uid));
     const now = new Date();
+    const seq = list.length + 1;
+    const id = genLocalId();
     const item = {
       ...data,
-      id: genLocalId(),
+      id,
       userId: uid,
-      invoiceNumber: data.invoiceNumber ?? `INV-LOCAL-${Math.abs(genLocalId())}`,
+      invoiceNumber: `INV-L${String(seq).padStart(4, "0")}`,
       date: data.date ?? now.toISOString().slice(0, 10),
       status: data.status ?? "Completed",
+      returns: data.returns ?? [],
       createdAt: now.toISOString(),
     };
-    items.unshift(item);
-    write(sKey(uid), items);
+    list.unshift(item);
+    write(sKey(uid), list);
     return item;
   },
   update(uid: number, id: number, data: any): any {

@@ -9,6 +9,7 @@ import { ProtectedPage } from "@/components/protected-page";
 import { generateInvoicePdf, generateSalesReportPdf } from "@/lib/invoice-pdf";
 import { saleToInvoiceData } from "@/pages/pos";
 import { useAuth } from "@/context/auth-context";
+import { localSales, localInventory } from "@/lib/local-store";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$", EUR: "€", GBP: "£", BDT: "৳", INR: "₹",
@@ -56,14 +57,38 @@ export default function Invoices() {
   if (to) params.set("to", to);
   if (search) params.set("q", search);
 
+  const isPro = user?.plan === "Pro";
+
   const { data: sales = [], isLoading } = useQuery<Sale[]>({
-    queryKey: ["sales", from, to, search],
-    queryFn: () => fetch(`/api/sales?${params.toString()}`, { credentials: "include" }).then(r => r.json()),
+    queryKey: ["sales", from, to, search, isPro, user?.id],
+    queryFn: () => {
+      if (!isPro && user?.id) {
+        let list = localSales.getAll(user.id) as Sale[];
+        if (from) list = list.filter(s => (s.date ?? "") >= from);
+        if (to)   list = list.filter(s => (s.date ?? "") <= to);
+        if (search) {
+          const q = search.toLowerCase();
+          list = list.filter(s =>
+            (s.invoiceNumber ?? "").toLowerCase().includes(q) ||
+            (s.customerName  ?? "").toLowerCase().includes(q) ||
+            (s.customerPhone ?? "").toLowerCase().includes(q)
+          );
+        }
+        return Promise.resolve(list);
+      }
+      return fetch(`/api/sales?${params.toString()}`, { credentials: "include" }).then(r => r.json());
+    },
+    enabled: !!user?.id,
   });
 
   const { data: detail } = useQuery<SaleDetail>({
-    queryKey: ["sale", selectedId],
+    queryKey: ["sale", selectedId, isPro, user?.id],
     queryFn: async () => {
+      if (!isPro && user?.id && selectedId != null) {
+        const s = localSales.getById(user.id, selectedId);
+        if (!s) throw new Error("Invoice not found");
+        return s as SaleDetail;
+      }
       const r = await fetch(`/api/sales/${selectedId}`, { credentials: "include" });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "Failed to load invoice");
@@ -74,14 +99,45 @@ export default function Invoices() {
 
   const returnMut = useMutation({
     mutationFn: async () => {
-      const items = Object.entries(returnQty)
+      const returnItems = Object.entries(returnQty)
         .filter(([, q]) => Number(q) > 0)
         .map(([saleItemId, q]) => ({ saleItemId: Number(saleItemId), quantity: Number(q) }));
-      if (items.length === 0) throw new Error("Enter a quantity to return");
+      if (returnItems.length === 0) throw new Error("Enter a quantity to return");
+
+      if (!isPro && user?.id && selectedId != null) {
+        const uid = user.id;
+        const sale = localSales.getById(uid, selectedId);
+        if (!sale) throw new Error("Invoice not found");
+        // Restore inventory quantities for returned items
+        for (const { saleItemId, quantity } of returnItems) {
+          const saleItem = (sale.items ?? []).find((i: any) => i.id === saleItemId);
+          if (!saleItem) continue;
+          if (saleItem.inventoryId) {
+            const inv = localInventory.getAll(uid).find((i: any) => i.id === saleItem.inventoryId);
+            if (inv) localInventory.update(uid, inv.id, { quantity: inv.quantity + quantity });
+          }
+          saleItem.returnedQuantity = (saleItem.returnedQuantity ?? 0) + quantity;
+        }
+        const now = new Date().toISOString().slice(0, 10);
+        const returnRecords = returnItems.map(ri => ({
+          id: -(Date.now() + Math.random()),
+          saleItemId: ri.saleItemId,
+          quantity: ri.quantity,
+          refundAmount: 0,
+          reason: returnReason || null,
+          date: now,
+        }));
+        const updatedReturns = [...(sale.returns ?? []), ...returnRecords];
+        const allReturned = (sale.items ?? []).every((i: any) => i.returnedQuantity >= i.quantity);
+        const status = allReturned ? "Returned" : "Partially Returned";
+        localSales.update(uid, selectedId, { items: sale.items, returns: updatedReturns, status });
+        return {};
+      }
+
       const res = await fetch(`/api/sales/${selectedId}/return`, {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items, reason: returnReason || null }),
+        body: JSON.stringify({ items: returnItems, reason: returnReason || null }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error ?? "Return failed");
@@ -97,6 +153,7 @@ export default function Invoices() {
   });
 
   function exportCsv() {
+    if (!isPro) return; // CSV export is server-side only
     window.open(`/api/sales/export?${params.toString()}`, "_blank");
   }
 

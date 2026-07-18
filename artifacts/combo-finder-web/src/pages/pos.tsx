@@ -8,6 +8,7 @@ import {
 import { ProtectedPage } from "@/components/protected-page";
 import { generateInvoicePdf, type InvoiceData } from "@/lib/invoice-pdf";
 import { useAuth } from "@/context/auth-context";
+import { localInventory, localCustomers, localSales } from "@/lib/local-store";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$", EUR: "€", GBP: "£", BDT: "৳", INR: "₹",
@@ -481,14 +482,24 @@ export default function Pos() {
   const [error,            setError]            = useState("");
   const [completedInvoice, setCompletedInvoice] = useState<any | null>(null);
 
+  const isPro = user?.plan === "Pro";
+
   const { data: items = [], isLoading } = useQuery<Item[]>({
-    queryKey: ["inventory"],
-    queryFn: () => fetch("/api/inventory", { credentials: "include" }).then(r => r.json()),
+    queryKey: ["inventory", isPro, user?.id],
+    queryFn: () => {
+      if (!isPro && user?.id) return Promise.resolve(localInventory.getAll(user.id) as Item[]);
+      return fetch("/api/inventory", { credentials: "include" }).then(r => r.json());
+    },
+    enabled: !!user?.id,
   });
 
   const { data: customers = [] } = useQuery<Customer[]>({
-    queryKey: ["customers"],
-    queryFn: () => fetch("/api/customers", { credentials: "include" }).then(r => r.json()),
+    queryKey: ["customers", isPro, user?.id],
+    queryFn: () => {
+      if (!isPro && user?.id) return Promise.resolve(localCustomers.getAll(user.id) as Customer[]);
+      return fetch("/api/customers", { credentials: "include" }).then(r => r.json());
+    },
+    enabled: !!user?.id,
   });
 
   const list = Array.isArray(items) ? items : [];
@@ -557,6 +568,42 @@ export default function Pos() {
   const checkoutMut = useMutation({
     mutationFn: async () => {
       if (cart.length === 0) throw new Error("Cart is empty");
+
+      if (!isPro && user?.id) {
+        // ── Local checkout ──────────────────────────────────────────────────
+        const uid = user.id;
+        // Deduct inventory quantities
+        for (const line of cart) {
+          const inv = localInventory.getAll(uid).find((i: any) => i.id === line.item.id);
+          if (!inv) throw new Error(`Item "${line.item.partName}" not found in inventory`);
+          if (inv.quantity < line.quantity) throw new Error(`Not enough stock for "${line.item.partName}"`);
+          localInventory.update(uid, line.item.id, { quantity: inv.quantity - line.quantity });
+        }
+        const saleItems = cart.map(l => ({
+          id: -(Date.now() + Math.random()),
+          inventoryId: l.item.id,
+          partName: l.item.partName,
+          quantity: l.quantity,
+          unitPrice: String(l.unitPrice),
+          total: String(l.unitPrice * l.quantity),
+          returnedQuantity: 0,
+        }));
+        const sale = localSales.create(uid, {
+          items: saleItems,
+          subtotal: String(subtotal),
+          discount: String(discountNum),
+          total: String(total),
+          paymentMethod,
+          advancePaid: String(advancePayNum),
+          customerId: effectiveCustomerId,
+          customerName: effectiveCustomerName,
+          customerPhone: effectiveCustomerPhone,
+          notes: notes || null,
+        });
+        return sale;
+      }
+
+      // ── Server checkout ────────────────────────────────────────────────────
       const res = await fetch("/api/sales", {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
