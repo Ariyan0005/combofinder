@@ -162,6 +162,25 @@ export default function Settings() {
   const [restoreMsg, setRestoreMsg] = useState("");
   const qc = useQueryClient();
 
+  // Last backup timestamp (read from localStorage, refreshed after manual backup)
+  const [lastBackupTs, setLastBackupTs] = useState<number | null>(() => {
+    if (!user?.id) return null;
+    const v = localStorage.getItem(`cf_last_backup_${user.id}`);
+    return v ? Number(v) : null;
+  });
+
+  function fmtLastBackup(ts: number | null) {
+    if (!ts) return null;
+    const diff = Date.now() - ts;
+    const mins  = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days  = Math.floor(diff / 86400000);
+    if (mins < 2)   return "এইমাত্র";
+    if (mins < 60)  return `${mins} মিনিট আগে`;
+    if (hours < 24) return `${hours} ঘণ্টা আগে`;
+    return `${days} দিন আগে`;
+  }
+
   // Profile modal
   const [profileOpen, setProfileOpen] = useState(false);
   const [pName, setPName] = useState("");
@@ -451,10 +470,31 @@ export default function Settings() {
             <p className="text-xs font-bold uppercase tracking-wide"
               style={{ color: "hsl(var(--muted-foreground))" }}>Data & Backup</p>
 
-            <p className="text-sm leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
-              আপনার সব data এই device-এর localStorage-এ আছে।
-              Email backup করলে নতুন device বা browser-এও restore করতে পারবেন — WhatsApp-এর মতো।
-            </p>
+            {/* Last backup status line */}
+            <div className="flex items-center justify-between">
+              <p className="text-sm leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
+                আপনার সব data এই device-এ safe আছে।
+                নতুন device-এ restore করতে নিচের button ব্যবহার করুন।
+              </p>
+            </div>
+            <div className="flex items-center gap-2 rounded-xl px-3 py-2"
+              style={{ background: "hsl(var(--muted))" }}>
+              {lastBackupTs ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#10B981" }} />
+                  <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    সর্বশেষ backup: <strong>{fmtLastBackup(lastBackupTs)}</strong> · প্রতিদিন auto-backup হয়
+                  </span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "hsl(var(--muted-foreground))" }} />
+                  <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    এখনো backup হয়নি · নিচের button চাপুন বা আবার login করুন
+                  </span>
+                </>
+              )}
+            </div>
 
             {/* ── Send Backup ── */}
             <button
@@ -474,6 +514,9 @@ export default function Settings() {
                   });
                   if (!res.ok) throw new Error("Failed");
                   setBackupStatus("success");
+                  const now = Date.now();
+                  localStorage.setItem(`cf_last_backup_${user.id}`, String(now));
+                  setLastBackupTs(now);
                 } catch {
                   setBackupStatus("error");
                 } finally {

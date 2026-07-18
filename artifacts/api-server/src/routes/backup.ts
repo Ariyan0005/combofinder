@@ -58,8 +58,9 @@ router.post("/backup/save", async (req: any, res: any) => {
     const [user] = await db.select({ name: usersTable.name, email: usersTable.email })
       .from(usersTable).where(eq(usersTable.id, userId));
 
-    // Send confirmation email (non-blocking)
-    if (user?.email) {
+    // Send confirmation email (non-blocking) — skip for auto-backups
+    const isAuto = req.query?.auto === "1";
+    if (!isAuto && user?.email) {
       const transporter = getMailTransporter();
       if (transporter) {
         const backupDate = new Date().toLocaleString("en-GB", { dateStyle: "long", timeStyle: "short" });

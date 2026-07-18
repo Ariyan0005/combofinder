@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { exportAllLocalData } from "@/lib/local-store";
 
 export type UserInfo = {
   id?: number;
@@ -29,11 +30,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isGuest, setIsGuest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+
+  // Silent auto-backup: runs once per 24 h after login, no email sent
+  async function silentAutoBackup(userId: number, plan: string) {
+    if (plan === "Pro") return; // Pro users have server data — no local backup needed
+    const key = `cf_last_backup_${userId}`;
+    const last = localStorage.getItem(key);
+    if (last && Date.now() - Number(last) < 24 * 60 * 60 * 1000) return; // within 24 h
+    try {
+      const data = exportAllLocalData(userId);
+      const res = await fetch(`/api/backup/save?auto=1`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data }),
+      });
+      if (res.ok) localStorage.setItem(key, String(Date.now()));
+    } catch {}
+  }
+
   async function fetchMe() {
     const r = await fetch(`/api/auth/me`, { credentials: "include" });
     const data = await r.json() as { authenticated: boolean; user?: UserInfo };
-    if (data.authenticated && data.user) setUser(data.user);
-    else setUser(null);
+    if (data.authenticated && data.user) {
+      setUser(data.user);
+      if (data.user.id && data.user.plan !== "Pro") {
+        silentAutoBackup(data.user.id, data.user.plan ?? "Free").catch(() => {});
+      }
+    } else setUser(null);
   }
 
   useEffect(() => {
@@ -57,6 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user!);
     setIsGuest(false);
     sessionStorage.removeItem("cf_guest");
+    if (data.user?.id && data.user?.plan !== "Pro") {
+      silentAutoBackup(data.user.id, data.user.plan ?? "Free").catch(() => {});
+    }
   }
 
   async function register(form: { name: string; email: string; phone?: string; password: string }) {
