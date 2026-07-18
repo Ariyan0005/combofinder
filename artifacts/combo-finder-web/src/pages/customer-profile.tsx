@@ -30,16 +30,18 @@ const STATUS_COLOR: Record<string, { text: string; bg: string }> = {
 };
 
 // ── Sale badge helper ─────────────────────────────────────────────────────────
-function saleBadge(s: { paymentMethod: string; total: string; advancePaid?: string }) {
+function saleBadge(s: { paymentMethod: string; total: string; advancePaid?: string; totalRefund?: number; status?: string }) {
   if (s.paymentMethod !== "Credit") {
     return { label: s.paymentMethod, bg: "#F3F4F6", color: "#6B7280" };
   }
+  if (s.status === "Returned") return { label: "Paid", bg: "#ECFDF5", color: "#059669" };
   const total   = Number(s.total);
   const advance = Number(s.advancePaid ?? 0);
-  const due     = Math.max(0, total - advance);
-  if (due <= 0)   return { label: "Paid",    bg: "#ECFDF5", color: "#059669" };
-  if (advance > 0) return { label: "Partial", bg: "#FFF7E6", color: "#D97706" };
-  return             { label: "Credit",   bg: "#FEF3C7", color: "#D97706" };
+  const refund  = Number(s.totalRefund ?? 0);
+  const due     = Math.max(0, total - advance - refund);
+  if (due <= 0)              return { label: "Paid",    bg: "#ECFDF5", color: "#059669" };
+  if (advance > 0 || refund > 0) return { label: "Partial", bg: "#FFF7E6", color: "#D97706" };
+  return                         { label: "Credit",   bg: "#FEF3C7", color: "#D97706" };
 }
 
 // ── Invoice Detail Modal ──────────────────────────────────────────────────────
@@ -210,15 +212,27 @@ function InvoiceDetailModal({
                         </span>
                       </div>
                     )}
-                    {Math.max(0, Number(detail.total) - Number(detail.advancePaid ?? 0)) > 0 && (
-                      <div className="flex justify-between pt-1 border-t"
-                        style={{ borderColor: "hsl(var(--border))" }}>
-                        <span className="font-bold" style={{ color: "#DC2626" }}>Amount Due</span>
-                        <span className="font-extrabold" style={{ color: "#DC2626" }}>
-                          {sym}{Math.max(0, Number(detail.total) - Number(detail.advancePaid ?? 0)).toLocaleString()}
-                        </span>
-                      </div>
-                    )}
+                    {(() => {
+                      const totalRefunded = (detail.returns ?? []).reduce(
+                        (s: number, r: any) => s + Number(r.refundAmount), 0
+                      );
+                      const due = Math.max(0, Number(detail.total) - Number(detail.advancePaid ?? 0) - totalRefunded);
+                      return due > 0 ? (
+                        <div className="flex justify-between pt-1 border-t"
+                          style={{ borderColor: "hsl(var(--border))" }}>
+                          <span className="font-bold" style={{ color: "#DC2626" }}>Amount Due</span>
+                          <span className="font-extrabold" style={{ color: "#DC2626" }}>
+                            {sym}{due.toLocaleString()}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex justify-between pt-1 border-t"
+                          style={{ borderColor: "hsl(var(--border))" }}>
+                          <span className="font-bold" style={{ color: "#059669" }}>Amount Due</span>
+                          <span className="font-extrabold" style={{ color: "#059669" }}>Settled ✓</span>
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
               </div>
@@ -279,11 +293,11 @@ function UpdatePaymentModal({
     r => Number(r.totalCost) > 0 && !r.isPaid && r.status !== "Cancelled"
   );
   const unpaidCreditSales = saleList.filter(
-    s => s.paymentMethod === "Credit" &&
-      Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0)) > 0
+    s => s.paymentMethod === "Credit" && s.status !== "Returned" &&
+      Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0) - Number((s as any).totalRefund ?? 0)) > 0
   );
   const totalCreditSaleDue = unpaidCreditSales.reduce(
-    (sum, s) => sum + Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0)), 0
+    (sum, s) => sum + Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0) - Number((s as any).totalRefund ?? 0)), 0
   );
 
   async function saveRepairPayment(repair: any, fullyPaid: boolean) {
@@ -379,7 +393,7 @@ function UpdatePaymentModal({
                   style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--background))" }}>
                   <div className="space-y-1.5">
                     {unpaidCreditSales.map(s => {
-                      const due = Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0));
+                      const due = Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0) - Number((s as any).totalRefund ?? 0));
                       return (
                         <div key={s.id} className="flex items-center justify-between text-xs">
                           <span style={{ color: "hsl(var(--muted-foreground))" }}>{s.invoiceNumber}</span>
@@ -571,7 +585,7 @@ export default function CustomerProfile() {
   const creditSaleDue = saleList.reduce((sum, s) => {
     if (s.paymentMethod !== "Credit") return sum;
     if (s.status === "Returned") return sum; // fully returned — no due
-    return sum + Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0));
+    return sum + Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0) - Number((s as any).totalRefund ?? 0));
   }, 0);
   const hasUnpaidCreditSales = creditSaleDue > 0;
   const showPaymentBtn = hasUnpaidRepairs || hasUnpaidCreditSales;
@@ -778,8 +792,8 @@ export default function CustomerProfile() {
             <div className="bg-card rounded-2xl border border-border divide-y divide-border overflow-hidden">
               {filteredSales.map(s => {
                 const badge = saleBadge(s);
-                const due   = s.paymentMethod === "Credit"
-                  ? Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0))
+                const due   = s.paymentMethod === "Credit" && (s as any).status !== "Returned"
+                  ? Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0) - Number((s as any).totalRefund ?? 0))
                   : 0;
                 return (
                   <button

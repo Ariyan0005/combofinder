@@ -237,7 +237,10 @@ export default function Invoices() {
                   {detail.paymentMethod === "Credit" && (() => {
                     const total = Number(detail.total);
                     const advance = Number(detail.advancePaid ?? 0);
-                    const due = Math.max(0, total - advance);
+                    const totalRefunded = (detail.returns ?? []).reduce(
+                      (s: number, r: any) => s + Number(r.refundAmount), 0
+                    );
+                    const due = Math.max(0, total - advance - totalRefunded);
                     return (
                       <div className="mt-2 p-3 rounded-xl space-y-1.5" style={{ background: "#FFF7E6", border: "1px solid #F59E0B60" }}>
                         <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#D97706" }}>Credit Sale Details</p>
@@ -245,6 +248,12 @@ export default function Invoices() {
                           <div className="flex justify-between text-xs">
                             <span style={{ color: "#92400E" }}>Advance Collected</span>
                             <span className="font-bold" style={{ color: "#059669" }}>{sym}{advance.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {totalRefunded > 0 && (
+                          <div className="flex justify-between text-xs">
+                            <span style={{ color: "#92400E" }}>Refunded (Returns)</span>
+                            <span className="font-bold" style={{ color: "#059669" }}>{sym}{totalRefunded.toLocaleString()}</span>
                           </div>
                         )}
                         <div className="flex justify-between text-sm font-bold">
@@ -315,7 +324,8 @@ export default function Invoices() {
   const rangeTotal = sales.reduce((s, sale) => s + Number(sale.total), 0);
   const rangeCreditDue = sales.reduce((s, sale) => {
     if (sale.paymentMethod !== "Credit") return s;
-    const due = Number(sale.total) - Number(sale.advancePaid ?? 0);
+    if ((sale as any).status === "Returned") return s;
+    const due = Number(sale.total) - Number(sale.advancePaid ?? 0) - Number((sale as any).totalRefund ?? 0);
     return s + (due > 0.005 ? due : 0);
   }, 0);
 
@@ -387,7 +397,7 @@ export default function Invoices() {
             style={creditOnly
               ? { background: "#FFF7E6", color: "#D97706", borderColor: "#F59E0B" }
               : { borderColor: BORDER, color: MUTED }}>
-            ⚠ Credit Only {creditOnly && `(${sales.filter(s => s.paymentMethod === "Credit" && (Number(s.total) - Number(s.advancePaid ?? 0)) > 0.005).length})`}
+            ⚠ Credit Only {creditOnly && `(${sales.filter(s => s.paymentMethod === "Credit" && (Number(s.total) - Number(s.advancePaid ?? 0) - Number((s as any).totalRefund ?? 0)) > 0.005 && (s as any).status !== "Returned").length})`}
           </button>
           <div className="flex-1" />
           <button onClick={exportCsv} disabled={sales.length === 0}
@@ -402,7 +412,7 @@ export default function Invoices() {
 
         {(() => {
           const filtered = creditOnly
-            ? sales.filter(s => s.paymentMethod === "Credit" && (Number(s.total) - Number(s.advancePaid ?? 0)) > 0.005)
+            ? sales.filter(s => s.paymentMethod === "Credit" && (s as any).status !== "Returned" && (Number(s.total) - Number(s.advancePaid ?? 0) - Number((s as any).totalRefund ?? 0)) > 0.005)
             : sales;
           return isLoading ? (
             <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-16 rounded-2xl animate-pulse" style={{ background: "hsl(var(--muted))" }} />)}</div>

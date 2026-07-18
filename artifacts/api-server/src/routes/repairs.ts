@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, repairsTable, usersTable } from "@workspace/db";
+import { db, repairsTable, usersTable, inventoryTable, stockMovementsTable } from "@workspace/db";
 import { eq, ilike, or, desc, sql, and, gte } from "drizzle-orm";
 
 const router = Router();
@@ -95,42 +95,105 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
+    const repairId = Number(req.params.id);
     const b = req.body;
 
-    // Whitelist only schema columns to avoid Drizzle type errors from unknown/string-date fields
-    const updateFields: Record<string, unknown> = {
-      customerName:  b.customerName,
-      customerPhone: b.customerPhone ?? "",
-      phoneBrand:    b.phoneBrand,
-      phoneModel:    b.phoneModel,
-      imei:          b.imei ?? null,
-      problem:       b.problem,
-      status:        b.status,
-      engineer:      b.engineer ?? null,
-      partsUsed:     b.partsUsed ?? null,
-      laborCost:     b.laborCost ?? null,
-      partsCost:     b.partsCost ?? null,
-      totalCost:     b.totalCost ?? null,
-      advancePaid:   b.advancePaid ?? null,
-      isPaid:        b.isPaid ?? false,
-      notes:         b.notes ?? null,
-      warrantyDays:  b.warrantyDays ?? 0,
-      updatedAt:     new Date(),
-    };
+    interface PartEntry { inventoryId: number; qty: number; unitPrice: string; name: string; }
 
-    // Set deliveredAt only when transitioning to Delivered
-    if (b.status === "Delivered") {
-      updateFields.deliveredAt = b.deliveredAt ? new Date(b.deliveredAt) : new Date();
-    } else if (b.deliveredAt) {
-      updateFields.deliveredAt = new Date(b.deliveredAt);
-    }
+    const newParts: PartEntry[] = (() => {
+      try { return b.partsUsed ? JSON.parse(b.partsUsed) : []; } catch { return []; }
+    })();
 
-    const [row] = await db.update(repairsTable).set(updateFields)
-      .where(and(eq(repairsTable.id, Number(req.params.id)), eq(repairsTable.userId, userId)))
-      .returning();
-    if (!row) return res.status(404).json({ error: "Not found" });
-    res.json(row);
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to update repair" }); }
+    const result = await db.transaction(async (tx) => {
+      // Fetch existing repair to compute inventory delta
+      const [existing] = await tx.select({ partsUsed: repairsTable.partsUsed })
+        .from(repairsTable)
+        .where(and(eq(repairsTable.id, repairId), eq(repairsTable.userId, userId)));
+      if (!existing) throw Object.assign(new Error("Not found"), { status: 404 });
+
+      const oldParts: PartEntry[] = (() => {
+        try { return existing.partsUsed ? JSON.parse(existing.partsUsed) : []; } catch { return []; }
+      })();
+
+      const oldMap = new Map(oldParts.map(p => [p.inventoryId, Number(p.qty)]));
+      const newMap = new Map(newParts.map(p => [p.inventoryId, Number(p.qty)]));
+
+      // Parts removed or reduced → restore inventory
+      for (const [inventoryId, oldQty] of oldMap) {
+        const newQty = newMap.get(inventoryId) ?? 0;
+        const delta = oldQty - newQty;
+        if (delta > 0) {
+          await tx.update(inventoryTable)
+            .set({ quantity: sql`${inventoryTable.quantity} + ${delta}`, updatedAt: new Date() })
+            .where(eq(inventoryTable.id, inventoryId));
+          await tx.insert(stockMovementsTable).values({
+            inventoryId, type: "in", quantity: delta,
+            unitPrice: "0", totalPrice: "0",
+            reference: `Repair #${repairId} - parts returned to stock`,
+          });
+        }
+      }
+
+      // Parts added or increased → deduct inventory
+      for (const part of newParts) {
+        const oldQty = oldMap.get(part.inventoryId) ?? 0;
+        const delta = Number(part.qty) - oldQty;
+        if (delta > 0) {
+          // Use GREATEST(0, ...) so stock never goes negative (best-effort tracking)
+          await tx.update(inventoryTable)
+            .set({ quantity: sql`GREATEST(0, ${inventoryTable.quantity} - ${delta})`, updatedAt: new Date() })
+            .where(eq(inventoryTable.id, part.inventoryId));
+          const lineTotal = Math.round(Number(part.unitPrice) * delta * 100) / 100;
+          await tx.insert(stockMovementsTable).values({
+            inventoryId: part.inventoryId, type: "repair", quantity: delta,
+            unitPrice: String(part.unitPrice), totalPrice: String(lineTotal),
+            reference: `Repair #${repairId}`,
+          });
+        }
+      }
+
+      // Whitelist only schema columns to avoid Drizzle type errors from unknown/string-date fields
+      const updateFields: Record<string, unknown> = {
+        customerName:  b.customerName,
+        customerPhone: b.customerPhone ?? "",
+        phoneBrand:    b.phoneBrand,
+        phoneModel:    b.phoneModel,
+        imei:          b.imei ?? null,
+        problem:       b.problem,
+        status:        b.status,
+        engineer:      b.engineer ?? null,
+        partsUsed:     b.partsUsed ?? null,
+        laborCost:     b.laborCost ?? null,
+        partsCost:     b.partsCost ?? null,
+        totalCost:     b.totalCost ?? null,
+        advancePaid:   b.advancePaid ?? null,
+        isPaid:        b.isPaid ?? false,
+        notes:         b.notes ?? null,
+        warrantyDays:  b.warrantyDays ?? 0,
+        updatedAt:     new Date(),
+      };
+
+      // Set deliveredAt only when transitioning to Delivered
+      if (b.status === "Delivered") {
+        updateFields.deliveredAt = b.deliveredAt ? new Date(b.deliveredAt) : new Date();
+      } else if (b.deliveredAt) {
+        updateFields.deliveredAt = new Date(b.deliveredAt);
+      }
+
+      const [row] = await tx.update(repairsTable).set(updateFields)
+        .where(and(eq(repairsTable.id, repairId), eq(repairsTable.userId, userId)))
+        .returning();
+      return row ?? null;
+    });
+
+    if (!result) return res.status(404).json({ error: "Not found" });
+    res.json(result);
+  } catch (err: any) {
+    const status = err.status ?? 500;
+    if (status < 500) return res.status(status).json({ error: err.message });
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to update repair" });
+  }
 });
 
 router.delete("/:id", async (req, res) => {

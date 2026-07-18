@@ -63,6 +63,21 @@ router.get("/", async (req, res) => {
         (r.customerPhone ?? "").toLowerCase().includes(needle)
       );
     }
+
+    // Attach totalRefund per sale so the frontend can compute correct Amount Due
+    if (rows.length > 0) {
+      const refundRows = await db.execute(sql`
+        SELECT sr.sale_id::int, SUM(sr.refund_amount::numeric) AS total_refund
+        FROM sale_returns sr
+        INNER JOIN sales s ON s.id = sr.sale_id
+        WHERE s.user_id = ${userId}
+        GROUP BY sr.sale_id
+      `);
+      const refundMap = new Map<number, number>(
+        (refundRows.rows as any[]).map(r => [Number(r.sale_id), Number(r.total_refund)])
+      );
+      return res.json(rows.map(r => ({ ...r, totalRefund: refundMap.get(r.id) ?? 0 })));
+    }
     res.json(rows);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to fetch sales" }); }
 });
@@ -108,6 +123,22 @@ router.get("/customers/:customerId", async (req, res) => {
       .from(salesTable)
       .where(and(eq(salesTable.userId, userId), eq(salesTable.customerId, customerId)))
       .orderBy(desc(salesTable.id));
+
+    // Attach totalRefund per sale so the frontend can compute correct Amount Due
+    if (sales.length > 0) {
+      const refundRows = await db.execute(sql`
+        SELECT sale_id::int, SUM(refund_amount::numeric) AS total_refund
+        FROM sale_returns
+        WHERE sale_id IN (
+          SELECT id FROM sales WHERE customer_id = ${customerId} AND user_id = ${userId}
+        )
+        GROUP BY sale_id
+      `);
+      const refundMap = new Map<number, number>(
+        (refundRows.rows as any[]).map(r => [Number(r.sale_id), Number(r.total_refund)])
+      );
+      return res.json(sales.map(s => ({ ...s, totalRefund: refundMap.get(s.id) ?? 0 })));
+    }
     res.json(sales);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to fetch customer sales" }); }
 });
@@ -301,9 +332,20 @@ router.post("/customers/:customerId/payment", async (req, res) => {
       });
 
       const [dueRow] = await tx.execute(sql`
-        SELECT GREATEST(0, SUM(total::numeric - COALESCE(advance_paid::numeric, 0))) AS credit_due
-        FROM sales
-        WHERE payment_method = 'Credit' AND customer_id = ${customerId} AND user_id = ${userId}
+        SELECT GREATEST(0, SUM(
+          CASE WHEN s.status = 'Returned' THEN 0
+          ELSE GREATEST(0,
+            s.total::numeric
+            - COALESCE(s.advance_paid::numeric, 0)
+            - COALESCE(r.total_refund, 0)
+          ) END
+        )) AS credit_due
+        FROM sales s
+        LEFT JOIN (
+          SELECT sale_id, SUM(refund_amount::numeric) AS total_refund
+          FROM sale_returns GROUP BY sale_id
+        ) r ON r.sale_id = s.id
+        WHERE s.payment_method = 'Credit' AND s.customer_id = ${customerId} AND s.user_id = ${userId}
       `).then(r => r.rows as any[]);
 
       return {
