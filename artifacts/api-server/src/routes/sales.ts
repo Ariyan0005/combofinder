@@ -284,17 +284,21 @@ router.post("/customers/:customerId/payment", async (req, res) => {
     let amount = round2(Number(req.body.amount));
     if (!Number.isFinite(amount) || amount <= 0) throw Object.assign(new Error("amount must be a positive number"), { status: 400 });
     const notes = req.body.notes ? String(req.body.notes).slice(0, 500) : null;
+    // Optional: if saleId is provided, apply payment only to that specific invoice
+    const targetSaleId: number | null = req.body.saleId ? requireInt(req.body.saleId, "saleId") : null;
 
     const result = await db.transaction(async (tx) => {
       // Lock the candidate rows for the duration of this transaction so a
       // second concurrent payment request can't read the same stale
       // advancePaid values and clobber this update (lost-update race).
+      const whereClause = and(
+        eq(salesTable.userId, userId),
+        eq(salesTable.customerId, customerId),
+        eq(salesTable.paymentMethod, "Credit"),
+        ...(targetSaleId ? [eq(salesTable.id, targetSaleId)] : []),
+      );
       const openSales = await tx.select().from(salesTable)
-        .where(and(
-          eq(salesTable.userId, userId),
-          eq(salesTable.customerId, customerId),
-          eq(salesTable.paymentMethod, "Credit"),
-        ))
+        .where(whereClause)
         .orderBy(salesTable.id) // oldest first (FIFO)
         .for("update");
 
@@ -320,7 +324,9 @@ router.post("/customers/:customerId/payment", async (req, res) => {
 
       const appliedTotal = round2(amount - remaining);
       if (appliedTotal <= 0) {
-        throw Object.assign(new Error("This customer has no outstanding credit due"), { status: 400 });
+        throw Object.assign(new Error(
+          targetSaleId ? "This invoice has no outstanding balance" : "This customer has no outstanding credit due"
+        ), { status: 400 });
       }
 
       await tx.insert(transactionsTable).values({

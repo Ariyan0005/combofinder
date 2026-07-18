@@ -288,6 +288,8 @@ function UpdatePaymentModal({
   const [saleDone, setSaleDone]     = useState(false);
   const [saleError, setSaleError]   = useState("");
   const [repairError, setRepairError] = useState("");
+  // Invoice-specific payment
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | "">("");
 
   const unpaidRepairs = repairList.filter(
     r => Number(r.totalCost) > 0 && !r.isPaid && r.status !== "Cancelled"
@@ -333,22 +335,39 @@ function UpdatePaymentModal({
   async function saveSalePayment() {
     const amount = Number(saleAmount);
     if (!saleAmount || amount <= 0) { setSaleError("Enter a valid amount"); return; }
-    if (amount > totalCreditSaleDue + 0.01) {
-      setSaleError(`Amount exceeds total due (${totalCreditSaleDue.toLocaleString()})`);
-      return;
+
+    // Validate against selected invoice's due (or total due if no specific invoice)
+    const invoiceId = selectedInvoiceId !== "" ? Number(selectedInvoiceId) : null;
+    if (invoiceId) {
+      const targetSale = unpaidCreditSales.find(s => s.id === invoiceId);
+      const invoiceDue = targetSale
+        ? Math.max(0, Number(targetSale.total) - Number(targetSale.advancePaid ?? 0) - Number((targetSale as any).totalRefund ?? 0))
+        : 0;
+      if (amount > invoiceDue + 0.01) {
+        setSaleError(`Amount exceeds this invoice's due (${invoiceDue.toLocaleString()})`);
+        return;
+      }
+    } else {
+      if (amount > totalCreditSaleDue + 0.01) {
+        setSaleError(`Amount exceeds total due (${totalCreditSaleDue.toLocaleString()})`);
+        return;
+      }
     }
+
     setSaleError(""); setSaleSaving(true);
     try {
+      const body: Record<string, unknown> = { amount, notes: saleNotes || undefined };
+      if (invoiceId) body.saleId = invoiceId;
       const res = await fetch(`/api/sales/customers/${customerId}/payment`, {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount, notes: saleNotes || undefined }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? "Failed to record payment");
       }
-      setSaleDone(true); setSaleAmount(""); setSaleNotes(""); onSaved();
+      setSaleDone(true); setSaleAmount(""); setSaleNotes(""); setSelectedInvoiceId(""); onSaved();
     } catch (err: any) {
       setSaleError(err.message ?? "Failed to record payment");
     } finally { setSaleSaving(false); }
@@ -385,30 +404,64 @@ function UpdatePaymentModal({
                   <CheckCircle className="w-5 h-5 flex-shrink-0" style={{ color: "#059669" }} />
                   <div>
                     <p className="text-sm font-semibold" style={{ color: "#059669" }}>Payment recorded</p>
-                    <p className="text-xs mt-0.5" style={{ color: "#065F46" }}>Applied to oldest invoices first</p>
+                    <p className="text-xs mt-0.5" style={{ color: "#065F46" }}>
+                      {selectedInvoiceId !== "" ? `Applied to ${unpaidCreditSales.find(s => s.id === selectedInvoiceId)?.invoiceNumber ?? "invoice"}` : "Applied to oldest invoices first"}
+                    </p>
                   </div>
                 </div>
               ) : (
                 <div className="rounded-2xl border p-4 space-y-3"
                   style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--background))" }}>
+
+                  {/* Invoice list with due amounts */}
                   <div className="space-y-1.5">
                     {unpaidCreditSales.map(s => {
                       const due = Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0) - Number((s as any).totalRefund ?? 0));
+                      const isSelected = selectedInvoiceId === s.id;
                       return (
-                        <div key={s.id} className="flex items-center justify-between text-xs">
-                          <span style={{ color: "hsl(var(--muted-foreground))" }}>{s.invoiceNumber}</span>
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedInvoiceId(isSelected ? "" : s.id);
+                            setSaleAmount(""); setSaleError("");
+                          }}
+                          className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors"
+                          style={{
+                            background: isSelected ? "#FFF7E6" : "transparent",
+                            border: isSelected ? "1px solid #F59E0B" : "1px solid transparent",
+                          }}>
+                          <span className="font-semibold" style={{ color: isSelected ? "#D97706" : "hsl(var(--foreground))" }}>
+                            {s.invoiceNumber}
+                          </span>
                           <span className="font-bold" style={{ color: "#DC2626" }}>Due: {due.toLocaleString()}</span>
-                        </div>
+                        </button>
                       );
                     })}
                     <div className="pt-1.5 border-t flex items-center justify-between"
                       style={{ borderColor: "hsl(var(--border))" }}>
-                      <span className="text-xs font-semibold">Total Due</span>
+                      <span className="text-xs font-semibold">
+                        {selectedInvoiceId !== ""
+                          ? `Paying: ${unpaidCreditSales.find(s => s.id === selectedInvoiceId)?.invoiceNumber}`
+                          : "Total Due (all invoices)"}
+                      </span>
                       <span className="text-sm font-extrabold" style={{ color: "#DC2626" }}>
-                        {totalCreditSaleDue.toLocaleString()}
+                        {selectedInvoiceId !== ""
+                          ? (() => {
+                              const s = unpaidCreditSales.find(x => x.id === selectedInvoiceId);
+                              return s ? Math.max(0, Number(s.total) - Number(s.advancePaid ?? 0) - Number((s as any).totalRefund ?? 0)).toLocaleString() : "0";
+                            })()
+                          : totalCreditSaleDue.toLocaleString()}
                       </span>
                     </div>
+                    {selectedInvoiceId === "" && (
+                      <p className="text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        Tap an invoice to pay it specifically, or leave unselected to pay oldest first
+                      </p>
+                    )}
                   </div>
+
+                  {/* Amount + Pay */}
                   <div className="flex gap-2">
                     <input type="number" min="0" step="0.01" value={saleAmount}
                       onChange={e => { setSaleAmount(e.target.value); setSaleError(""); }}
