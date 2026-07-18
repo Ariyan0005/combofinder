@@ -756,10 +756,6 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
       // ── Free plan: local storage ─────────────────────────────────────────────
       if (isRepairFormFree && repairFormUser?.id) {
         const uid = repairFormUser.id;
-        // Check monthly limit (30 repairs)
-        if (!existing && localRepairs.countThisMonth(uid) >= 30) {
-          throw new Error("Free plan limit: ৩০টি repair/মাস। Pro-তে upgrade করুন।");
-        }
         const saved = existing
           ? localRepairs.update(uid, existing.id, body)
           : localRepairs.create(uid, body);
@@ -1059,27 +1055,10 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
             </div>
 
             {error && (
-              error.startsWith("Free plan limit") ? (
-                <div className="rounded-xl p-3.5 text-center"
-                  style={{ background: "hsl(var(--primary) / 0.08)", border: "1px solid hsl(var(--primary) / 0.3)" }}>
-                  <p className="text-xs font-bold mb-1" style={{ color: "hsl(var(--primary))" }}>
-                    🔒 Monthly Repair Limit Reached
-                  </p>
-                  <p className="text-[11px] mb-2.5" style={{ color: "hsl(var(--muted-foreground))" }}>
-                    Free plan allows 30 repairs/month. Upgrade to Pro for unlimited repairs.
-                  </p>
-                  <a href="/subscription"
-                    className="inline-block text-[11px] font-bold px-4 py-1.5 rounded-lg text-white"
-                    style={{ background: "hsl(var(--primary))" }}>
-                    Upgrade to Pro →
-                  </a>
-                </div>
-              ) : (
-                <div className="text-xs text-center px-4 py-2.5 rounded-xl font-semibold"
-                  style={{ background: "#FEF2F2", color: "#DC2626", border: "1px solid #FCA5A5" }}>
-                  {error}
-                </div>
-              )
+              <div className="text-xs text-center px-4 py-2.5 rounded-xl font-semibold"
+                style={{ background: "#FEF2F2", color: "#DC2626", border: "1px solid #FCA5A5" }}>
+                {error}
+              </div>
             )}
 
             <div className="grid grid-cols-2 gap-2 pb-2">

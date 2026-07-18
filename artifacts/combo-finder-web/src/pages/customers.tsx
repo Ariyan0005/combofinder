@@ -4,6 +4,7 @@ import { Search, Plus, X, Users, AlertCircle, ArrowLeft, Pencil, Trash2 } from "
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
+import { localCustomers } from "@/lib/local-store";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$", EUR: "€", GBP: "£", BDT: "৳", INR: "₹",
@@ -26,6 +27,8 @@ type Customer = {
 
 function CustomerForm({ onClose, existing }: { onClose: () => void; existing?: Customer }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const isFreePlan = user?.plan !== "Pro";
   const [form, setForm] = useState({
     name: existing?.name ?? "",
     phone: existing?.phone ?? "",
@@ -36,6 +39,13 @@ function CustomerForm({ onClose, existing }: { onClose: () => void; existing?: C
 
   const mut = useMutation({
     mutationFn: async (data: Record<string, string>) => {
+      // ── Free plan: local storage ──────────────────────────────────────────
+      if (isFreePlan && user?.id) {
+        return existing
+          ? localCustomers.update(user.id, existing.id, data)
+          : localCustomers.create(user.id, data);
+      }
+      // ── Pro plan: server ─────────────────────────────────────────────────
       const url = existing ? `/api/customers/${existing.id}` : `/api/customers`;
       const res = await fetch(url, {
         method: existing ? "PUT" : "POST",
@@ -111,9 +121,14 @@ export default function Customers() {
   const [, setLocation] = useLocation();
   const fromInventory = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("from") === "inventory";
 
+  const isFreePlan = user?.plan !== "Pro";
+
   const { data: customers, isLoading } = useQuery<Customer[]>({
-    queryKey: ["customers", searchQ],
+    queryKey: ["customers", searchQ, isFreePlan ? "local" : "server"],
     queryFn: () => {
+      if (isFreePlan && user?.id) {
+        return Promise.resolve(localCustomers.search(user.id, searchQ.trim()));
+      }
       const url = searchQ.trim()
         ? `/api/customers?q=${encodeURIComponent(searchQ.trim())}`
         : `/api/customers`;
@@ -122,8 +137,13 @@ export default function Customers() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: number) =>
-      fetch(`/api/customers/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
+    mutationFn: (id: number) => {
+      if (isFreePlan && user?.id) {
+        localCustomers.delete(user.id, id);
+        return Promise.resolve({ ok: true });
+      }
+      return fetch(`/api/customers/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json());
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["customers"] }),
   });
 

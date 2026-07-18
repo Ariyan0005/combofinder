@@ -1,10 +1,10 @@
 /**
  * Migration endpoint — called once when a Free user upgrades to Pro.
- * Accepts bulk repairs + inventory exported from the user's local storage
- * and inserts them into the server database.
+ * Accepts bulk repairs, inventory, customers, ledger accounts+entries, and sales
+ * exported from the user's local storage and inserts them into the server database.
  */
 import { Router } from "express";
-import { db, repairsTable, inventoryTable } from "@workspace/db";
+import { db, repairsTable, inventoryTable, customersTable, ledgerAccountsTable, ledgerEntriesTable } from "@workspace/db";
 
 const router = Router();
 
@@ -12,14 +12,19 @@ router.post("/migrate", async (req: any, res: any) => {
   const userId: number | undefined = req.session?.userId;
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-  const { repairs = [], inventory = [] } = req.body ?? {};
+  const {
+    repairs   = [],
+    inventory = [],
+    customers = [],
+    ledger    = { accounts: [], entries: [] },
+    sales     = [],
+  } = req.body ?? {};
 
-  if (!Array.isArray(repairs) || !Array.isArray(inventory)) {
-    return res.status(400).json({ error: "repairs and inventory must be arrays" });
-  }
-
-  let migratedRepairs = 0;
+  let migratedRepairs   = 0;
   let migratedInventory = 0;
+  let migratedCustomers = 0;
+  let migratedAccounts  = 0;
+  let migratedEntries   = 0;
   const errors: string[] = [];
 
   // ── Repairs ─────────────────────────────────────────────────────────────────
@@ -81,10 +86,85 @@ router.post("/migrate", async (req: any, res: any) => {
     }
   }
 
+  // ── Customers ────────────────────────────────────────────────────────────────
+  for (const c of customers) {
+    try {
+      const { id: _id, userId: _uid, totalRepairs: _tr, repairDue: _rd, creditDue: _cd, ...data } = c;
+      await db.insert(customersTable).values({
+        userId,
+        name:     String(data.name ?? "Unknown"),
+        phone:    data.phone    ?? null,
+        whatsapp: data.whatsapp ?? null,
+        notes:    data.notes    ?? null,
+        createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+      });
+      migratedCustomers++;
+    } catch (err: any) {
+      errors.push(`Customer: ${err.message}`);
+    }
+  }
+
+  // ── Ledger Accounts + Entries ─────────────────────────────────────────────────
+  // Build a map of old local account IDs → new server account IDs
+  const accountIdMap: Record<number, number> = {};
+  const ledgerAccounts = Array.isArray(ledger?.accounts) ? ledger.accounts : [];
+  const ledgerEntries  = Array.isArray(ledger?.entries)  ? ledger.entries  : [];
+
+  for (const acc of ledgerAccounts) {
+    try {
+      const { id: oldId, userId: _uid, creditSum: _cs, debitSum: _ds, balance: _b, entries: _e, ...data } = acc;
+      const [row] = await db.insert(ledgerAccountsTable).values({
+        userId,
+        name:    String(data.name ?? "Unknown"),
+        phone:   data.phone   ?? null,
+        email:   data.email   ?? null,
+        address: data.address ?? null,
+        notes:   data.notes   ?? null,
+        createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+      }).returning();
+      if (row?.id && oldId !== undefined) accountIdMap[oldId] = row.id;
+      migratedAccounts++;
+    } catch (err: any) {
+      errors.push(`Ledger account: ${err.message}`);
+    }
+  }
+
+  for (const entry of ledgerEntries) {
+    try {
+      const { id: _id, userId: _uid, ...data } = entry;
+      const serverAccountId = accountIdMap[data.accountId];
+      if (!serverAccountId) {
+        errors.push(`Ledger entry: no matching account for accountId ${data.accountId}`);
+        continue;
+      }
+      await db.insert(ledgerEntriesTable).values({
+        userId,
+        accountId:   serverAccountId,
+        type:        data.type === "credit" ? "credit" : "debit",
+        amount:      String(Number(data.amount) || 0),
+        itemName:    data.itemName    ?? null,
+        description: data.description ?? null,
+        reference:   data.reference   ?? null,
+        date:        data.date ? new Date(data.date) : new Date(),
+        createdAt:   data.createdAt ? new Date(data.createdAt) : new Date(),
+      });
+      migratedEntries++;
+    } catch (err: any) {
+      errors.push(`Ledger entry: ${err.message}`);
+    }
+  }
+
+  // ── Sales / Invoices — logged but not migrated (complex schema with items) ───
+  const skippedSales = Array.isArray(sales) ? sales.length : 0;
+
   res.json({
     success: true,
     migratedRepairs,
     migratedInventory,
+    migratedCustomers,
+    migratedAccounts,
+    migratedEntries,
+    ...(skippedSales > 0 && { note: `${skippedSales} local invoices were not migrated (POS invoices require manual entry on Pro)` }),
     ...(errors.length > 0 && { warnings: errors }),
   });
 });

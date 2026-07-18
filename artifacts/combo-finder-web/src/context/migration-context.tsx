@@ -1,11 +1,12 @@
 /**
  * MigrationContext — detects when a Free user upgrades to Pro and
- * shows a banner to migrate local data to the server.
+ * shows a banner to migrate ALL local data to the server.
+ * Covers: Repairs, Inventory, Customers, Ledger, Sales.
  */
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-context";
-import { localRepairs, localInventory } from "@/lib/local-store";
+import { localRepairs, localInventory, localCustomers, localLedger, localSales, hasAnyLocalData } from "@/lib/local-store";
 
 type MigCtx = {
   isMigrating: boolean;
@@ -27,8 +28,7 @@ export function MigrationProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user?.id || user.plan !== "Pro") { setHasPendingData(false); return; }
     const uid = user.id;
-    const has = localRepairs.hasData(uid) || localInventory.hasData(uid);
-    if (has) { setHasPendingData(true); setDismissed(false); }
+    if (hasAnyLocalData(uid)) { setHasPendingData(true); setDismissed(false); }
     else setHasPendingData(false);
   }, [user?.id, user?.plan]);
 
@@ -38,22 +38,34 @@ export function MigrationProvider({ children }: { children: ReactNode }) {
     setIsMigrating(true);
     setError("");
     try {
-      const repairs = localRepairs.exportAll(uid);
+      const repairs   = localRepairs.exportAll(uid);
       const inventory = localInventory.exportAll(uid);
+      const customers = localCustomers.exportAll(uid);
+      const ledger    = localLedger.exportAll(uid);
+      const sales     = localSales.exportAll(uid);
+
       const res = await fetch("/api/migrate", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repairs, inventory }),
+        body: JSON.stringify({ repairs, inventory, customers, ledger, sales }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Migration failed");
-      // Clear local data after successful migration
+
+      // Clear all local data after successful migration
       localRepairs.clear(uid);
       localInventory.clear(uid);
+      localCustomers.clear(uid);
+      localLedger.clear(uid);
+      localSales.clear(uid);
+
       setHasPendingData(false);
       qc.invalidateQueries({ queryKey: ["repairs"] });
       qc.invalidateQueries({ queryKey: ["inventory"] });
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["ledger"] });
+      qc.invalidateQueries({ queryKey: ["sales"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
     } catch (err: any) {
       setError(err.message ?? "Migration failed. Please try again.");
@@ -105,7 +117,8 @@ function MigrationBanner({
       <div>
         <p style={{ fontWeight: 700, fontSize: 15, margin: 0 }}>🎉 আপনি Pro হয়েছেন!</p>
         <p style={{ fontSize: 13, opacity: 0.88, margin: "4px 0 0", lineHeight: 1.4 }}>
-          আপনার local data (repairs & inventory) এখন server-এ migrate করতে পারবেন।
+          আপনার সব local data (Repairs, Inventory, Customers, Ledger, Sales) এখন cloud-এ migrate করুন।
+          একবার migrate করলে সব device থেকে access করা যাবে।
         </p>
         {error && (
           <p style={{ fontSize: 12, color: "#FFD0D0", margin: "6px 0 0" }}>{error}</p>
@@ -123,7 +136,7 @@ function MigrationBanner({
             opacity: isMigrating ? 0.7 : 1,
           }}
         >
-          {isMigrating ? "Migrating…" : "Migrate করুন"}
+          {isMigrating ? "Migrating…" : "☁️ Migrate করুন"}
         </button>
         <button
           onClick={onDismiss}

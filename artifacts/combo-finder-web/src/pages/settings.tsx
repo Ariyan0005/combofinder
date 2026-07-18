@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
-import { Store, User, Lock, Bell, ChevronRight, Check, X, Globe, Eye, EyeOff, Search } from "lucide-react";
+import { Store, User, Lock, Bell, ChevronRight, Check, X, Globe, Eye, EyeOff, Search, Download } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
+import { downloadLocalBackup } from "@/lib/local-store";
 
 const CURRENCIES = [
   // Major / Most-used
@@ -434,6 +435,30 @@ export default function Settings() {
             </button>
           </form>
         </div>
+
+        {/* Data & Backup — only for Free users */}
+        {user?.plan !== "Pro" && (
+          <div className="bg-card rounded-2xl border border-border p-4">
+            <p className="text-xs font-bold uppercase tracking-wide mb-2"
+              style={{ color: "hsl(var(--muted-foreground))" }}>Data & Backup</p>
+            <p className="text-sm mb-3 leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
+              আপনার Repairs, Inventory, Customers, Ledger সব data এই device-এ আছে।
+              যেকোনো সময় JSON file download করে ইমেইলে পাঠাতে বা সংরক্ষণ করতে পারবেন।
+            </p>
+            <button
+              type="button"
+              onClick={() => user?.id && downloadLocalBackup(user.id, user.shopName)}
+              className="w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 mb-3"
+              style={{ background: "hsl(var(--primary))" }}>
+              <Download className="w-4 h-4" />
+              Backup Download করুন (.json)
+            </button>
+            <p className="text-xs text-center leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
+              ☁️ Pro-তে upgrade করলে data automatically cloud-এ backup হবে এবং যেকোনো device থেকে access করা যাবে।{" "}
+              <a href="/subscription" className="font-bold" style={{ color: "hsl(var(--primary))" }}>Upgrade করুন →</a>
+            </p>
+          </div>
+        )}
 
         {/* App version */}
         <p className="text-xs text-center pb-2" style={{ color: "hsl(var(--muted-foreground))" }}>

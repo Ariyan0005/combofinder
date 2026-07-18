@@ -4,6 +4,27 @@ import { Link } from "wouter";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
 
+const FREE_FEATURES = [
+  "✅ Unlimited Repairs",
+  "✅ Unlimited Inventory",
+  "✅ Customers & Ledger",
+  "✅ Invoices & POS",
+  "📱 Data stored on your device (works offline)",
+  "💾 Download backup anytime (JSON)",
+  "⚠️ Data stays on this device only",
+];
+
+const PRO_FEATURES = [
+  "✅ Everything in Free",
+  "☁️ Cloud Backup & Sync",
+  "🔄 Access from any device",
+  "📤 1-click migrate Free plan data to cloud",
+  "📊 Advanced Analytics & Reports",
+  "🔓 Unlock Services Access",
+  "📚 Knowledge Base",
+  "⭐ Priority Support",
+];
+
 const PLANS = {
   monthly: [
     {
@@ -12,12 +33,7 @@ const PLANS = {
       price: "0",
       currency: "$",
       period: "month",
-      features: [
-        "Up to 30 Repairs/month",
-        "Basic Inventory (50 items)",
-        "Limited Reports",
-        "Community Support",
-      ],
+      features: FREE_FEATURES,
     },
     {
       id: "pro",
@@ -25,14 +41,7 @@ const PLANS = {
       price: "1",
       currency: "$",
       period: "month",
-      features: [
-        "Unlimited Repairs",
-        "Advanced Inventory",
-        "All Reports & Analytics",
-        "Priority Support",
-        "Unlock Services Access",
-        "Knowledge Base",
-      ],
+      features: PRO_FEATURES,
       highlighted: true,
     },
   ],
@@ -43,12 +52,7 @@ const PLANS = {
       price: "0",
       currency: "$",
       period: "year",
-      features: [
-        "Up to 30 Repairs/month",
-        "Basic Inventory (50 items)",
-        "Limited Reports",
-        "Community Support",
-      ],
+      features: FREE_FEATURES,
     },
     {
       id: "pro",
@@ -56,14 +60,7 @@ const PLANS = {
       price: "10",
       currency: "$",
       period: "year",
-      features: [
-        "Unlimited Repairs",
-        "Advanced Inventory",
-        "All Reports & Analytics",
-        "Priority Support",
-        "Unlock Services Access",
-        "Knowledge Base",
-      ],
+      features: PRO_FEATURES,
       highlighted: true,
     },
   ],

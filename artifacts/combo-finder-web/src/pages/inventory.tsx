@@ -235,9 +235,6 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
       // ── Free plan: local storage ────────────────────────────────────────────
       if (isAddProductFree && addProductUser?.id) {
         const uid = addProductUser.id;
-        if (!isEdit && localInventory.getAll(uid).length >= 50) {
-          throw new Error("Free plan limit: সর্বোচ্চ ৫০টি inventory item। Pro-তে upgrade করুন।");
-        }
         return isEdit
           ? localInventory.update(uid, existing!.id, body)
           : localInventory.create(uid, body);
@@ -347,24 +344,7 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
         </div>
         <Field label="Notes"><Input value={form.notes} onChange={e => set("notes", e.target.value)} placeholder="Optional notes" /></Field>
         {error && (
-          error.startsWith("Free plan limit") ? (
-            <div className="rounded-xl p-3 text-center"
-              style={{ background: "hsl(var(--primary) / 0.08)", border: "1px solid hsl(var(--primary) / 0.3)" }}>
-              <p className="text-xs font-bold mb-1" style={{ color: "hsl(var(--primary))" }}>
-                🔒 Inventory Limit Reached (50 items)
-              </p>
-              <p className="text-[11px] mb-2" style={{ color: "hsl(var(--muted-foreground))" }}>
-                Upgrade to Pro for unlimited inventory.
-              </p>
-              <a href="/subscription"
-                className="inline-block text-[11px] font-bold px-4 py-1.5 rounded-lg text-white"
-                style={{ background: "hsl(var(--primary))" }}>
-                Upgrade to Pro →
-              </a>
-            </div>
-          ) : (
-            <p className="text-xs text-center" style={{ color: "hsl(var(--destructive))" }}>{error}</p>
-          )
+          <p className="text-xs text-center" style={{ color: "hsl(var(--destructive))" }}>{error}</p>
         )}
         <SubmitBtn pending={mut.isPending} label={existing ? "Save Changes" : "Add Product"} />
       </form>

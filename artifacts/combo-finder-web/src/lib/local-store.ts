@@ -2,6 +2,7 @@
  * Local-First Storage for Free-plan users.
  * Uses localStorage with JSON serialization.
  * Negative IDs are used for local records to avoid conflicts with server IDs.
+ * No limits — data lives on the user's device, so they own it all.
  */
 
 // ── ID generator ──────────────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ export const localRepairs = {
   clear(uid: number) { localStorage.removeItem(rKey(uid)); },
   hasData(uid: number): boolean { return read<any>(rKey(uid)).length > 0; },
 
-  /** Count repairs created this calendar month (for enforcing free limit) */
+  /** @deprecated No longer used — free plan has no monthly limit */
   countThisMonth(uid: number): number {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
@@ -111,3 +112,213 @@ export const localInventory = {
   clear(uid: number) { localStorage.removeItem(iKey(uid)); },
   hasData(uid: number): boolean { return read<any>(iKey(uid)).length > 0; },
 };
+
+// ── Customers ─────────────────────────────────────────────────────────────────
+const cKey = (uid: number) => `cf_c_${uid}`;
+
+export const localCustomers = {
+  getAll(uid: number): any[] {
+    return read<any>(cKey(uid));
+  },
+  search(uid: number, q: string): any[] {
+    const all = read<any>(cKey(uid));
+    if (!q) return all;
+    const lower = q.toLowerCase();
+    return all.filter((c: any) =>
+      (c.name ?? "").toLowerCase().includes(lower) ||
+      (c.phone ?? "").includes(q) ||
+      (c.whatsapp ?? "").includes(q)
+    );
+  },
+  create(uid: number, data: any): any {
+    const items = read<any>(cKey(uid));
+    const item = {
+      ...data,
+      id: genLocalId(),
+      userId: uid,
+      totalRepairs: 0,
+      repairDue: 0,
+      creditDue: 0,
+      createdAt: new Date().toISOString(),
+    };
+    items.unshift(item);
+    write(cKey(uid), items);
+    return item;
+  },
+  update(uid: number, id: number, data: any): any {
+    const items = read<any>(cKey(uid));
+    const idx = items.findIndex((i: any) => i.id === id);
+    if (idx === -1) throw new Error("Customer not found");
+    items[idx] = { ...items[idx], ...data, id };
+    write(cKey(uid), items);
+    return items[idx];
+  },
+  delete(uid: number, id: number) {
+    write(cKey(uid), read<any>(cKey(uid)).filter((i: any) => i.id !== id));
+  },
+  exportAll(uid: number): any[] { return read<any>(cKey(uid)); },
+  clear(uid: number) { localStorage.removeItem(cKey(uid)); },
+  hasData(uid: number): boolean { return read<any>(cKey(uid)).length > 0; },
+};
+
+// ── Ledger (Accounts + Entries) ───────────────────────────────────────────────
+const laKey = (uid: number) => `cf_la_${uid}`; // accounts
+const leKey = (uid: number) => `cf_le_${uid}`; // entries
+
+export const localLedger = {
+  // ── Accounts ──────────────────────────────────────────────────────────────
+  getAllAccounts(uid: number): any[] {
+    const accounts = read<any>(laKey(uid));
+    const entries = read<any>(leKey(uid));
+    return accounts.map((acc: any) => {
+      const accEntries = entries.filter((e: any) => e.accountId === acc.id);
+      const creditSum = accEntries.filter((e: any) => e.type === "credit").reduce((s: number, e: any) => s + Number(e.amount), 0);
+      const debitSum  = accEntries.filter((e: any) => e.type === "debit").reduce((s: number, e: any)  => s + Number(e.amount), 0);
+      return { ...acc, creditSum, debitSum, balance: creditSum - debitSum };
+    });
+  },
+  getAccount(uid: number, accountId: number): any | null {
+    const accounts = read<any>(laKey(uid));
+    const acc = accounts.find((a: any) => a.id === accountId);
+    if (!acc) return null;
+    const entries = read<any>(leKey(uid)).filter((e: any) => e.accountId === accountId);
+    const creditSum = entries.filter((e: any) => e.type === "credit").reduce((s: number, e: any) => s + Number(e.amount), 0);
+    const debitSum  = entries.filter((e: any) => e.type === "debit").reduce((s: number, e: any)  => s + Number(e.amount), 0);
+    return { ...acc, creditSum, debitSum, balance: creditSum - debitSum, entries };
+  },
+  createAccount(uid: number, data: any): any {
+    const items = read<any>(laKey(uid));
+    const item = { ...data, id: genLocalId(), userId: uid, createdAt: new Date().toISOString() };
+    items.push(item);
+    write(laKey(uid), items);
+    return item;
+  },
+  updateAccount(uid: number, id: number, data: any): any {
+    const items = read<any>(laKey(uid));
+    const idx = items.findIndex((i: any) => i.id === id);
+    if (idx === -1) throw new Error("Account not found");
+    items[idx] = { ...items[idx], ...data, id };
+    write(laKey(uid), items);
+    return items[idx];
+  },
+  deleteAccount(uid: number, id: number) {
+    write(laKey(uid), read<any>(laKey(uid)).filter((i: any) => i.id !== id));
+    // Also delete all entries for this account
+    write(leKey(uid), read<any>(leKey(uid)).filter((e: any) => e.accountId !== id));
+  },
+
+  // ── Entries ───────────────────────────────────────────────────────────────
+  createEntry(uid: number, data: any): any {
+    const items = read<any>(leKey(uid));
+    const item = {
+      ...data,
+      id: genLocalId(),
+      userId: uid,
+      date: data.date ?? new Date().toISOString().slice(0, 10),
+      createdAt: new Date().toISOString(),
+    };
+    items.push(item);
+    write(leKey(uid), items);
+    return item;
+  },
+  updateEntry(uid: number, id: number, data: any): any {
+    const items = read<any>(leKey(uid));
+    const idx = items.findIndex((i: any) => i.id === id);
+    if (idx === -1) throw new Error("Entry not found");
+    items[idx] = { ...items[idx], ...data, id };
+    write(leKey(uid), items);
+    return items[idx];
+  },
+  deleteEntry(uid: number, id: number) {
+    write(leKey(uid), read<any>(leKey(uid)).filter((i: any) => i.id !== id));
+  },
+
+  exportAll(uid: number): { accounts: any[]; entries: any[] } {
+    return { accounts: read<any>(laKey(uid)), entries: read<any>(leKey(uid)) };
+  },
+  clear(uid: number) {
+    localStorage.removeItem(laKey(uid));
+    localStorage.removeItem(leKey(uid));
+  },
+  hasData(uid: number): boolean {
+    return read<any>(laKey(uid)).length > 0 || read<any>(leKey(uid)).length > 0;
+  },
+};
+
+// ── Sales / Invoices ──────────────────────────────────────────────────────────
+const sKey = (uid: number) => `cf_s_${uid}`;
+
+export const localSales = {
+  getAll(uid: number): any[] {
+    return read<any>(sKey(uid));
+  },
+  create(uid: number, data: any): any {
+    const items = read<any>(sKey(uid));
+    const now = new Date();
+    const item = {
+      ...data,
+      id: genLocalId(),
+      userId: uid,
+      invoiceNumber: data.invoiceNumber ?? `INV-LOCAL-${Math.abs(genLocalId())}`,
+      date: data.date ?? now.toISOString().slice(0, 10),
+      status: data.status ?? "Completed",
+      createdAt: now.toISOString(),
+    };
+    items.unshift(item);
+    write(sKey(uid), items);
+    return item;
+  },
+  update(uid: number, id: number, data: any): any {
+    const items = read<any>(sKey(uid));
+    const idx = items.findIndex((i: any) => i.id === id);
+    if (idx === -1) throw new Error("Sale not found");
+    items[idx] = { ...items[idx], ...data, id };
+    write(sKey(uid), items);
+    return items[idx];
+  },
+  delete(uid: number, id: number) {
+    write(sKey(uid), read<any>(sKey(uid)).filter((i: any) => i.id !== id));
+  },
+  exportAll(uid: number): any[] { return read<any>(sKey(uid)); },
+  clear(uid: number) { localStorage.removeItem(sKey(uid)); },
+  hasData(uid: number): boolean { return read<any>(sKey(uid)).length > 0; },
+};
+
+// ── Full Backup Export ────────────────────────────────────────────────────────
+/** Export ALL local data for a user as a single JSON object */
+export function exportAllLocalData(uid: number): object {
+  return {
+    exportedAt: new Date().toISOString(),
+    userId: uid,
+    repairs:   localRepairs.exportAll(uid),
+    inventory: localInventory.exportAll(uid),
+    customers: localCustomers.exportAll(uid),
+    ledger:    localLedger.exportAll(uid),
+    sales:     localSales.exportAll(uid),
+  };
+}
+
+/** Trigger a JSON file download in the browser */
+export function downloadLocalBackup(uid: number, shopName?: string) {
+  const data = exportAllLocalData(uid);
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const date = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `combofinder-backup-${(shopName ?? "data").replace(/\s+/g, "-")}-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Check if any local data exists */
+export function hasAnyLocalData(uid: number): boolean {
+  return (
+    localRepairs.hasData(uid) ||
+    localInventory.hasData(uid) ||
+    localCustomers.hasData(uid) ||
+    localLedger.hasData(uid) ||
+    localSales.hasData(uid)
+  );
+}

@@ -8,6 +8,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
+import { localLedger } from "@/lib/local-store";
 
 type Account = {
   id: number;
@@ -61,6 +62,7 @@ function escapeHtml(v: unknown) {
 
 export default function Ledger() {
   const { user } = useAuth();
+  const isPro = user?.plan === "Pro";
   const currency = user?.currency ?? "USD";
   const currencySymbols: Record<string, string> = { USD: "$", EUR: "€", GBP: "£", BDT: "৳", INR: "₹", PKR: "₨", AED: "د.إ", SAR: "﷼", MYR: "RM", NGN: "₦", TRY: "₺", PHP: "₱", NPR: "रू" };
   const sym = currencySymbols[currency] ?? currency;
@@ -299,9 +301,13 @@ export default function Ledger() {
   async function loadAccounts() {
     setLoading(true);
     try {
-      const r = await apiFetch(`${BASE}/accounts`);
-      const data = await safeJson(r);
-      setAccounts(Array.isArray(data) ? data : []);
+      if (!isPro && user?.id) {
+        setAccounts(localLedger.getAllAccounts(user.id));
+      } else {
+        const r = await apiFetch(`${BASE}/accounts`);
+        const data = await safeJson(r);
+        setAccounts(Array.isArray(data) ? data : []);
+      }
     } catch {}
     setLoading(false);
   }
@@ -310,15 +316,20 @@ export default function Ledger() {
     setLoadingEntries(true);
     setDateFrom(""); setDateTo("");
     try {
-      const r = await apiFetch(`${BASE}/accounts/${accountId}`);
-      const data = await safeJson(r) as Account & { entries: Entry[] };
-      setSelectedAccount(data);
-      setEntries(data.entries ?? []);
+      if (!isPro && user?.id) {
+        const data = localLedger.getAccount(user.id, accountId);
+        if (data) { setSelectedAccount(data); setEntries(data.entries ?? []); }
+      } else {
+        const r = await apiFetch(`${BASE}/accounts/${accountId}`);
+        const data = await safeJson(r) as Account & { entries: Entry[] };
+        setSelectedAccount(data);
+        setEntries(data.entries ?? []);
+      }
     } catch {}
     setLoadingEntries(false);
   }
 
-  useEffect(() => { loadAccounts(); }, []);
+  useEffect(() => { loadAccounts(); }, [isPro, user?.id]);
 
   function openAddAccount(edit?: Account) {
     setAccEdit(edit ?? null);
@@ -336,11 +347,16 @@ export default function Ledger() {
     setAccSaving(true); setAccError("");
     const body = { name: accName, phone: accPhone, email: accEmail, address: accAddress, notes: accNotes };
     try {
-      const url = accEdit ? `${BASE}/accounts/${accEdit.id}` : `${BASE}/accounts`;
-      const method = accEdit ? "PUT" : "POST";
-      const r = await apiFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const data = await safeJson(r);
-      if (!r.ok) throw new Error(data.error ?? "Failed");
+      if (!isPro && user?.id) {
+        if (accEdit) localLedger.updateAccount(user.id, accEdit.id, body);
+        else localLedger.createAccount(user.id, body);
+      } else {
+        const url = accEdit ? `${BASE}/accounts/${accEdit.id}` : `${BASE}/accounts`;
+        const method = accEdit ? "PUT" : "POST";
+        const r = await apiFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const data = await safeJson(r);
+        if (!r.ok) throw new Error(data.error ?? "Failed");
+      }
       setAccOpen(false);
       await loadAccounts();
       if (selectedAccount && accEdit?.id === selectedAccount.id) await loadEntries(selectedAccount.id);
@@ -350,7 +366,11 @@ export default function Ledger() {
 
   async function deleteAccount(id: number) {
     if (!confirm("Delete this account and ALL its entries? This cannot be undone.")) return;
-    await apiFetch(`${BASE}/accounts/${id}`, { method: "DELETE" });
+    if (!isPro && user?.id) {
+      localLedger.deleteAccount(user.id, id);
+    } else {
+      await apiFetch(`${BASE}/accounts/${id}`, { method: "DELETE" });
+    }
     if (selectedAccount?.id === id) { setSelectedAccount(null); setEntries([]); }
     await loadAccounts();
   }
@@ -382,18 +402,24 @@ export default function Ledger() {
     if (!selectedAccount) return;
     setEntrySaving(true); setEntryError("");
     try {
-      if (entryEdit) {
-        // Edit existing entry
-        const body = { type: entryType, amount: entryAmount, itemName: entryItemName || undefined, description: entryDesc, reference: entryRef, date: entryDate };
-        const r = await apiFetch(`${BASE}/entries/${entryEdit.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-        const data = await safeJson(r);
-        if (!r.ok) throw new Error(data.error ?? "Failed");
+      if (!isPro && user?.id) {
+        if (entryEdit) {
+          localLedger.updateEntry(user.id, entryEdit.id, { type: entryType, amount: entryAmount, itemName: entryItemName || undefined, description: entryDesc, reference: entryRef, date: entryDate });
+        } else {
+          localLedger.createEntry(user.id, { accountId: selectedAccount.id, type: entryType, amount: entryAmount, itemName: entryItemName || undefined, description: entryDesc, reference: entryRef, date: entryDate });
+        }
       } else {
-        // New entry
-        const body = { accountId: selectedAccount.id, type: entryType, amount: entryAmount, itemName: entryItemName || undefined, description: entryDesc, reference: entryRef, date: entryDate };
-        const r = await apiFetch(`${BASE}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-        const data = await safeJson(r);
-        if (!r.ok) throw new Error(data.error ?? "Failed");
+        if (entryEdit) {
+          const body = { type: entryType, amount: entryAmount, itemName: entryItemName || undefined, description: entryDesc, reference: entryRef, date: entryDate };
+          const r = await apiFetch(`${BASE}/entries/${entryEdit.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+          const data = await safeJson(r);
+          if (!r.ok) throw new Error(data.error ?? "Failed");
+        } else {
+          const body = { accountId: selectedAccount.id, type: entryType, amount: entryAmount, itemName: entryItemName || undefined, description: entryDesc, reference: entryRef, date: entryDate };
+          const r = await apiFetch(`${BASE}/entries`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+          const data = await safeJson(r);
+          if (!r.ok) throw new Error(data.error ?? "Failed");
+        }
       }
       setEntryOk(true);
       await loadEntries(selectedAccount.id);
@@ -405,7 +431,11 @@ export default function Ledger() {
 
   async function deleteEntry(id: number) {
     if (!confirm("Delete this entry?")) return;
-    await apiFetch(`${BASE}/entries/${id}`, { method: "DELETE" });
+    if (!isPro && user?.id) {
+      localLedger.deleteEntry(user.id, id);
+    } else {
+      await apiFetch(`${BASE}/entries/${id}`, { method: "DELETE" });
+    }
     if (selectedAccount) await loadEntries(selectedAccount.id);
     await loadAccounts();
   }
