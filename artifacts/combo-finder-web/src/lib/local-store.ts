@@ -284,6 +284,38 @@ export const localSales = {
   hasData(uid: number): boolean { return read<any>(sKey(uid)).length > 0; },
 };
 
+// ── Expenses ──────────────────────────────────────────────────────────────────
+type LocalExpense = {
+  id: number;
+  category: string;
+  amount: number;
+  description?: string;
+  date?: string;
+  createdAt: string;
+};
+
+const eKey = (uid: number) => `cf_expenses_${uid}`;
+
+export const localExpenses = {
+  getAll(uid: number): LocalExpense[] { return read<LocalExpense>(eKey(uid)); },
+  create(uid: number, data: Omit<LocalExpense, "id" | "createdAt">): LocalExpense {
+    const list = read<LocalExpense>(eKey(uid));
+    const id = -(Date.now());
+    const item: LocalExpense = { ...data, id, createdAt: new Date().toISOString() };
+    write(eKey(uid), [item, ...list]);
+    return item;
+  },
+  update(uid: number, id: number, data: Partial<Omit<LocalExpense, "id" | "createdAt">>) {
+    write(eKey(uid), read<LocalExpense>(eKey(uid)).map(e => e.id === id ? { ...e, ...data } : e));
+  },
+  delete(uid: number, id: number) {
+    write(eKey(uid), read<LocalExpense>(eKey(uid)).filter(e => e.id !== id));
+  },
+  exportAll(uid: number): LocalExpense[] { return read<LocalExpense>(eKey(uid)); },
+  clear(uid: number) { localStorage.removeItem(eKey(uid)); },
+  hasData(uid: number): boolean { return read<LocalExpense>(eKey(uid)).length > 0; },
+};
+
 // ── Full Backup Export ────────────────────────────────────────────────────────
 /** Export ALL local data for a user as a single JSON object */
 export function exportAllLocalData(uid: number): object {
@@ -295,6 +327,7 @@ export function exportAllLocalData(uid: number): object {
     customers: localCustomers.exportAll(uid),
     ledger:    localLedger.exportAll(uid),
     sales:     localSales.exportAll(uid),
+    expenses:  localExpenses.exportAll(uid),
   };
 }
 
@@ -319,6 +352,7 @@ export function hasAnyLocalData(uid: number): boolean {
     localInventory.hasData(uid) ||
     localCustomers.hasData(uid) ||
     localLedger.hasData(uid) ||
-    localSales.hasData(uid)
+    localSales.hasData(uid) ||
+    localExpenses.hasData(uid)
   );
 }

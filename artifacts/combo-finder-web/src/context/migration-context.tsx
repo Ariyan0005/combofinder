@@ -6,7 +6,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-context";
-import { localRepairs, localInventory, localCustomers, localLedger, localSales, hasAnyLocalData } from "@/lib/local-store";
+import { localRepairs, localInventory, localCustomers, localLedger, localSales, localExpenses, hasAnyLocalData } from "@/lib/local-store";
 
 type MigCtx = {
   isMigrating: boolean;
@@ -43,12 +43,13 @@ export function MigrationProvider({ children }: { children: ReactNode }) {
       const customers = localCustomers.exportAll(uid);
       const ledger    = localLedger.exportAll(uid);
       const sales     = localSales.exportAll(uid);
+      const expenses  = localExpenses.exportAll(uid);
 
       const res = await fetch("/api/migrate", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repairs, inventory, customers, ledger, sales }),
+        body: JSON.stringify({ repairs, inventory, customers, ledger, sales, expenses }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Migration failed");
@@ -59,6 +60,7 @@ export function MigrationProvider({ children }: { children: ReactNode }) {
       localCustomers.clear(uid);
       localLedger.clear(uid);
       localSales.clear(uid);
+      localExpenses.clear(uid);
 
       setHasPendingData(false);
       qc.invalidateQueries({ queryKey: ["repairs"] });
@@ -66,6 +68,7 @@ export function MigrationProvider({ children }: { children: ReactNode }) {
       qc.invalidateQueries({ queryKey: ["customers"] });
       qc.invalidateQueries({ queryKey: ["ledger"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
+      qc.invalidateQueries({ queryKey: ["expenses"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
     } catch (err: any) {
       setError(err.message ?? "Migration failed. Please try again.");

@@ -2,7 +2,8 @@ import { useState, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Receipt, X, Pencil, Trash2, Share2 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
-
+import { useAuth } from "@/context/auth-context";
+import { localExpenses } from "@/lib/local-store";
 
 type Expense = {
   id: number;
@@ -16,6 +17,8 @@ type Expense = {
 const CATEGORIES = ["Parts Procurement", "Utilities", "Tools", "Rent", "Salary", "Marketing", "Other"];
 
 function ExpenseForm({ onClose, existing }: { onClose: () => void; existing?: Expense }) {
+  const { user } = useAuth();
+  const isPro = user?.plan === "Pro";
   const qc = useQueryClient();
   const [form, setForm] = useState({
     category: existing?.category ?? "Other",
@@ -24,27 +27,49 @@ function ExpenseForm({ onClose, existing }: { onClose: () => void; existing?: Ex
     date: existing?.date ?? new Date().toISOString().split("T")[0],
   });
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const mut = useMutation({
-    mutationFn: async (data: Record<string, string>) => {
-      const url = existing ? `/api/expenses/${existing.id}` : `/api/expenses`;
-      const res = await fetch(url, {
-        method: existing ? "PUT" : "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, amount: Number(data.amount) }),
-      });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Failed"); }
-      return res.json();
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["expenses"] }); onClose(); },
-    onError: (err: any) => setError(err.message),
-  });
-
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!form.amount || isNaN(Number(form.amount))) { setError("Valid amount required"); return; }
-    mut.mutate(form);
+    setSaving(true);
+    setError("");
+    try {
+      if (!isPro && user?.id) {
+        if (existing) {
+          localExpenses.update(user.id, existing.id, {
+            category: form.category,
+            amount: Number(form.amount),
+            description: form.description,
+            date: form.date,
+          });
+        } else {
+          localExpenses.create(user.id, {
+            category: form.category,
+            amount: Number(form.amount),
+            description: form.description,
+            date: form.date,
+          });
+        }
+        qc.invalidateQueries({ queryKey: ["expenses"] });
+        onClose();
+      } else {
+        const url = existing ? `/api/expenses/${existing.id}` : `/api/expenses`;
+        const res = await fetch(url, {
+          method: existing ? "PUT" : "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...form, amount: Number(form.amount) }),
+        });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Failed"); }
+        qc.invalidateQueries({ queryKey: ["expenses"] });
+        onClose();
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -86,10 +111,10 @@ function ExpenseForm({ onClose, existing }: { onClose: () => void; existing?: Ex
               style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--background))" }} />
           </div>
           {error && <p className="text-xs text-center" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
-          <button type="submit" disabled={mut.isPending}
+          <button type="submit" disabled={saving}
             className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-60 mt-1"
             style={{ background: "hsl(var(--primary))" }}>
-            {mut.isPending ? "Saving…" : existing ? "Save Changes" : "Add Expense"}
+            {saving ? "Saving…" : existing ? "Save Changes" : "Add Expense"}
           </button>
         </form>
       </div>
@@ -102,6 +127,8 @@ function escHtml(s: string | null | undefined): string {
 }
 
 export default function Expenses() {
+  const { user } = useAuth();
+  const isPro = user?.plan === "Pro";
   const [showForm, setShowForm] = useState(false);
   const [editExpense, setEditExpense] = useState<Expense | undefined>();
   const [searchQ, setSearchQ] = useState("");
@@ -110,13 +137,22 @@ export default function Expenses() {
   const qc = useQueryClient();
 
   const { data: expenses, isLoading } = useQuery<Expense[]>({
-    queryKey: ["expenses"],
-    queryFn: () => fetch(`/api/expenses`, { credentials: "include" }).then(r => r.json()),
+    queryKey: ["expenses", isPro, user?.id],
+    queryFn: () => {
+      if (!isPro && user?.id) return Promise.resolve(localExpenses.getAll(user.id) as Expense[]);
+      return fetch(`/api/expenses`, { credentials: "include" }).then(r => r.json());
+    },
+    enabled: !!user?.id,
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: number) =>
-      fetch(`/api/expenses/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
+    mutationFn: async (id: number) => {
+      if (!isPro && user?.id) {
+        localExpenses.delete(user.id, id);
+        return {};
+      }
+      return fetch(`/api/expenses/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json());
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["expenses"] }),
   });
 
@@ -182,7 +218,11 @@ export default function Expenses() {
             <Receipt className="w-5 h-5" style={{ color: "hsl(var(--primary))" }} />
           </div>
           <div>
-            <p className="text-xs font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>Total Expenses{(fromDate || toDate) ? " (filtered)" : ""}</p>
+            <p className="text-xs font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>
+              Total Expenses{(fromDate || toDate) ? " (filtered)" : ""}
+              {!isPro && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                style={{ background: "hsl(var(--primary)/0.1)", color: "hsl(var(--primary))" }}>Local</span>}
+            </p>
             <p className="text-2xl font-extrabold mt-0.5">{totalAmount.toLocaleString()}</p>
           </div>
         </div>

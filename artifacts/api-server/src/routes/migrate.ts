@@ -4,7 +4,7 @@
  * exported from the user's local storage and inserts them into the server database.
  */
 import { Router } from "express";
-import { db, repairsTable, inventoryTable, customersTable, ledgerAccountsTable, ledgerEntriesTable } from "@workspace/db";
+import { db, repairsTable, inventoryTable, customersTable, ledgerAccountsTable, ledgerEntriesTable, expensesTable } from "@workspace/db";
 
 const router = Router();
 
@@ -18,6 +18,7 @@ router.post("/migrate", async (req: any, res: any) => {
     customers = [],
     ledger    = { accounts: [], entries: [] },
     sales     = [],
+    expenses  = [],
   } = req.body ?? {};
 
   let migratedRepairs   = 0;
@@ -25,6 +26,7 @@ router.post("/migrate", async (req: any, res: any) => {
   let migratedCustomers = 0;
   let migratedAccounts  = 0;
   let migratedEntries   = 0;
+  let migratedExpenses  = 0;
   const errors: string[] = [];
 
   // ── Repairs ─────────────────────────────────────────────────────────────────
@@ -154,6 +156,24 @@ router.post("/migrate", async (req: any, res: any) => {
     }
   }
 
+  // ── Expenses ─────────────────────────────────────────────────────────────────
+  for (const exp of expenses) {
+    try {
+      const { id: _id, userId: _uid, ...data } = exp;
+      await db.insert(expensesTable).values({
+        userId,
+        category:    data.category    ?? "Other",
+        amount:      Number(data.amount) || 0,
+        description: data.description ?? null,
+        date:        data.date ?? new Date().toISOString().split("T")[0],
+        createdAt:   data.createdAt ? new Date(data.createdAt) : new Date(),
+      });
+      migratedExpenses++;
+    } catch (err: any) {
+      errors.push(`Expense: ${err.message}`);
+    }
+  }
+
   // ── Sales / Invoices — logged but not migrated (complex schema with items) ───
   const skippedSales = Array.isArray(sales) ? sales.length : 0;
 
@@ -164,6 +184,7 @@ router.post("/migrate", async (req: any, res: any) => {
     migratedCustomers,
     migratedAccounts,
     migratedEntries,
+    migratedExpenses,
     ...(skippedSales > 0 && { note: `${skippedSales} local invoices were not migrated (POS invoices require manual entry on Pro)` }),
     ...(errors.length > 0 && { warnings: errors }),
   });
