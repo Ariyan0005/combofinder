@@ -323,6 +323,32 @@ export const localExpenses = {
 };
 
 // ── Full Backup Export ────────────────────────────────────────────────────────
+
+/** Import a backup JSON (from server restore) into localStorage for this user */
+export function importLocalBackup(uid: number, data: any): { imported: string[]; errors: string[] } {
+  const imported: string[] = [];
+  const errors: string[] = [];
+  try {
+    if (Array.isArray(data.repairs)    && data.repairs.length)    { write(rKey(uid),    data.repairs);    imported.push(data.repairs.length    + ' repairs'); }
+    if (Array.isArray(data.inventory)  && data.inventory.length)  { write(iKey(uid),    data.inventory);  imported.push(data.inventory.length  + ' inventory'); }
+    if (Array.isArray(data.customers)  && data.customers.length)  { write(cKey(uid),    data.customers);  imported.push(data.customers.length  + ' customers'); }
+    if (data.ledger?.accounts?.length || data.ledger?.entries?.length) {
+      write(laKey(uid), data.ledger?.accounts ?? []);
+      write(leKey(uid), data.ledger?.entries  ?? []);
+      imported.push('ledger');
+    }
+    if (Array.isArray(data.sales)      && data.sales.length)      { write(sKey(uid),    data.sales);      imported.push(data.sales.length      + ' sales'); }
+    if (Array.isArray(data.expenses)   && data.expenses.length)   { write(eKey(uid),    data.expenses);   imported.push(data.expenses.length   + ' expenses'); }
+    if (Array.isArray(data.suppliers)  && data.suppliers.length)  { write(suplKey(uid), data.suppliers);  imported.push(data.suppliers.length  + ' suppliers'); }
+    if (Array.isArray(data.categories) && data.categories.length) { write(catKey(uid),  data.categories); imported.push(data.categories.length + ' categories'); }
+    if (Array.isArray(data.supplierPurchases) && data.supplierPurchases.length) { write(spKey(uid),  data.supplierPurchases); imported.push(data.supplierPurchases.length + ' purchases'); }
+    if (Array.isArray(data.supplierPayments)  && data.supplierPayments.length)  { write(spmKey(uid), data.supplierPayments);  imported.push(data.supplierPayments.length  + ' payments'); }
+  } catch (e: any) {
+    errors.push(e.message);
+  }
+  return { imported, errors };
+}
+
 /** Export ALL local data for a user as a single JSON object */
 export function exportAllLocalData(uid: number): object {
   return {
@@ -341,7 +367,7 @@ export function exportAllLocalData(uid: number): object {
   };
 }
 
-/** Trigger a JSON file download in the browser */
+/** @deprecated Use email backup via /api/backup/save instead */
 export function downloadLocalBackup(uid: number, shopName?: string) {
   const data = exportAllLocalData(uid);
   const json = JSON.stringify(data, null, 2);

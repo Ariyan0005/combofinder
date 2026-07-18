@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
-import { Store, User, Lock, Bell, ChevronRight, Check, X, Globe, Eye, EyeOff, Search, Download } from "lucide-react";
+import { Store, User, Lock, Bell, ChevronRight, Check, X, Globe, Eye, EyeOff, Search, Mail, RotateCcw, CheckCircle2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
-import { downloadLocalBackup } from "@/lib/local-store";
+import { exportAllLocalData, importLocalBackup } from "@/lib/local-store";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const CURRENCIES = [
   // Major / Most-used
@@ -152,6 +153,14 @@ const INPUT_STYLE = { borderColor: "hsl(var(--border))", background: "hsl(var(--
 
 export default function Settings() {
   const { user, refreshUser } = useAuth();
+
+  // Backup state
+  const [backupSending, setBackupSending] = useState(false);
+  const [backupStatus, setBackupStatus] = useState<"idle"|"success"|"error">("idle");
+  const [restoring, setRestoring] = useState(false);
+  const [restoreStatus, setRestoreStatus] = useState<"idle"|"success"|"error">("idle");
+  const [restoreMsg, setRestoreMsg] = useState("");
+  const qc = useQueryClient();
 
   // Profile modal
   const [profileOpen, setProfileOpen] = useState(false);
@@ -438,23 +447,116 @@ export default function Settings() {
 
         {/* Data & Backup — only for Free users */}
         {user?.plan !== "Pro" && (
-          <div className="bg-card rounded-2xl border border-border p-4">
-            <p className="text-xs font-bold uppercase tracking-wide mb-2"
+          <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
+            <p className="text-xs font-bold uppercase tracking-wide"
               style={{ color: "hsl(var(--muted-foreground))" }}>Data & Backup</p>
-            <p className="text-sm mb-3 leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
-              আপনার Repairs, Inventory, Customers, Ledger সব data এই device-এ আছে।
-              যেকোনো সময় JSON file download করে ইমেইলে পাঠাতে বা সংরক্ষণ করতে পারবেন।
+
+            <p className="text-sm leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
+              আপনার সব data এই device-এর localStorage-এ আছে।
+              Email backup করলে নতুন device বা browser-এও restore করতে পারবেন — WhatsApp-এর মতো।
             </p>
+
+            {/* ── Send Backup ── */}
             <button
               type="button"
-              onClick={() => user?.id && downloadLocalBackup(user.id, user.shopName)}
-              className="w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 mb-3"
+              disabled={backupSending}
+              onClick={async () => {
+                if (!user?.id) return;
+                setBackupSending(true);
+                setBackupStatus("idle");
+                try {
+                  const data = exportAllLocalData(user.id);
+                  const res = await fetch("/api/backup/save", {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ data }),
+                  });
+                  if (!res.ok) throw new Error("Failed");
+                  setBackupStatus("success");
+                } catch {
+                  setBackupStatus("error");
+                } finally {
+                  setBackupSending(false);
+                }
+              }}
+              className="w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 disabled:opacity-60"
               style={{ background: "hsl(var(--primary))" }}>
-              <Download className="w-4 h-4" />
-              Backup Download করুন (.json)
+              {backupSending ? (
+                <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Backup পাঠানো হচ্ছে…</>
+              ) : backupStatus === "success" ? (
+                <><CheckCircle2 className="w-4 h-4" /> Backup Email পাঠানো হয়েছে ✅</>
+              ) : (
+                <><Mail className="w-4 h-4" /> Email-এ Backup পাঠান</>
+              )}
             </button>
+            {backupStatus === "error" && (
+              <p className="text-xs text-center" style={{ color: "hsl(var(--destructive))" }}>
+                Backup পাঠাতে সমস্যা হয়েছে। আবার চেষ্টা করুন।
+              </p>
+            )}
+            {backupStatus === "success" && (
+              <p className="text-xs text-center" style={{ color: "hsl(var(--muted-foreground))" }}>
+                📧 আপনার email-এ confirmation এসেছে। নতুন device-এ restore করতে নিচের button ব্যবহার করুন।
+              </p>
+            )}
+
+            {/* ── Restore Backup ── */}
+            <div className="border rounded-xl p-3" style={{ borderColor: "hsl(var(--border))" }}>
+              <p className="text-xs font-semibold mb-2" style={{ color: "hsl(var(--muted-foreground))" }}>
+                📲 নতুন Device-এ Restore
+              </p>
+              <p className="text-xs mb-3 leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
+                এই account-এর সর্বশেষ backup থেকে সব data এই device-এ ফিরিয়ে আনবে।
+              </p>
+              <button
+                type="button"
+                disabled={restoring}
+                onClick={async () => {
+                  if (!user?.id) return;
+                  if (!confirm("এই device-এর বর্তমান local data মুছে backup থেকে restore হবে। নিশ্চিত?")) return;
+                  setRestoring(true);
+                  setRestoreStatus("idle");
+                  setRestoreMsg("");
+                  try {
+                    const res = await fetch("/api/backup/restore", {
+                      method: "POST",
+                      credentials: "include",
+                    });
+                    if (res.status === 404) throw new Error("কোনো backup পাওয়া যায়নি। আগে Email Backup করুন।");
+                    if (!res.ok) throw new Error("Restore ব্যর্থ হয়েছে।");
+                    const { data } = await res.json();
+                    const { imported, errors } = importLocalBackup(user.id, data);
+                    if (errors.length && !imported.length) throw new Error(errors[0]);
+                    setRestoreStatus("success");
+                    setRestoreMsg(imported.join(", ") + " restore হয়েছে ✅");
+                    // Refresh all queries so UI reflects restored data
+                    qc.invalidateQueries();
+                  } catch (e: any) {
+                    setRestoreStatus("error");
+                    setRestoreMsg(e.message ?? "Restore ব্যর্থ হয়েছে।");
+                  } finally {
+                    setRestoring(false);
+                  }
+                }}
+                className="w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                style={{ background: "hsl(var(--muted))", color: "hsl(var(--foreground))" }}>
+                {restoring ? (
+                  <><span className="w-3.5 h-3.5 border-2 border-current/40 border-t-current rounded-full animate-spin" /> Restore হচ্ছে…</>
+                ) : (
+                  <><RotateCcw className="w-3.5 h-3.5" /> Backup থেকে Restore করুন</>
+                )}
+              </button>
+              {restoreStatus === "success" && (
+                <p className="text-xs mt-2 text-center font-semibold" style={{ color: "#10B981" }}>{restoreMsg}</p>
+              )}
+              {restoreStatus === "error" && (
+                <p className="text-xs mt-2 text-center" style={{ color: "hsl(var(--destructive))" }}>{restoreMsg}</p>
+              )}
+            </div>
+
             <p className="text-xs text-center leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
-              ☁️ Pro-তে upgrade করলে data automatically cloud-এ backup হবে এবং যেকোনো device থেকে access করা যাবে।{" "}
+              ☁️ Pro-তে upgrade করলে data automatically cloud-এ থাকবে — যেকোনো device থেকে access।{" "}
               <a href="/subscription" className="font-bold" style={{ color: "hsl(var(--primary))" }}>Upgrade করুন →</a>
             </p>
           </div>

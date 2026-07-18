@@ -4,7 +4,7 @@
  * exported from the user's local storage and inserts them into the server database.
  */
 import { Router } from "express";
-import { db, repairsTable, inventoryTable, customersTable, ledgerAccountsTable, ledgerEntriesTable, expensesTable, suppliersTable, inventoryCategoriesTable, supplierPurchasesTable, supplierPaymentsTable } from "@workspace/db";
+import { db, repairsTable, inventoryTable, customersTable, ledgerAccountsTable, ledgerEntriesTable, expensesTable, suppliersTable, inventoryCategoriesTable, supplierPurchasesTable, supplierPaymentsTable, salesTable, saleItemsTable } from "@workspace/db";
 
 const router = Router();
 
@@ -35,6 +35,7 @@ router.post("/migrate", async (req: any, res: any) => {
   let migratedCategories        = 0;
   let migratedSupplierPurchases = 0;
   let migratedSupplierPayments  = 0;
+  let migratedSales             = 0;
   const errors: string[] = [];
 
   // ── Repairs ─────────────────────────────────────────────────────────────────
@@ -288,8 +289,47 @@ router.post("/migrate", async (req: any, res: any) => {
     }
   }
 
-  // ── Sales / Invoices — logged but not migrated (complex schema with items) ───
-  const skippedSales = Array.isArray(sales) ? sales.length : 0;
+  // ── Sales / Invoices ──────────────────────────────────────────────────────────
+  for (const s of sales) {
+    try {
+      const { id: _id, userId: _uid, items, returns, ...saleData } = s;
+      const [newSale] = await db.insert(salesTable).values({
+        userId,
+        invoiceNumber: saleData.invoiceNumber ?? ('MIGR-' + Date.now() + '-' + migratedSales),
+        customerId:    saleData.customerId   ?? null,
+        customerName:  saleData.customerName ?? null,
+        customerPhone: saleData.customerPhone ?? null,
+        subtotal:      String(saleData.subtotal ?? '0'),
+        discount:      String(saleData.discount ?? '0'),
+        total:         String(saleData.total   ?? '0'),
+        paymentMethod: saleData.paymentMethod ?? 'Cash',
+        status:        saleData.status        ?? 'Completed',
+        advancePaid:   String(saleData.advancePaid ?? '0'),
+        notes:         saleData.notes ?? null,
+        date:          saleData.date  ?? new Date().toISOString().split('T')[0],
+        createdAt:     saleData.createdAt ? new Date(saleData.createdAt) : new Date(),
+      }).returning();
+
+      if (newSale?.id && Array.isArray(items)) {
+        for (const item of items) {
+          try {
+            await db.insert(saleItemsTable).values({
+              saleId:      newSale.id,
+              inventoryId: item.inventoryId ?? null,
+              partName:    item.partName    ?? 'Unknown',
+              quantity:    Number(item.quantity  ?? 1),
+              unitPrice:   String(item.unitPrice ?? '0'),
+              total:       String(item.total     ?? '0'),
+              returnedQuantity: 0,
+            });
+          } catch (_) {}
+        }
+      }
+      migratedSales++;
+    } catch (err: any) {
+      errors.push('Sale: ' + err.message);
+    }
+  }
 
   res.json({
     success: true,
@@ -303,7 +343,7 @@ router.post("/migrate", async (req: any, res: any) => {
     migratedCategories,
     migratedSupplierPurchases,
     migratedSupplierPayments,
-    ...(skippedSales > 0 && { note: `${skippedSales} local invoices were not migrated (POS invoices require manual entry on Pro)` }),
+    migratedSales,
     ...(errors.length > 0 && { warnings: errors }),
   });
 });
