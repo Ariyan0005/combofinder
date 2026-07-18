@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/context/auth-context";
-import { localSuppliers } from "@/lib/local-store";
+import { localSuppliers, localSupplierPurchases } from "@/lib/local-store";
 
 const PRIMARY = "hsl(var(--primary))";
 const MUTED = "hsl(var(--muted-foreground))";
@@ -189,11 +189,11 @@ export default function ManageSuppliers() {
   const { data: balances = [] } = useQuery<SupplierBalance[]>({
     queryKey: ["suppliers-balances"],
     queryFn: async () => {
-      if (isFree) return []; // local suppliers have no server-side balance
+      if (isFree && userId) return localSupplierPurchases.getAllBalances(userId);
       const d = await fetch("/api/supplier-purchases/balances", { credentials: "include" }).then(r => r.json());
       return Array.isArray(d) ? d : [];
     },
-    enabled: !isGuest && !!user && !isFree,
+    enabled: !isGuest && !!user,
   });
 
   const balanceMap = Object.fromEntries(balances.map(b => [b.supplierId, b.totalDue]));
@@ -306,19 +306,17 @@ export default function ManageSuppliers() {
                       </button>
                     </div>
                   </div>
-                  {/* Ledger row — only for Pro users (local suppliers have no purchases) */}
-                  {!isFree && (
-                    <button
-                      onClick={() => setLocation(`/supplier-ledger/${s.id}`)}
-                      className="mt-2 w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold"
-                      style={{ background: due > 0 ? "#FEF3C7" : "hsl(var(--muted))", color: due > 0 ? "#92400E" : MUTED }}>
-                      <span className="flex items-center gap-1.5">
-                        {due > 0 && <AlertCircle className="w-3.5 h-3.5" style={{ color: "#F59E0B" }} />}
-                        {due > 0 ? `Due: ${due.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "View Ledger"}
-                      </span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+                  {/* Ledger button — available for all users (free users use local store) */}
+                  <button
+                    onClick={() => setLocation(`/supplier-ledger/${s.id}`)}
+                    className="mt-2 w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold"
+                    style={{ background: due > 0 ? "#FEF3C7" : "hsl(var(--muted))", color: due > 0 ? "#92400E" : MUTED }}>
+                    <span className="flex items-center gap-1.5">
+                      {due > 0 && <AlertCircle className="w-3.5 h-3.5" style={{ color: "#F59E0B" }} />}
+                      {due > 0 ? `Due: ${due.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "View Ledger"}
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               );
             })}

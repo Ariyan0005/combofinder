@@ -11,10 +11,14 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import {
-  ArrowLeft, Plus, CreditCard, TrendingDown, CheckCircle2,
-  Clock, DollarSign, ShoppingCart, X, AlertCircle,
+  ArrowLeft, Plus, CreditCard, CheckCircle2,
+  ShoppingCart, X,
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
+import {
+  localSuppliers, localInventory,
+  localSupplierPurchases, localSupplierPayments,
+} from "@/lib/local-store";
 
 const PRIMARY = "hsl(var(--primary))";
 const MUTED   = "hsl(var(--muted-foreground))";
@@ -29,7 +33,7 @@ type Supplier = { id: number; name: string; phone?: string; partTypes?: string; 
 type Purchase = {
   id: number; productName?: string; quantity?: number;
   totalAmount: string; paidAmount: string; dueAmount: string;
-  paymentStatus: "paid" | "partial" | "due";
+  paymentStatus: "paid" | "partial" | "due" | "credit";
   purchaseDate?: string; notes?: string; createdAt: string;
 };
 type Payment = {
@@ -74,9 +78,10 @@ function newPurchaseLine(): PurchaseLine {
   return { _key: Math.random().toString(36).slice(2), item: null, search: "", showDrop: false, qty: "1", unitPrice: "" };
 }
 
-// ─── Add Purchase Modal (multi-item invoice) ──────────────────────────────────
-function AddPurchaseModal({ supplierId, supplierName, onClose }: {
+// ─── Add Purchase Modal ───────────────────────────────────────────────────────
+function AddPurchaseModal({ supplierId, supplierName, onClose, isFree, userId }: {
   supplierId: number; supplierName: string; onClose: () => void;
+  isFree: boolean; userId?: number;
 }) {
   const qc = useQueryClient();
   const today = new Date().toISOString().split("T")[0];
@@ -84,6 +89,9 @@ function AddPurchaseModal({ supplierId, supplierName, onClose }: {
   const { data: inventoryItems = [] } = useQuery<InventoryItem[]>({
     queryKey: ["inventory"],
     queryFn: async () => {
+      // ── Free plan: local storage ─────────────────────────────────────────
+      if (isFree && userId) return localInventory.getAll(userId) as InventoryItem[];
+      // ── Pro plan: server ─────────────────────────────────────────────────
       const r = await fetch("/api/inventory", { credentials: "include" });
       return r.json();
     },
@@ -100,14 +108,52 @@ function AddPurchaseModal({ supplierId, supplierName, onClose }: {
     setLines(prev => prev.map(l => l._key === key ? { ...l, ...patch } : l));
 
   const invoiceTotal = lines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0);
-  const dueAmount = Math.max(0, invoiceTotal - (Number(paidAmount) || 0));
-  const payStatus = dueAmount <= 0 ? "paid" : Number(paidAmount) <= 0 ? "credit" : "partial";
+  const dueAmt = Math.max(0, invoiceTotal - (Number(paidAmount) || 0));
+  const payStatus: "paid" | "partial" | "credit" = dueAmt <= 0 ? "paid" : Number(paidAmount) <= 0 ? "credit" : "partial";
   const validLines = lines.filter(l => Number(l.qty) > 0 && Number(l.unitPrice) > 0 && (l.item || l.search.trim()));
   const stockLines = validLines.filter(l => l.item);
 
   const mut = useMutation({
     mutationFn: async () => {
       if (validLines.length === 0) throw new Error("Add at least one item with quantity and price");
+
+      // ── Free plan: local storage ─────────────────────────────────────────
+      if (isFree && userId) {
+        const paidAmt = Number(paidAmount) || 0;
+        const totalAmt = invoiceTotal;
+        const due = Math.max(0, totalAmt - paidAmt);
+
+        for (const line of validLines) {
+          localSupplierPurchases.create(userId, {
+            supplierId,
+            supplierName,
+            inventoryId: line.item?.id ?? null,
+            productName: line.item?.partName ?? line.search.trim(),
+            quantity: Number(line.qty),
+            totalAmount: String(Number(line.qty) * Number(line.unitPrice)),
+            paidAmount: String(paidAmt / validLines.length), // spread payment evenly per line
+            dueAmount: String(due / validLines.length),
+            paymentStatus: payStatus,
+            purchaseDate,
+            invoiceNumber: invoiceNo.trim() || null,
+            notes: notes || null,
+          });
+          // Update local inventory stock (add purchased qty)
+          if (line.item) {
+            const all = localInventory.getAll(userId) as any[];
+            const inv = all.find(i => i.id === line.item!.id);
+            if (inv) {
+              localInventory.update(userId, line.item.id, {
+                quantity: (inv.quantity ?? 0) + Number(line.qty),
+                purchasePrice: line.unitPrice || inv.purchasePrice,
+              });
+            }
+          }
+        }
+        return { success: true };
+      }
+
+      // ── Pro plan: server ─────────────────────────────────────────────────
       const res = await fetch("/api/supplier-purchases/invoice", {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -162,36 +208,38 @@ function AddPurchaseModal({ supplierId, supplierName, onClose }: {
             {/* Invoice header */}
             <div className="grid grid-cols-2 gap-3">
               <Field label="Invoice # (optional)">
-                <Input value={invoiceNo} onChange={e => setInvoiceNo(e.target.value)} placeholder="e.g. INV-001" />
+                <Input value={invoiceNo} onChange={e => setInvoiceNo(e.target.value)} placeholder="INV-001" />
               </Field>
-              <Field label="Purchase Date">
+              <Field label="Date">
                 <Input type="date" value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)} />
               </Field>
             </div>
 
             {/* Line items */}
             <div>
-              <label className="text-xs font-semibold block mb-2" style={{ color: MUTED }}>Items *</label>
+              <p className="text-xs font-semibold mb-2" style={{ color: MUTED }}>Items</p>
               <div className="flex flex-col gap-2">
-                {lines.map((line) => (
-                  <div key={line._key} className="rounded-xl border" style={{ borderColor: BORDER }}>
+                {lines.map(line => (
+                  <div key={line._key} className="rounded-xl border overflow-hidden" style={{ borderColor: BORDER, background: BG }}>
                     <div className="p-3">
-                      {/* Product selector */}
                       {!line.item ? (
-                        <div className="relative mb-2">
-                          <Input placeholder="Search inventory or type product name…"
+                        <div className="relative">
+                          <Input
                             value={line.search}
                             onChange={e => patchLine(line._key, { search: e.target.value, showDrop: true })}
                             onFocus={() => patchLine(line._key, { showDrop: true })}
-                            onBlur={() => setTimeout(() => patchLine(line._key, { showDrop: false }), 150)} />
-                          {line.showDrop && line.search && (() => {
-                            const hits = inventoryItems
-                              .filter(i => i.partName.toLowerCase().includes(line.search.toLowerCase()))
-                              .slice(0, 5);
-                            return hits.length > 0 ? (
-                              <div className="absolute top-full left-0 right-0 z-20 mt-1 rounded-xl border shadow-lg overflow-hidden"
+                            onBlur={() => setTimeout(() => patchLine(line._key, { showDrop: false }), 150)}
+                            placeholder="Type item name or search…"
+                          />
+                          {(() => {
+                            const q = line.search.trim().toLowerCase();
+                            const matches = q.length > 0
+                              ? inventoryItems.filter(i => i.partName.toLowerCase().includes(q)).slice(0, 5)
+                              : [];
+                            return line.showDrop && matches.length > 0 ? (
+                              <div className="absolute top-full left-0 right-0 z-10 rounded-xl border shadow-lg overflow-hidden"
                                 style={{ background: CARD, borderColor: BORDER }}>
-                                {hits.map(i => (
+                                {matches.map(i => (
                                   <button key={i.id} type="button"
                                     onMouseDown={() => patchLine(line._key, {
                                       item: i, search: i.partName, showDrop: false,
@@ -268,18 +316,18 @@ function AddPurchaseModal({ supplierId, supplierName, onClose }: {
               </div>
             )}
             <Field label="Paid Now">
-              <Input type="number" min="0" step="0.01" value={paidAmount}
-                onChange={e => setPaidAmount(e.target.value)} placeholder="0.00" />
+              <Input type="text" inputMode="decimal" value={paidAmount}
+                onChange={e => setPaidAmount(e.target.value)} placeholder="0" />
             </Field>
             {invoiceTotal > 0 && (
-              <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm"
-                style={{ background: dueAmount > 0 ? "#FEF3C7" : "#D1FAE5" }}>
-                <span className="font-medium" style={{ color: dueAmount > 0 ? AMBER : GREEN }}>
-                  {dueAmount > 0 ? `Due: ${fmt(dueAmount)}` : "✓ Fully Paid"}
+              <div className="flex gap-2 text-xs font-semibold">
+                <span className="flex-1 px-3 py-2 rounded-lg text-center"
+                  style={{ background: "#D1FAE5", color: GREEN }}>
+                  Paid: {fmt(Math.min(Number(paidAmount) || 0, invoiceTotal))}
                 </span>
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white"
-                  style={{ background: payStatus === "paid" ? GREEN : payStatus === "partial" ? AMBER : RED }}>
-                  {payStatus === "paid" ? "PAID" : payStatus === "partial" ? "PARTIAL" : "CREDIT"}
+                <span className="flex-1 px-3 py-2 rounded-lg text-center"
+                  style={{ background: dueAmt > 0 ? "#FEE2E2" : "#D1FAE5", color: dueAmt > 0 ? RED : GREEN }}>
+                  Due: {fmt(dueAmt)}
                 </span>
               </div>
             )}
@@ -290,10 +338,7 @@ function AddPurchaseModal({ supplierId, supplierName, onClose }: {
             <button type="submit" disabled={mut.isPending}
               className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-60 mt-1"
               style={{ background: PRIMARY }}>
-              {mut.isPending ? "Saving…"
-                : stockLines.length > 0
-                  ? `Save & Update Stock (${validLines.length} item${validLines.length > 1 ? "s" : ""})`
-                  : `Save Invoice (${validLines.length} item${validLines.length > 1 ? "s" : ""})`}
+              {mut.isPending ? "Saving…" : "Save Purchase"}
             </button>
           </form>
         </div>
@@ -303,34 +348,40 @@ function AddPurchaseModal({ supplierId, supplierName, onClose }: {
 }
 
 // ─── Pay Now Modal ────────────────────────────────────────────────────────────
-function PayNowModal({ supplierId, supplierName, dueAmount, onClose }: {
+function PayNowModal({ supplierId, supplierName, dueAmount, onClose, isFree, userId }: {
   supplierId: number; supplierName: string; dueAmount: number; onClose: () => void;
+  isFree: boolean; userId?: number;
 }) {
   const qc = useQueryClient();
-  const { user } = useAuth();
-  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
-  const [f, setF] = useState({
-    amount: String(dueAmount > 0 ? dueAmount : ""),
-    paymentMethod: "cash",
-    date: new Date().toISOString().split("T")[0],
-    invoiceNo: "",
-    notes: "",
-  });
+  const today = new Date().toISOString().split("T")[0];
+  const [f, setF] = useState({ amount: String(dueAmount > 0 ? dueAmount : ""), method: "cash", date: today, notes: "" });
   const set = (k: string, v: string) => setF(p => ({ ...p, [k]: v }));
   const [error, setError] = useState("");
 
   const mut = useMutation({
     mutationFn: async () => {
+      const payAmt = Number(f.amount);
+      if (!payAmt || payAmt <= 0) throw new Error("Enter a valid amount");
+
+      // ── Free plan: local storage ─────────────────────────────────────────
+      if (isFree && userId) {
+        localSupplierPayments.create(userId, {
+          supplierId,
+          supplierName,
+          amount: String(payAmt),
+          paymentMethod: f.method,
+          date: f.date,
+          notes: f.notes || null,
+        });
+        localSupplierPurchases.applyPayment(userId, supplierId, payAmt);
+        return { success: true };
+      }
+
+      // ── Pro plan: server ─────────────────────────────────────────────────
       const res = await fetch("/api/supplier-purchases/general-pay", {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          supplierId, supplierName,
-          amount: Number(f.amount),
-          paymentMethod: f.paymentMethod,
-          date: f.date,
-          notes: [f.invoiceNo.trim() ? `Voucher: ${f.invoiceNo.trim()}` : "", f.notes.trim()].filter(Boolean).join(" · ") || null,
-        }),
+        body: JSON.stringify({ supplierId, supplierName, amount: payAmt, paymentMethod: f.method, date: f.date, notes: f.notes || null }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error ?? "Failed");
@@ -353,49 +404,49 @@ function PayNowModal({ supplierId, supplierName, dueAmount, onClose }: {
         style={{ background: CARD }}>
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b" style={{ borderColor: BORDER }}>
           <h2 className="font-bold text-base">Record Payment</h2>
-          <button onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center"
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center"
             style={{ background: "hsl(var(--muted))", color: MUTED }}>
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="px-5 py-5 overflow-y-auto" style={{ maxHeight: "70vh" }}>
-          <form onSubmit={e => {
-            e.preventDefault();
-            if (!f.amount || Number(f.amount) <= 0) { setError("Amount required"); return; }
-            mut.mutate();
-          }} className="flex flex-col gap-3">
-            <Field label="Invoice / Voucher No.">
-              <Input value={f.invoiceNo} onChange={e => set("invoiceNo", e.target.value)}
-                placeholder="e.g. INV-001" autoFocus />
-            </Field>
-            <Field label="Amount Paid *">
-              <Input type="number" min="0.01" step="0.01" value={f.amount}
-                onChange={e => set("amount", e.target.value)} placeholder="0.00" />
-            </Field>
-            <Field label="Payment Method">
-              <select value={f.paymentMethod} onChange={e => set("paymentMethod", e.target.value)}
-                className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none"
-                style={{ borderColor: BORDER, background: BG }}>
-                <option value="cash">Cash</option>
-                <option value="bank">Bank Transfer</option>
-                <option value="card">Card</option>
-                <option value="mobile_banking">Mobile Banking</option>
-                <option value="other">Other</option>
-              </select>
-            </Field>
-            <Field label="Date">
-              <Input type="date" value={f.date} onChange={e => set("date", e.target.value)} />
-            </Field>
-            <Field label="Notes">
-              <Input value={f.notes} onChange={e => set("notes", e.target.value)} placeholder="Optional" />
-            </Field>
-            {error && <p className="text-xs" style={{ color: RED }}>{error}</p>}
-            <button type="submit" disabled={mut.isPending}
-              className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-60 mt-1"
-              style={{ background: GREEN }}>
-              {mut.isPending ? "Saving…" : "Record Payment"}
-            </button>
+        <div className="px-5 py-5 flex flex-col gap-3">
+          <form onSubmit={e => { e.preventDefault(); mut.mutate(); }}>
+            <div className="flex flex-col gap-3">
+              {dueAmount > 0 && (
+                <div className="px-3.5 py-2.5 rounded-xl text-sm font-semibold flex justify-between"
+                  style={{ background: "#FEE2E2", color: RED }}>
+                  <span>Current Due</span>
+                  <span>{fmt(dueAmount)}</span>
+                </div>
+              )}
+              <Field label="Amount *">
+                <Input type="text" inputMode="decimal" value={f.amount}
+                  onChange={e => set("amount", e.target.value)} placeholder="0.00" autoFocus />
+              </Field>
+              <Field label="Payment Method">
+                <select value={f.method} onChange={e => set("method", e.target.value)}
+                  className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none appearance-none"
+                  style={{ borderColor: BORDER, background: BG }}>
+                  <option value="cash">Cash</option>
+                  <option value="bank">Bank Transfer</option>
+                  <option value="card">Card</option>
+                  <option value="mobile_banking">Mobile Banking</option>
+                  <option value="other">Other</option>
+                </select>
+              </Field>
+              <Field label="Date">
+                <Input type="date" value={f.date} onChange={e => set("date", e.target.value)} />
+              </Field>
+              <Field label="Notes">
+                <Input value={f.notes} onChange={e => set("notes", e.target.value)} placeholder="Optional" />
+              </Field>
+              {error && <p className="text-xs" style={{ color: RED }}>{error}</p>}
+              <button type="submit" disabled={mut.isPending}
+                className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-60 mt-1"
+                style={{ background: GREEN }}>
+                {mut.isPending ? "Saving…" : "Record Payment"}
+              </button>
+            </div>
           </form>
         </div>
       </div>
@@ -404,13 +455,14 @@ function PayNowModal({ supplierId, supplierName, dueAmount, onClose }: {
 }
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
-function StatusBadge({ status }: { status: "paid"|"partial"|"due" }) {
-  const map = {
-    paid:    { bg: "#D1FAE5", color: GREEN,  label: "Paid" },
-    partial: { bg: "#FEF3C7", color: AMBER,  label: "Partial" },
-    due:     { bg: "#FEE2E2", color: RED,    label: "Credit" },
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { bg: string; color: string; label: string }> = {
+    paid:    { bg: "#D1FAE5", color: GREEN, label: "Paid"    },
+    partial: { bg: "#FEF3C7", color: AMBER, label: "Partial" },
+    due:     { bg: "#FEE2E2", color: RED,   label: "Credit"  },
+    credit:  { bg: "#FEE2E2", color: RED,   label: "Credit"  },
   };
-  const s = map[status] ?? map.due;
+  const s = map[status] ?? map.credit;
   return (
     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
       style={{ background: s.bg, color: s.color }}>{s.label}</span>
@@ -428,28 +480,53 @@ export default function SupplierLedger() {
   const { user } = useAuth();
   const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
 
+  const isFree = !user || user.plan === "Free";
+  const userId = user?.id;
+
   const { data: supplier } = useQuery<Supplier>({
     queryKey: ["supplier", supplierId],
-    queryFn: () => fetch(`/api/suppliers/${supplierId}`, { credentials: "include" }).then(r => r.json()),
-    enabled: !!supplierId,
+    queryFn: () => {
+      // ── Free plan: find in local store ───────────────────────────────────
+      if (isFree && userId) {
+        const found = localSuppliers.getAll(userId).find(s => s.id === supplierId);
+        return Promise.resolve(found ?? null);
+      }
+      return fetch(`/api/suppliers/${supplierId}`, { credentials: "include" }).then(r => r.json());
+    },
+    enabled: !!supplierId && !!userId,
   });
 
   const { data: balance } = useQuery<Balance>({
     queryKey: ["supplier-balance", supplierId],
-    queryFn: () => fetch(`/api/supplier-purchases/balance?supplierId=${supplierId}`, { credentials: "include" }).then(r => r.json()),
-    enabled: !!supplierId,
+    queryFn: () => {
+      if (isFree && userId) {
+        return Promise.resolve(localSupplierPurchases.getBalance(userId, supplierId));
+      }
+      return fetch(`/api/supplier-purchases/balance?supplierId=${supplierId}`, { credentials: "include" }).then(r => r.json());
+    },
+    enabled: !!supplierId && !!userId,
   });
 
   const { data: purchases = [], isLoading: loadingPurchases } = useQuery<Purchase[]>({
     queryKey: ["supplier-purchases", supplierId],
-    queryFn: () => fetch(`/api/supplier-purchases?supplierId=${supplierId}`, { credentials: "include" }).then(r => r.json()),
-    enabled: !!supplierId,
+    queryFn: () => {
+      if (isFree && userId) {
+        return Promise.resolve(localSupplierPurchases.getBySupplierId(userId, supplierId) as Purchase[]);
+      }
+      return fetch(`/api/supplier-purchases?supplierId=${supplierId}`, { credentials: "include" }).then(r => r.json());
+    },
+    enabled: !!supplierId && !!userId,
   });
 
   const { data: payments = [], isLoading: loadingPayments } = useQuery<Payment[]>({
     queryKey: ["supplier-payments", supplierId],
-    queryFn: () => fetch(`/api/supplier-purchases/payments?supplierId=${supplierId}`, { credentials: "include" }).then(r => r.json()),
-    enabled: !!supplierId,
+    queryFn: () => {
+      if (isFree && userId) {
+        return Promise.resolve(localSupplierPayments.getBySupplierId(userId, supplierId) as Payment[]);
+      }
+      return fetch(`/api/supplier-purchases/payments?supplierId=${supplierId}`, { credentials: "include" }).then(r => r.json());
+    },
+    enabled: !!supplierId && !!userId,
   });
 
   const totalDue = balance?.totalDue ?? 0;
@@ -471,7 +548,7 @@ export default function SupplierLedger() {
           </div>
         </div>
 
-        {/* Balance summary cards — compact single row */}
+        {/* Balance summary cards */}
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-xl px-2 py-2 text-center" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
             <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: MUTED }}>Purchased</p>
@@ -490,7 +567,7 @@ export default function SupplierLedger() {
           </div>
         </div>
 
-        {/* Due alert + action buttons row — combined to save space */}
+        {/* Action buttons */}
         <div className="flex items-center gap-2">
           <button onClick={() => setShowAddPurchase(true)}
             className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl font-bold text-xs text-white flex-1"
@@ -504,36 +581,20 @@ export default function SupplierLedger() {
           </button>
         </div>
 
-        {/* Due alert (compact, only when due > 0) */}
-        {totalDue > 0 && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
-            style={{ background: "#FEF3C7", border: `1px solid ${AMBER}40` }}>
-            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: AMBER }} />
-            <p className="text-xs font-semibold flex-1" style={{ color: "#92400E" }}>
-              {sym}{fmt(totalDue)} still owed to {supplier?.name}
-            </p>
-            <button onClick={() => setShowPayNow(true)}
-              className="text-[10px] font-bold text-white px-2.5 py-1 rounded-lg flex-shrink-0"
-              style={{ background: GREEN }}>
-              Pay Now
-            </button>
-          </div>
-        )}
-
         {/* Tabs */}
-        <div className="flex gap-1 p-1 rounded-2xl" style={{ background: "hsl(var(--muted))" }}>
+        <div className="flex rounded-2xl p-1 gap-1" style={{ background: "hsl(var(--muted))" }}>
           {(["purchases", "payments"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all"
+              className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all capitalize"
               style={tab === t
-                ? { background: CARD, color: PRIMARY, boxShadow: "0 1px 4px rgba(0,0,0,.08)" }
+                ? { background: CARD, color: PRIMARY, boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }
                 : { color: MUTED }}>
-              {t === "purchases" ? `Purchases (${purchases.length})` : `Payments (${payments.length})`}
+              {t}
             </button>
           ))}
         </div>
 
-        {/* Purchases list */}
+        {/* Purchases tab */}
         {tab === "purchases" && (
           loadingPurchases ? (
             <div className="space-y-2">
@@ -551,24 +612,25 @@ export default function SupplierLedger() {
                 <div key={p.id} className="px-4 py-3.5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{p.productName || "Purchase"}</p>
+                      <p className="text-sm font-semibold truncate">{p.productName ?? "Purchase"}</p>
                       <p className="text-xs mt-0.5" style={{ color: MUTED }}>
                         {dateStr(p.purchaseDate ?? p.createdAt)}
                         {p.quantity ? ` · Qty: ${p.quantity}` : ""}
                       </p>
-                      {p.notes && <p className="text-xs mt-0.5 truncate" style={{ color: MUTED }}>{p.notes}</p>}
                     </div>
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <StatusBadge status={p.paymentStatus} />
+                    <div className="text-right flex-shrink-0">
                       <p className="text-sm font-bold">{sym}{fmt(p.totalAmount)}</p>
+                      <StatusBadge status={p.paymentStatus} />
                     </div>
                   </div>
                   {Number(p.dueAmount) > 0 && (
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t" style={{ borderColor: BORDER }}>
-                      <span className="text-xs" style={{ color: MUTED }}>
-                        Paid: {sym}{fmt(p.paidAmount)} &nbsp;·&nbsp; Due: <span style={{ color: RED }}>{sym}{fmt(p.dueAmount)}</span>
-                      </span>
+                    <div className="mt-1.5 flex gap-3 text-xs">
+                      <span style={{ color: GREEN }}>Paid: {sym}{fmt(p.paidAmount)}</span>
+                      <span style={{ color: RED }}>Due: {sym}{fmt(p.dueAmount)}</span>
                     </div>
+                  )}
+                  {p.notes && (
+                    <p className="text-xs mt-1" style={{ color: MUTED }}>{p.notes}</p>
                   )}
                 </div>
               ))}
@@ -576,7 +638,7 @@ export default function SupplierLedger() {
           )
         )}
 
-        {/* Payments list */}
+        {/* Payments tab */}
         {tab === "payments" && (
           loadingPayments ? (
             <div className="space-y-2">
@@ -617,6 +679,8 @@ export default function SupplierLedger() {
         <AddPurchaseModal
           supplierId={supplierId}
           supplierName={supplier.name}
+          isFree={isFree}
+          userId={userId}
           onClose={() => setShowAddPurchase(false)}
         />
       )}
@@ -625,6 +689,8 @@ export default function SupplierLedger() {
           supplierId={supplierId}
           supplierName={supplier.name}
           dueAmount={totalDue}
+          isFree={isFree}
+          userId={userId}
           onClose={() => setShowPayNow(false)}
         />
       )}

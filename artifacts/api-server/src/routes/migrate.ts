@@ -4,7 +4,7 @@
  * exported from the user's local storage and inserts them into the server database.
  */
 import { Router } from "express";
-import { db, repairsTable, inventoryTable, customersTable, ledgerAccountsTable, ledgerEntriesTable, expensesTable, suppliersTable, inventoryCategoriesTable } from "@workspace/db";
+import { db, repairsTable, inventoryTable, customersTable, ledgerAccountsTable, ledgerEntriesTable, expensesTable, suppliersTable, inventoryCategoriesTable, supplierPurchasesTable, supplierPaymentsTable } from "@workspace/db";
 
 const router = Router();
 
@@ -19,8 +19,10 @@ router.post("/migrate", async (req: any, res: any) => {
     ledger     = { accounts: [], entries: [] },
     sales      = [],
     expenses   = [],
-    suppliers  = [],
-    categories = [],
+    suppliers         = [],
+    categories        = [],
+    supplierPurchases = [],
+    supplierPayments  = [],
   } = req.body ?? {};
 
   let migratedRepairs   = 0;
@@ -30,7 +32,9 @@ router.post("/migrate", async (req: any, res: any) => {
   let migratedEntries   = 0;
   let migratedExpenses   = 0;
   let migratedSuppliers  = 0;
-  let migratedCategories = 0;
+  let migratedCategories        = 0;
+  let migratedSupplierPurchases = 0;
+  let migratedSupplierPayments  = 0;
   const errors: string[] = [];
 
   // ── Repairs ─────────────────────────────────────────────────────────────────
@@ -180,10 +184,11 @@ router.post("/migrate", async (req: any, res: any) => {
 
 
   // ── Suppliers ─────────────────────────────────────────────────────────────────
+  const supplierIdMap: Record<number, number> = {};
   for (const s of suppliers) {
     try {
-      const { id: _id, userId: _uid, ...data } = s;
-      await db.insert(suppliersTable).values({
+      const { id: oldSid, userId: _uid, ...data } = s;
+      const [supplierRow] = await db.insert(suppliersTable).values({
         userId,
         name:          String(data.name ?? 'Unknown'),
         phone:         data.phone     ?? null,
@@ -229,6 +234,60 @@ router.post("/migrate", async (req: any, res: any) => {
     }
   }
 
+
+  // ── Supplier Purchases ────────────────────────────────────────────────────────
+  const purchaseIdMap: Record<number, number> = {};
+  for (const p of supplierPurchases) {
+    try {
+      const { id: oldId, userId: _uid, supplierId: _sid, ...data } = p;
+      // Remap supplierId using supplierIdMap if available
+      const serverSupplierId = supplierIdMap?.[_sid] ?? _sid;
+      const [row] = await db.insert(supplierPurchasesTable).values({
+        userId,
+        supplierId:    serverSupplierId,
+        supplierName:  data.supplierName  ?? null,
+        inventoryId:   data.inventoryId   ?? null,
+        productName:   data.productName   ?? null,
+        quantity:      Number(data.quantity ?? 1),
+        totalAmount:   String(data.totalAmount ?? '0'),
+        paidAmount:    String(data.paidAmount  ?? '0'),
+        dueAmount:     String(data.dueAmount   ?? '0'),
+        paymentStatus: data.paymentStatus  ?? 'credit',
+        purchaseDate:  data.purchaseDate   ?? new Date().toISOString().split('T')[0],
+        invoiceNumber: data.invoiceNumber  ?? null,
+        notes:         data.notes          ?? null,
+        createdAt:     data.createdAt  ? new Date(data.createdAt) : new Date(),
+        updatedAt:     new Date(),
+      }).returning();
+      if (row?.id && oldId !== undefined) purchaseIdMap[oldId] = row.id;
+      migratedSupplierPurchases++;
+    } catch (err: any) {
+      errors.push(`SupplierPurchase: ${err.message}`);
+    }
+  }
+
+  // ── Supplier Payments ─────────────────────────────────────────────────────────
+  for (const p of supplierPayments) {
+    try {
+      const { id: _id, userId: _uid, supplierId: _sid, ...data } = p;
+      const serverSupplierId = supplierIdMap?.[_sid] ?? _sid;
+      await db.insert(supplierPaymentsTable).values({
+        userId,
+        supplierId:    serverSupplierId,
+        supplierName:  data.supplierName  ?? null,
+        purchaseId:    data.purchaseId ? (purchaseIdMap[data.purchaseId] ?? null) : null,
+        amount:        String(data.amount ?? '0'),
+        paymentMethod: data.paymentMethod ?? 'cash',
+        date:          data.date ?? new Date().toISOString().split('T')[0],
+        notes:         data.notes ?? null,
+        createdAt:     data.createdAt ? new Date(data.createdAt) : new Date(),
+      });
+      migratedSupplierPayments++;
+    } catch (err: any) {
+      errors.push(`SupplierPayment: ${err.message}`);
+    }
+  }
+
   // ── Sales / Invoices — logged but not migrated (complex schema with items) ───
   const skippedSales = Array.isArray(sales) ? sales.length : 0;
 
@@ -242,6 +301,8 @@ router.post("/migrate", async (req: any, res: any) => {
     migratedExpenses,
     migratedSuppliers,
     migratedCategories,
+    migratedSupplierPurchases,
+    migratedSupplierPayments,
     ...(skippedSales > 0 && { note: `${skippedSales} local invoices were not migrated (POS invoices require manual entry on Pro)` }),
     ...(errors.length > 0 && { warnings: errors }),
   });

@@ -334,8 +334,10 @@ export function exportAllLocalData(uid: number): object {
     ledger:      localLedger.exportAll(uid),
     sales:       localSales.exportAll(uid),
     expenses:    localExpenses.exportAll(uid),
-    suppliers:   localSuppliers.exportAll(uid),
-    categories:  localCategories.exportAll(uid),
+    suppliers:          localSuppliers.exportAll(uid),
+    categories:         localCategories.exportAll(uid),
+    supplierPurchases:  localSupplierPurchases.exportAll(uid),
+    supplierPayments:   localSupplierPayments.exportAll(uid),
   };
 }
 
@@ -363,7 +365,9 @@ export function hasAnyLocalData(uid: number): boolean {
     localSales.hasData(uid) ||
     localExpenses.hasData(uid) ||
     localSuppliers.hasData(uid) ||
-    localCategories.hasData(uid)
+    localCategories.hasData(uid) ||
+    localSupplierPurchases.hasData(uid) ||
+    localSupplierPayments.hasData(uid)
   );
 }
 
@@ -448,4 +452,95 @@ export const localCategories = {
   exportAll(uid: number): LocalCategory[] { return read<LocalCategory>(catKey(uid)); },
   clear(uid: number) { localStorage.removeItem(catKey(uid)); },
   hasData(uid: number): boolean { return read<LocalCategory>(catKey(uid)).length > 0; },
+};
+
+// ── Supplier Purchases ────────────────────────────────────────────────────────
+const spKey  = (uid: number) => `cf_sp_${uid}`;
+const spmKey = (uid: number) => `cf_spm_${uid}`;
+
+type LocalSupplierPurchase = {
+  id: number; userId: number; supplierId: number; supplierName?: string | null;
+  inventoryId?: number | null; productName?: string | null;
+  quantity: number; totalAmount: string; paidAmount: string; dueAmount: string;
+  paymentStatus: "paid" | "partial" | "credit";
+  purchaseDate: string; invoiceNumber?: string | null; notes?: string | null;
+  createdAt: string; updatedAt: string;
+};
+
+export const localSupplierPurchases = {
+  getAll(uid: number): LocalSupplierPurchase[] { return read<LocalSupplierPurchase>(spKey(uid)); },
+  getBySupplierId(uid: number, supplierId: number): LocalSupplierPurchase[] {
+    return read<LocalSupplierPurchase>(spKey(uid)).filter(p => p.supplierId === supplierId);
+  },
+  create(uid: number, data: Omit<LocalSupplierPurchase, "id" | "userId" | "createdAt" | "updatedAt">): LocalSupplierPurchase {
+    const items = read<LocalSupplierPurchase>(spKey(uid));
+    const item: LocalSupplierPurchase = { ...data as any, id: genLocalId(), userId: uid, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    items.unshift(item);
+    write(spKey(uid), items);
+    return item;
+  },
+  updateById(uid: number, id: number, patch: Partial<LocalSupplierPurchase>) {
+    const items = read<LocalSupplierPurchase>(spKey(uid));
+    const idx = items.findIndex(i => i.id === id);
+    if (idx !== -1) { items[idx] = { ...items[idx], ...patch, updatedAt: new Date().toISOString() }; write(spKey(uid), items); }
+  },
+  getBalance(uid: number, supplierId: number) {
+    const ps = read<LocalSupplierPurchase>(spKey(uid)).filter(p => p.supplierId === supplierId);
+    return {
+      totalPurchased: ps.reduce((s, p) => s + Number(p.totalAmount), 0),
+      totalPaid:      ps.reduce((s, p) => s + Number(p.paidAmount),  0),
+      totalDue:       ps.reduce((s, p) => s + Number(p.dueAmount),   0),
+      purchaseCount:  ps.length,
+    };
+  },
+  getAllBalances(uid: number): { supplierId: number; totalDue: number }[] {
+    const map: Record<number, number> = {};
+    for (const p of read<LocalSupplierPurchase>(spKey(uid))) {
+      map[p.supplierId] = (map[p.supplierId] ?? 0) + Number(p.dueAmount);
+    }
+    return Object.entries(map).map(([sid, due]) => ({ supplierId: Number(sid), totalDue: due }));
+  },
+  /** Apply a payment across unpaid purchases for a supplier (FIFO) */
+  applyPayment(uid: number, supplierId: number, payAmt: number) {
+    const items = read<LocalSupplierPurchase>(spKey(uid));
+    let remaining = payAmt;
+    for (const p of items) {
+      if (p.supplierId !== supplierId || remaining <= 0) continue;
+      const due = Number(p.dueAmount);
+      if (due <= 0) continue;
+      const apply = Math.min(remaining, due);
+      p.paidAmount = String(Number(p.paidAmount) + apply);
+      p.dueAmount  = String(due - apply);
+      p.paymentStatus = Number(p.dueAmount) <= 0 ? "paid" : "partial";
+      p.updatedAt = new Date().toISOString();
+      remaining -= apply;
+    }
+    write(spKey(uid), items);
+  },
+  exportAll(uid: number): LocalSupplierPurchase[] { return read<LocalSupplierPurchase>(spKey(uid)); },
+  clear(uid: number) { localStorage.removeItem(spKey(uid)); },
+  hasData(uid: number): boolean { return read<LocalSupplierPurchase>(spKey(uid)).length > 0; },
+};
+
+// ── Supplier Payments ─────────────────────────────────────────────────────────
+type LocalSupplierPayment = {
+  id: number; userId: number; supplierId: number; supplierName?: string | null;
+  amount: string; paymentMethod: string; date: string; notes?: string | null; createdAt: string;
+};
+
+export const localSupplierPayments = {
+  getAll(uid: number): LocalSupplierPayment[] { return read<LocalSupplierPayment>(spmKey(uid)); },
+  getBySupplierId(uid: number, supplierId: number): LocalSupplierPayment[] {
+    return read<LocalSupplierPayment>(spmKey(uid)).filter(p => p.supplierId === supplierId);
+  },
+  create(uid: number, data: Omit<LocalSupplierPayment, "id" | "userId" | "createdAt">): LocalSupplierPayment {
+    const items = read<LocalSupplierPayment>(spmKey(uid));
+    const item: LocalSupplierPayment = { ...data as any, id: genLocalId(), userId: uid, createdAt: new Date().toISOString() };
+    items.unshift(item);
+    write(spmKey(uid), items);
+    return item;
+  },
+  exportAll(uid: number): LocalSupplierPayment[] { return read<LocalSupplierPayment>(spmKey(uid)); },
+  clear(uid: number) { localStorage.removeItem(spmKey(uid)); },
+  hasData(uid: number): boolean { return read<LocalSupplierPayment>(spmKey(uid)).length > 0; },
 };
