@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm } from "node:fs/promises";
+import { rm, copyFile } from "node:fs/promises";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -22,6 +22,8 @@ async function buildAll() {
     outdir: distDir,
     outExtension: { ".js": ".mjs" },
     logLevel: "info",
+    // connect-pg-simple reads table.sql at runtime via fs.readFile — esbuild
+    // cannot bundle it, so we copy it to dist/ after the build (see below).
     // Some packages may not be bundleable, so we externalize them, we can add more here as needed.
     // Some of the packages below may not be imported or installed, but we're adding them in case they are in the future.
     // Examples of unbundleable packages:
@@ -118,6 +120,16 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  // connect-pg-simple reads table.sql at runtime via fs.readFile.
+  // esbuild cannot bundle static assets, so we copy it from node_modules to dist/.
+  // Without this file, the session store fails to initialise → users get 401 on every refresh.
+  const req = createRequire(import.meta.url);
+  const pgSimpleDir = path.dirname(req.resolve("connect-pg-simple"));
+  const tableSqlSrc = path.join(pgSimpleDir, "table.sql");
+  const tableSqlDst = path.join(distDir, "table.sql");
+  await copyFile(tableSqlSrc, tableSqlDst);
+  console.log(`Copied table.sql → dist/table.sql`);
 }
 
 buildAll().catch((err) => {

@@ -26,6 +26,9 @@ pnpm --filter @workspace/db run migrate || echo "⚠ DB migration failed — ski
 
 echo "=== [4/6] Build API server ==="
 pnpm --filter @workspace/api-server run build
+# build.mjs already copies table.sql → dist/; this is a safety fallback
+TABLE_SQL=$(find node_modules -name "table.sql" -path "*/connect-pg-simple/*" 2>/dev/null | head -1)
+[ -n "$TABLE_SQL" ] && cp "$TABLE_SQL" artifacts/api-server/dist/table.sql && echo "table.sql copied ✓"
 
 echo "=== [5/6] Build Admin Panel + Web ==="
 BASE_PATH=/admin/ PORT=1 pnpm --filter @workspace/admin-panel run build
