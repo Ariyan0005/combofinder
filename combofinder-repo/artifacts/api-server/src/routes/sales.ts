@@ -181,6 +181,7 @@ router.post("/", async (req, res) => {
         lineItems.push({ inventoryId: it.inventoryId, partName: updated.partName, quantity: it.quantity, unitPrice: it.unitPrice, total: lineTotal });
 
         await tx.insert(stockMovementsTable).values({
+          userId: saleUserId,
           inventoryId: it.inventoryId, type: "sale", quantity: it.quantity,
           unitPrice: String(it.unitPrice), totalPrice: String(lineTotal),
           reference: "POS sale",
@@ -220,6 +221,7 @@ router.post("/", async (req, res) => {
 
       // For Credit sales, only record the advance actually collected; the remainder is receivable
       await tx.insert(transactionsTable).values({
+        userId: saleUserId,
         type: "Income", category: "Sale", amount: String(round2(effectiveAdvance)),
         description: paymentMethod === "Credit" && effectiveAdvance < total
           ? `POS sale ${invoiceNumber} (advance ${effectiveAdvance}/${total})`
@@ -293,6 +295,7 @@ router.post("/customers/:customerId/payment", async (req, res) => {
       }
 
       await tx.insert(transactionsTable).values({
+        userId,
         type: "Income", category: "Sale",
         amount: String(appliedTotal),
         description: `Payment received against credit due (customer #${customerId})${notes ? ` — ${notes}` : ""}`,
@@ -327,13 +330,16 @@ router.post("/customers/:customerId/payment", async (req, res) => {
 router.post("/:id/return", async (req, res) => {
   try {
     const saleId = Number(req.params.id);
+    const userId: number = (req as any).userId; // guaranteed by router-level middleware
     const rawItems = req.body.items;
     if (!Array.isArray(rawItems) || rawItems.length === 0)
       throw new Error("At least one item to return is required");
     const reason = req.body.reason ? String(req.body.reason).slice(0, 500) : null;
 
     const result = await db.transaction(async (tx) => {
-      const [sale] = await tx.select().from(salesTable).where(eq(salesTable.id, saleId));
+      // Ownership check: ensure the sale belongs to the current user (prevents IDOR)
+      const [sale] = await tx.select().from(salesTable)
+        .where(and(eq(salesTable.id, saleId), eq(salesTable.userId, userId)));
       if (!sale) throw Object.assign(new Error("Sale not found"), { status: 404 });
 
       let refundTotal = 0;
@@ -368,6 +374,7 @@ router.post("/:id/return", async (req, res) => {
             .where(eq(inventoryTable.id, saleItem.inventoryId));
 
           await tx.insert(stockMovementsTable).values({
+            userId,
             inventoryId: saleItem.inventoryId, type: "in", quantity,
             unitPrice: saleItem.unitPrice, totalPrice: String(refundAmount),
             reference: `Return - ${sale.invoiceNumber}`, notes: reason,
@@ -390,6 +397,7 @@ router.post("/:id/return", async (req, res) => {
         .where(eq(salesTable.id, saleId)).returning();
 
       await tx.insert(transactionsTable).values({
+        userId,
         type: "Refund", category: "Sale", amount: String(refundTotal),
         description: `Return for ${sale.invoiceNumber}`, relatedId: String(saleId), relatedType: "sale",
         paymentMethod: sale.paymentMethod, status: "Refunded", date, notes: reason,

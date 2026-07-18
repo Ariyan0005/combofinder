@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, stockMovementsTable, inventoryTable } from "@workspace/db";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 
 const router = Router();
 
@@ -12,19 +12,50 @@ function requireInt(v: unknown, name: string, min = 1): number {
 }
 
 // GET /api/stock-movements?inventoryId=X&limit=50
+// Only returns movements for inventory items owned by the current user.
 router.get("/", async (req, res) => {
   try {
+    const userId: number = (req as any).userId;
     const invId = req.query.inventoryId ? requireInt(req.query.inventoryId, "inventoryId") : null;
     const limit = req.query.limit ? Math.min(Math.max(requireInt(req.query.limit, "limit", 1), 1), 200) : 50;
 
-    const rows = invId
-      ? await db.select().from(stockMovementsTable)
-          .where(eq(stockMovementsTable.inventoryId, invId))
-          .orderBy(desc(stockMovementsTable.createdAt))
-          .limit(limit)
-      : await db.select().from(stockMovementsTable)
-          .orderBy(desc(stockMovementsTable.createdAt))
-          .limit(limit);
+    if (invId) {
+      // Verify this inventory item belongs to the current user
+      const [inv] = await db.select({ id: inventoryTable.id })
+        .from(inventoryTable)
+        .where(and(eq(inventoryTable.id, invId), eq(inventoryTable.userId, userId)));
+      if (!inv) return res.status(404).json({ error: "Inventory item not found" });
+
+      const rows = await db.select().from(stockMovementsTable)
+        .where(eq(stockMovementsTable.inventoryId, invId))
+        .orderBy(desc(stockMovementsTable.createdAt))
+        .limit(limit);
+      return res.json(rows);
+    }
+
+    // No inventoryId: return movements for all of this user's inventory items
+    // Join with inventory table to enforce ownership
+    const rows = await db.select({
+      id: stockMovementsTable.id,
+      userId: stockMovementsTable.userId,
+      inventoryId: stockMovementsTable.inventoryId,
+      type: stockMovementsTable.type,
+      quantity: stockMovementsTable.quantity,
+      supplierId: stockMovementsTable.supplierId,
+      supplierName: stockMovementsTable.supplierName,
+      unitPrice: stockMovementsTable.unitPrice,
+      totalPrice: stockMovementsTable.totalPrice,
+      notes: stockMovementsTable.notes,
+      reference: stockMovementsTable.reference,
+      createdAt: stockMovementsTable.createdAt,
+    })
+      .from(stockMovementsTable)
+      .innerJoin(inventoryTable, and(
+        eq(stockMovementsTable.inventoryId, inventoryTable.id),
+        eq(inventoryTable.userId, userId),
+      ))
+      .orderBy(desc(stockMovementsTable.createdAt))
+      .limit(limit);
 
     res.json(rows);
   } catch (err: any) {
@@ -36,6 +67,8 @@ router.get("/", async (req, res) => {
 // POST /api/stock-movements — atomically update inventory qty + insert movement record
 router.post("/", async (req, res) => {
   try {
+    const userId: number = (req as any).userId;
+
     // ── Validate inputs ────────────────────────────────────────────────────────
     const inventoryId = requireInt(req.body.inventoryId, "inventoryId");
     const { type, notes, reference } = req.body;
@@ -54,6 +87,7 @@ router.post("/", async (req, res) => {
 
     const result = await db.transaction(async (tx) => {
       // Update inventory quantity — only succeed if result stays >= 0
+      // AND the inventory item belongs to the current user (ownership check)
       const [updated] = await tx
         .update(inventoryTable)
         .set({
@@ -62,26 +96,26 @@ router.post("/", async (req, res) => {
           ...(type === "in" && supplierName ? { supplier: supplierName } : {}),
         })
         .where(
-          // For outgoing movements enforce quantity >= amount being removed
           type === "in"
-            ? eq(inventoryTable.id, inventoryId)
-            : sql`${inventoryTable.id} = ${inventoryId} AND ${inventoryTable.quantity} >= ${quantity}`
+            ? and(eq(inventoryTable.id, inventoryId), eq(inventoryTable.userId, userId))
+            : and(eq(inventoryTable.id, inventoryId), eq(inventoryTable.userId, userId), sql`${inventoryTable.quantity} >= ${quantity}`)
         )
         .returning();
 
       if (!updated) {
-        // Rolled back automatically by transaction — tell caller why
-        const [current] = await tx.select({ q: inventoryTable.quantity })
+        const [current] = await tx.select({ q: inventoryTable.quantity, uid: inventoryTable.userId })
           .from(inventoryTable).where(eq(inventoryTable.id, inventoryId));
         if (!current) throw Object.assign(new Error("Inventory item not found"), { status: 404 });
+        if (current.uid !== userId) throw Object.assign(new Error("Inventory item not found"), { status: 404 });
         throw Object.assign(
           new Error(`Not enough stock (available: ${current.q}, requested: ${quantity})`),
           { status: 400 }
         );
       }
 
-      // Insert movement ledger record
+      // Insert movement ledger record — include userId for future scoping
       const [movement] = await tx.insert(stockMovementsTable).values({
+        userId,
         inventoryId, type, quantity, supplierId, supplierName,
         unitPrice, totalPrice,
         notes: notes ? String(notes).slice(0, 500) : null,

@@ -39,7 +39,7 @@ const router: IRouter = Router();
 router.use(healthRouter);
 router.use(authRouter);
 
-// Requires auth for write operations (mutations)
+// Requires auth for write operations (mutations); GET is still open for public/shared data routes
 function requireAuth(req: any, res: any, next: any) {
   if (req.method === "GET") return next();
   if (req.session?.authenticated) {
@@ -56,6 +56,20 @@ function requireUserAuth(req: any, res: any, next: any) {
   if (req.session?.authenticated && req.session?.userId) {
     req.userId = req.session.userId;
     next();
+  } else {
+    res.status(401).json({ error: "Unauthorized" });
+  }
+}
+
+// Admin-only routes — requires authenticated session with Admin role.
+// Admin sessions have userRole:"Admin" but no userId (they are not regular users).
+// This is intentionally separate from requireUserAuth so admin can manage users/subscriptions
+// without being treated as a regular user.
+function requireAdminAuth(req: any, res: any, next: any) {
+  if (req.session?.authenticated && req.session?.userRole === "Admin") {
+    next();
+  } else if (req.session?.authenticated) {
+    res.status(403).json({ error: "Forbidden: admin access required" });
   } else {
     res.status(401).json({ error: "Unauthorized" });
   }
@@ -94,10 +108,11 @@ router.use("/sales", requireUserAuth, salesRouter);
 router.use("/ledger", requireUserAuth, ledgerRouter);
 router.use("/supplier-purchases", requireUserAuth, supplierPurchasesRouter);
 
-router.use("/users", usersRouter);
-router.use("/subscriptions", subscriptionsRouter);
-router.use("/documents", documentsRouter);
+// Admin-only: user management, subscription management, documents, backup
+router.use("/users", requireAdminAuth, usersRouter);
+router.use("/subscriptions", requireAdminAuth, subscriptionsRouter);
+router.use("/documents", requireAdminAuth, documentsRouter);
 router.use(requireUserAuth, migrateRouter);
-router.use("/backup", requireUserAuth, backupRouter);
+router.use("/backup", requireAdminAuth, backupRouter);
 
 export default router;

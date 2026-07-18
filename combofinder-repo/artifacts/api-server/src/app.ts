@@ -33,15 +33,35 @@ app.use(
   }),
 );
 
-app.use(cors({ origin: true, credentials: true }));
+// CORS — explicit allowlist in production, permissive in dev
+const CORS_ORIGINS = (process.env["CORS_ORIGINS"] ?? "")
+  .split(",").map(s => s.trim()).filter(Boolean);
+const HARDCODED_ORIGINS = ["https://finder.iunlockd.com", "https://admin.iunlockd.com"];
+const ALLOWED_ORIGINS = [...new Set([...HARDCODED_ORIGINS, ...CORS_ORIGINS])];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // mobile apps / curl
+    if (!isProd) return callback(null, true); // dev: allow all
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS: origin '${origin}' not allowed`));
+  },
+  credentials: true,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const isProd = process.env.NODE_ENV === "production";
 
+// Fail fast in production if session secret not set
+if (isProd && !process.env["SESSION_SECRET"]) {
+  logger.error("FATAL: SESSION_SECRET environment variable must be set in production");
+  process.exit(1);
+}
+
 app.use(
   session({
-    secret: process.env["SESSION_SECRET"] ?? "combofinder-secret",
+    secret: process.env["SESSION_SECRET"] ?? "combofinder-dev-secret-not-for-prod",
     resave: false,
     saveUninitialized: false,
     // Persist sessions in PostgreSQL so they survive server restarts.
@@ -72,11 +92,14 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const status: number =
     typeof err.status === "number" ? err.status :
     typeof err.statusCode === "number" ? err.statusCode : 500;
-  const cause = (err.cause as any)?.message ?? (err.cause as any)?.detail ?? "";
-  const message: string = cause
-    ? `${err.message ?? "Internal server error"} — DB: ${cause}`
-    : (err.message ?? "Internal server error");
   logger.error({ err }, "Unhandled error");
+  // Never expose internal DB details or stack traces to clients in production
+  const message: string = isProd
+    ? (status < 500 ? (err.message ?? "Bad request") : "Internal server error")
+    : (() => {
+        const cause = (err.cause as any)?.message ?? (err.cause as any)?.detail ?? "";
+        return cause ? `${err.message ?? "Internal server error"} — DB: ${cause}` : (err.message ?? "Internal server error");
+      })();
   res.status(status).json({ error: message });
 });
 

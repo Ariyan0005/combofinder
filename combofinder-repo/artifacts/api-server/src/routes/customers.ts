@@ -148,7 +148,14 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
-    const [row] = await db.update(customersTable).set(req.body)
+    const b = req.body;
+    // Whitelist updatable fields — never allow userId reassignment
+    const updates: Record<string, any> = {};
+    if (b.name !== undefined)     updates.name = String(b.name).slice(0, 200);
+    if (b.phone !== undefined)    updates.phone = String(b.phone).slice(0, 50);
+    if (b.whatsapp !== undefined) updates.whatsapp = b.whatsapp ? String(b.whatsapp).slice(0, 50) : null;
+    if (b.notes !== undefined)    updates.notes = b.notes ? String(b.notes).slice(0, 500) : null;
+    const [row] = await db.update(customersTable).set(updates)
       .where(and(eq(customersTable.id, Number(req.params.id)), eq(customersTable.userId, userId)))
       .returning();
     if (!row) return res.status(404).json({ error: "Not found" });

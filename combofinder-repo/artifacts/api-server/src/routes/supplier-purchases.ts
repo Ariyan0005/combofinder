@@ -132,6 +132,7 @@ router.post("/", async (req, res) => {
 
         // Insert stock movement record
         const [movement] = await tx.insert(stockMovementsTable).values({
+          userId,
           inventoryId: Number(inventoryId),
           type: "in",
           quantity: qty,
@@ -242,6 +243,7 @@ router.post("/invoice", async (req, res) => {
 
           if (updatedItem) {
             const [movement] = await tx.insert(stockMovementsTable).values({
+              userId,
               inventoryId: Number(line.inventoryId),
               type: "in",
               quantity: line.qty,
