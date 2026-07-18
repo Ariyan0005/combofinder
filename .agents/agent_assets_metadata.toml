@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "noFZNGjFiwmgpoC7VQfzJ"
+uri = "file://attached_assets/iunlockd-logo.jpg"
+type = "image"
+title = "iunlockd.com Logo — Google OAuth-এ আপলোড করুন"
