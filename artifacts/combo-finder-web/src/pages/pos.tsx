@@ -56,6 +56,7 @@ function CustomerPicker({
 }) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [selectedFromDb, setSelectedFromDb] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -79,6 +80,7 @@ function CustomerPicker({
     onCustomerId(c.id);
     setSearch("");
     setOpen(false);
+    setSelectedFromDb(true);
   }
 
   return (
@@ -167,11 +169,12 @@ function CustomerPicker({
                 <p className="text-xs font-semibold">{customerName}</p>
                 {customerPhone && <p className="text-[10px]" style={{ color: MUTED }}>{customerPhone}</p>}
               </div>
-              <button type="button" onClick={() => { onCustomerName(""); onCustomerPhone(""); setSearch(""); }}
+              <button type="button" onClick={() => { onCustomerName(""); onCustomerPhone(""); onCustomerId(null); setSearch(""); setSelectedFromDb(false); }}
                 style={{ color: MUTED }}><X className="w-3.5 h-3.5" /></button>
             </div>
           )}
-          {customerName && (
+          {/* phone input only when typing a new/manual customer, not after DB pick */}
+          {customerName && !selectedFromDb && (
             <input value={customerPhone}
               onChange={e => onCustomerPhone(e.target.value)}
               placeholder="Phone (optional)"
@@ -417,29 +420,29 @@ function CartContents({
             </div>
           </div>
 
-          {/* Credit advance */}
+          {/* Credit advance — compact */}
           {paymentMethod === "Credit" && (
-            <div className="space-y-3 p-3 rounded-xl"
+            <div className="rounded-xl px-3 py-2 space-y-2"
               style={{ background: "#FFF7E6", border: "1px solid #F59E0B60" }}>
-              <p className="text-xs font-bold" style={{ color: "#D97706" }}>Credit Sale</p>
-              <div>
-                <label className="text-[11px] font-semibold block mb-1" style={{ color: "#92400E" }}>
-                  Advance Payment ({sym}) — optional
+              {/* Advance row */}
+              <div className="flex items-center gap-2">
+                <label className="text-[10px] font-semibold flex-shrink-0 whitespace-nowrap" style={{ color: "#92400E" }}>
+                  Advance ({sym})
                 </label>
                 <input type="number" min="0" max={total} value={advancePay}
                   onChange={e => setAdvancePay(e.target.value)} placeholder="0"
-                  className="w-full px-3 py-2 rounded-lg border text-sm font-semibold outline-none"
+                  className="flex-1 px-2 py-1 rounded-lg border text-xs font-semibold outline-none min-w-0"
                   style={{ borderColor: "#F59E0B", background: "#fff" }} />
+                {advancePayNum > 0 && (
+                  <span className="text-xs font-bold flex-shrink-0" style={{ color: "#059669" }}>
+                    {sym}{advancePayNum.toLocaleString()}
+                  </span>
+                )}
               </div>
-              {advancePayNum > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold" style={{ color: "#92400E" }}>Advance Collected</span>
-                  <span className="text-sm font-bold" style={{ color: "#059669" }}>{sym}{advancePayNum.toLocaleString()}</span>
-                </div>
-              )}
-              <div className="flex items-center justify-between border-t pt-2" style={{ borderColor: "#F59E0B60" }}>
-                <span className="text-sm font-bold" style={{ color: "#D97706" }}>Amount Due</span>
-                <span className="text-lg font-black" style={{ color: "#DC2626" }}>{sym}{amountDue.toLocaleString()}</span>
+              {/* Amount due row */}
+              <div className="flex items-center justify-between border-t pt-1.5" style={{ borderColor: "#F59E0B60" }}>
+                <span className="text-xs font-bold" style={{ color: "#D97706" }}>Amount Due</span>
+                <span className="text-sm font-black" style={{ color: "#DC2626" }}>{sym}{amountDue.toLocaleString()}</span>
               </div>
             </div>
           )}
