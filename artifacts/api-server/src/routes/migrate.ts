@@ -4,7 +4,7 @@
  * exported from the user's local storage and inserts them into the server database.
  */
 import { Router } from "express";
-import { db, repairsTable, inventoryTable, customersTable, ledgerAccountsTable, ledgerEntriesTable, expensesTable } from "@workspace/db";
+import { db, repairsTable, inventoryTable, customersTable, ledgerAccountsTable, ledgerEntriesTable, expensesTable, suppliersTable, inventoryCategoriesTable } from "@workspace/db";
 
 const router = Router();
 
@@ -13,12 +13,14 @@ router.post("/migrate", async (req: any, res: any) => {
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
   const {
-    repairs   = [],
-    inventory = [],
-    customers = [],
-    ledger    = { accounts: [], entries: [] },
-    sales     = [],
-    expenses  = [],
+    repairs    = [],
+    inventory  = [],
+    customers  = [],
+    ledger     = { accounts: [], entries: [] },
+    sales      = [],
+    expenses   = [],
+    suppliers  = [],
+    categories = [],
   } = req.body ?? {};
 
   let migratedRepairs   = 0;
@@ -26,7 +28,9 @@ router.post("/migrate", async (req: any, res: any) => {
   let migratedCustomers = 0;
   let migratedAccounts  = 0;
   let migratedEntries   = 0;
-  let migratedExpenses  = 0;
+  let migratedExpenses   = 0;
+  let migratedSuppliers  = 0;
+  let migratedCategories = 0;
   const errors: string[] = [];
 
   // ── Repairs ─────────────────────────────────────────────────────────────────
@@ -174,6 +178,57 @@ router.post("/migrate", async (req: any, res: any) => {
     }
   }
 
+
+  // ── Suppliers ─────────────────────────────────────────────────────────────────
+  for (const s of suppliers) {
+    try {
+      const { id: _id, userId: _uid, ...data } = s;
+      await db.insert(suppliersTable).values({
+        userId,
+        name:          String(data.name ?? 'Unknown'),
+        phone:         data.phone     ?? null,
+        whatsapp:      data.whatsapp  ?? null,
+        partTypes:     data.partTypes ?? null,
+        notes:         data.notes     ?? null,
+        isActive:      Boolean(data.isActive ?? true),
+        createdAt:     data.createdAt ? new Date(data.createdAt) : new Date(),
+        updatedAt:     new Date(),
+      });
+      migratedSuppliers++;
+    } catch (err: any) {
+      errors.push(`Supplier: ${err.message}`);
+    }
+  }
+
+  // ── Inventory Categories ───────────────────────────────────────────────────────
+  // Build a map of old local category IDs → new server category IDs (for parentId remapping)
+  const categoryIdMap: Record<number, number> = {};
+  // Process parent categories first (parentId === null/undefined), then children
+  const sortedCategories = [...categories].sort((a: any, b: any) => {
+    if (!a.parentId && b.parentId) return -1;
+    if (a.parentId && !b.parentId) return 1;
+    return 0;
+  });
+  for (const cat of sortedCategories) {
+    try {
+      const { id: oldId, userId: _uid, ...data } = cat;
+      const serverParentId = data.parentId ? (categoryIdMap[data.parentId] ?? null) : null;
+      const [row] = await db.insert(inventoryCategoriesTable).values({
+        userId,
+        name:        String(data.name ?? 'Unknown'),
+        description: data.description ?? null,
+        parentId:    serverParentId,
+        icon:        data.icon  ?? null,
+        color:       data.color ?? null,
+        createdAt:   data.createdAt ? new Date(data.createdAt) : new Date(),
+      }).returning();
+      if (row?.id && oldId !== undefined) categoryIdMap[oldId] = row.id;
+      migratedCategories++;
+    } catch (err: any) {
+      errors.push(`Category: ${err.message}`);
+    }
+  }
+
   // ── Sales / Invoices — logged but not migrated (complex schema with items) ───
   const skippedSales = Array.isArray(sales) ? sales.length : 0;
 
@@ -185,6 +240,8 @@ router.post("/migrate", async (req: any, res: any) => {
     migratedAccounts,
     migratedEntries,
     migratedExpenses,
+    migratedSuppliers,
+    migratedCategories,
     ...(skippedSales > 0 && { note: `${skippedSales} local invoices were not migrated (POS invoices require manual entry on Pro)` }),
     ...(errors.length > 0 && { warnings: errors }),
   });

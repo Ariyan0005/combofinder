@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/context/auth-context";
+import { localSuppliers } from "@/lib/local-store";
 
 const PRIMARY = "hsl(var(--primary))";
 const MUTED = "hsl(var(--muted-foreground))";
@@ -50,7 +51,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 // ─── Supplier Form Modal ──────────────────────────────────────────────────────
-function SupplierFormModal({ onClose, existing }: { onClose: () => void; existing?: Supplier }) {
+function SupplierFormModal({
+  onClose, existing, isFree, userId,
+}: {
+  onClose: () => void;
+  existing?: Supplier;
+  isFree: boolean;
+  userId?: number;
+}) {
   const qc = useQueryClient();
   const [f, setF] = useState({
     name: existing?.name ?? "",
@@ -64,19 +72,31 @@ function SupplierFormModal({ onClose, existing }: { onClose: () => void; existin
 
   const mut = useMutation({
     mutationFn: async () => {
+      const payload = {
+        name: f.name.trim(),
+        phone: f.phone || null,
+        whatsapp: f.whatsapp || null,
+        partTypes: f.partTypes || null,
+        notes: f.notes || null,
+      };
+
+      // ── Free plan: local storage ───────────────────────────────────────────
+      if (isFree && userId) {
+        if (existing) {
+          return localSuppliers.update(userId, existing.id, payload);
+        } else {
+          return localSuppliers.create(userId, payload);
+        }
+      }
+
+      // ── Pro plan: server ───────────────────────────────────────────────────
       const isEdit = !!existing;
       const url = isEdit ? `/api/suppliers/${existing!.id}` : "/api/suppliers";
       const res = await fetch(url, {
         method: isEdit ? "PUT" : "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: f.name.trim(),
-          phone: f.phone || null,
-          whatsapp: f.whatsapp || null,
-          partTypes: f.partTypes || null,
-          notes: f.notes || null,
-        }),
+        body: JSON.stringify(payload),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error ?? "Failed");
@@ -145,6 +165,9 @@ export default function ManageSuppliers() {
   const { user, isGuest } = useAuth();
   const qc = useQueryClient();
 
+  const isFree = !user || user.plan === "Free";
+  const userId = user?.id;
+
   const [showForm, setShowForm] = useState(false);
   const [editSupplier, setEditSupplier] = useState<Supplier | undefined>();
   const [searchQ, setSearchQ] = useState("");
@@ -152,6 +175,11 @@ export default function ManageSuppliers() {
   const { data: suppliers = [], isLoading } = useQuery<Supplier[]>({
     queryKey: ["suppliers"],
     queryFn: async () => {
+      // ── Free plan: local storage ─────────────────────────────────────────
+      if (isFree && userId) {
+        return localSuppliers.getAll(userId) as Supplier[];
+      }
+      // ── Pro plan: server ─────────────────────────────────────────────────
       const d = await fetch("/api/suppliers", { credentials: "include" }).then(r => r.json());
       return Array.isArray(d) ? d : [];
     },
@@ -161,17 +189,25 @@ export default function ManageSuppliers() {
   const { data: balances = [] } = useQuery<SupplierBalance[]>({
     queryKey: ["suppliers-balances"],
     queryFn: async () => {
+      if (isFree) return []; // local suppliers have no server-side balance
       const d = await fetch("/api/supplier-purchases/balances", { credentials: "include" }).then(r => r.json());
       return Array.isArray(d) ? d : [];
     },
-    enabled: !isGuest && !!user,
+    enabled: !isGuest && !!user && !isFree,
   });
 
   const balanceMap = Object.fromEntries(balances.map(b => [b.supplierId, b.totalDue]));
 
   const deleteMut = useMutation({
-    mutationFn: (id: number) =>
-      fetch(`/api/suppliers/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
+    mutationFn: (id: number) => {
+      // ── Free plan: local storage ─────────────────────────────────────────
+      if (isFree && userId) {
+        localSuppliers.delete(userId, id);
+        return Promise.resolve({ success: true });
+      }
+      // ── Pro plan: server ─────────────────────────────────────────────────
+      return fetch(`/api/suppliers/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json());
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
   });
 
@@ -229,27 +265,22 @@ export default function ManageSuppliers() {
               <div key={i} className="h-20 rounded-2xl animate-pulse" style={{ background: "hsl(var(--muted))" }} />
             ))}
           </div>
-        ) : filtered.length === 0 && searchQ ? (
-          <div className="text-center py-12">
-            <Truck className="w-10 h-10 mx-auto mb-3" style={{ color: MUTED }} />
-            <p className="font-semibold">No results</p>
-            <p className="text-sm mt-1" style={{ color: MUTED }}>Try a different search</p>
-          </div>
         ) : (
-          <div className="rounded-2xl border divide-y overflow-hidden" style={{ borderColor: BORDER, background: CARD }}>
-            {filtered.map((s, i) => {
+          <div className="space-y-2">
+            {filtered.map((s, idx) => {
               const due = balanceMap[s.id] ?? 0;
+              const color = AVATAR_COLORS[idx % AVATAR_COLORS.length];
               return (
-                <div key={s.id} className="px-4 py-3.5">
+                <div key={s.id} className="rounded-2xl border p-3.5" style={{ borderColor: BORDER, background: CARD }}>
                   <div className="flex items-center gap-3">
                     {/* Avatar */}
-                    <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-white"
-                      style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length] }}>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                      style={{ background: color }}>
                       {initials(s.name)}
                     </div>
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{s.name}</p>
+                      <p className="font-bold text-sm truncate">{s.name}</p>
                       {s.phone && (
                         <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: MUTED }}>
                           <Phone className="w-3 h-3" /> {s.phone}
@@ -275,17 +306,19 @@ export default function ManageSuppliers() {
                       </button>
                     </div>
                   </div>
-                  {/* Ledger row */}
-                  <button
-                    onClick={() => setLocation(`/supplier-ledger/${s.id}`)}
-                    className="mt-2 w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold"
-                    style={{ background: due > 0 ? "#FEF3C7" : "hsl(var(--muted))", color: due > 0 ? "#92400E" : MUTED }}>
-                    <span className="flex items-center gap-1.5">
-                      {due > 0 && <AlertCircle className="w-3.5 h-3.5" style={{ color: "#F59E0B" }} />}
-                      {due > 0 ? `Due: ${due.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "View Ledger"}
-                    </span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
+                  {/* Ledger row — only for Pro users (local suppliers have no purchases) */}
+                  {!isFree && (
+                    <button
+                      onClick={() => setLocation(`/supplier-ledger/${s.id}`)}
+                      className="mt-2 w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold"
+                      style={{ background: due > 0 ? "#FEF3C7" : "hsl(var(--muted))", color: due > 0 ? "#92400E" : MUTED }}>
+                      <span className="flex items-center gap-1.5">
+                        {due > 0 && <AlertCircle className="w-3.5 h-3.5" style={{ color: "#F59E0B" }} />}
+                        {due > 0 ? `Due: ${due.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "View Ledger"}
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -297,6 +330,8 @@ export default function ManageSuppliers() {
       {showForm && (
         <SupplierFormModal
           existing={editSupplier}
+          isFree={isFree}
+          userId={userId}
           onClose={() => { setShowForm(false); setEditSupplier(undefined); }}
         />
       )}

@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/context/auth-context";
+import { localCategories } from "@/lib/local-store";
 
 const PRIMARY = "hsl(var(--primary))";
 const MUTED = "hsl(var(--muted-foreground))";
@@ -41,12 +42,14 @@ function SelectEl(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
 
 // ─── Category Form Modal ──────────────────────────────────────────────────────
 function CategoryFormModal({
-  mode, existing, parentCategories, onClose,
+  mode, existing, parentCategories, onClose, isFree, userId,
 }: {
   mode: "category" | "subcategory" | "edit";
   existing?: Category;
   parentCategories: Category[];
   onClose: () => void;
+  isFree: boolean;
+  userId?: number;
 }) {
   const qc = useQueryClient();
   const [name, setName] = useState(existing?.name ?? "");
@@ -63,6 +66,22 @@ function CategoryFormModal({
 
   const mut = useMutation({
     mutationFn: async () => {
+      const payload = {
+        name: name.trim(),
+        description: desc.trim() || null,
+        parentId: resolvedParentId,
+      };
+
+      // ── Free plan: local storage ───────────────────────────────────────────
+      if (isFree && userId) {
+        if (mode === "edit" && existing) {
+          return localCategories.update(userId, existing.id, payload);
+        } else {
+          return localCategories.create(userId, payload);
+        }
+      }
+
+      // ── Pro plan: server ───────────────────────────────────────────────────
       const url = mode === "edit"
         ? `/api/inventory-categories/${existing!.id}`
         : "/api/inventory-categories";
@@ -70,7 +89,7 @@ function CategoryFormModal({
         method: mode === "edit" ? "PUT" : "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), description: desc.trim() || null, parentId: resolvedParentId }),
+        body: JSON.stringify(payload),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error ?? "Failed");
@@ -98,45 +117,34 @@ function CategoryFormModal({
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="px-5 py-5">
-          <form onSubmit={e => {
-            e.preventDefault();
-            if (!name.trim()) { setError("Name required"); return; }
-            if (mode === "subcategory" && !parentId) { setError("Select a parent category"); return; }
-            mut.mutate();
-          }} className="flex flex-col gap-3">
-            {mode === "subcategory" && (
-              <Field label="Parent Category *">
-                <SelectEl value={parentId} onChange={e => setParentId(e.target.value)}>
-                  <option value="">— Select parent —</option>
-                  {parentCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </SelectEl>
-              </Field>
-            )}
-            {mode === "edit" && existing?.parentId && (
-              <div className="px-3 py-2 rounded-xl text-xs" style={{ background: "hsl(var(--muted))" }}>
-                Sub-category of: <span className="font-semibold">
-                  {parentCategories.find(c => c.id === existing.parentId)?.name ?? "—"}
-                </span>
-              </div>
-            )}
-            <Field label={mode === "subcategory" ? "Sub-category Name *" : "Category Name *"}>
-              <Input value={name} onChange={e => setName(e.target.value)}
-                placeholder={mode === "subcategory" ? "e.g. Display" : "e.g. Spare Parts"} autoFocus />
+        <div className="px-5 py-5 flex flex-col gap-3">
+          <Field label="Name *">
+            <Input value={name} onChange={e => setName(e.target.value)}
+              placeholder={mode === "subcategory" ? "e.g. iPhone Displays" : "e.g. Displays"}
+              autoFocus />
+          </Field>
+          <Field label="Description">
+            <Input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Optional" />
+          </Field>
+          {mode === "subcategory" && parentCategories.length > 0 && (
+            <Field label="Parent Category">
+              <SelectEl value={parentId} onChange={e => setParentId(e.target.value)}>
+                <option value="">— select parent —</option>
+                {parentCategories.map(p => (
+                  <option key={p.id} value={String(p.id)}>{p.name}</option>
+                ))}
+              </SelectEl>
             </Field>
-            <Field label="Description">
-              <Input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Optional" />
-            </Field>
-            {error && <p className="text-xs" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
-            <button type="submit" disabled={mut.isPending}
-              className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-60 mt-1"
-              style={{ background: PRIMARY }}>
-              {mut.isPending ? "Saving…"
-                : mode === "edit" ? "Save Changes"
-                : mode === "subcategory" ? "Add Sub-category"
-                : "Add Category"}
-            </button>
-          </form>
+          )}
+          {error && <p className="text-xs" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
+          <button
+            type="button"
+            onClick={() => { if (!name.trim()) { setError("Name required"); return; } mut.mutate(); }}
+            disabled={mut.isPending}
+            className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-60 mt-1"
+            style={{ background: PRIMARY }}>
+            {mut.isPending ? "Saving…" : mode === "edit" ? "Save Changes" : title}
+          </button>
         </div>
       </div>
     </div>
@@ -149,6 +157,9 @@ export default function ManageCategories() {
   const { user, isGuest } = useAuth();
   const qc = useQueryClient();
 
+  const isFree = !user || user.plan === "Free";
+  const userId = user?.id;
+
   const [formMode, setFormMode] = useState<"category" | "subcategory" | "edit" | null>(null);
   const [editTarget, setEditTarget] = useState<Category | undefined>();
   const [searchQ, setSearchQ] = useState("");
@@ -156,6 +167,11 @@ export default function ManageCategories() {
   const { data: categories = [], isLoading } = useQuery<Category[]>({
     queryKey: ["inv-categories"],
     queryFn: async () => {
+      // ── Free plan: local storage ─────────────────────────────────────────
+      if (isFree && userId) {
+        return localCategories.getAll(userId) as Category[];
+      }
+      // ── Pro plan: server ─────────────────────────────────────────────────
       const d = await fetch("/api/inventory-categories", { credentials: "include" }).then(r => r.json());
       return Array.isArray(d) ? d : [];
     },
@@ -163,8 +179,15 @@ export default function ManageCategories() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: number) =>
-      fetch(`/api/inventory-categories/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json()),
+    mutationFn: (id: number) => {
+      // ── Free plan: local storage ─────────────────────────────────────────
+      if (isFree && userId) {
+        localCategories.delete(userId, id);
+        return Promise.resolve({ success: true });
+      }
+      // ── Pro plan: server ─────────────────────────────────────────────────
+      return fetch(`/api/inventory-categories/${id}`, { method: "DELETE", credentials: "include" }).then(r => r.json());
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["inv-categories"] }),
   });
 
@@ -233,87 +256,85 @@ export default function ManageCategories() {
         </div>
 
         {/* Action buttons */}
-        <div className="grid grid-cols-2 gap-3">
-          <button onClick={() => { setEditTarget(undefined); setFormMode("category"); }}
-            className="flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm text-white shadow-sm"
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setEditTarget(undefined); setFormMode("category"); }}
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-sm text-white"
             style={{ background: PRIMARY }}>
-            <Tag className="w-4 h-4" /> Add Category
+            <FolderPlus className="w-4 h-4" /> Add Category
           </button>
-          <button onClick={() => { setEditTarget(undefined); setFormMode("subcategory"); }}
-            className="flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm"
-            style={{ background: `hsl(var(--primary) / 0.12)`, color: PRIMARY }}>
-            <ChevronDown className="w-4 h-4" /> Add Sub-category
+          <button
+            onClick={() => { setEditTarget(undefined); setFormMode("subcategory"); }}
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-sm border"
+            style={{ borderColor: PRIMARY, color: PRIMARY }}>
+            <Plus className="w-4 h-4" /> Add Sub-category
           </button>
         </div>
 
-        {/* Category list */}
-        {isLoading ? (
+        {/* Empty state */}
+        {!isLoading && categories.length === 0 && (
+          <div className="text-center py-10">
+            <FolderOpen className="w-10 h-10 mx-auto mb-3" style={{ color: MUTED }} />
+            <p className="font-semibold">No categories yet</p>
+            <p className="text-sm mt-1" style={{ color: MUTED }}>Add categories to organise your inventory</p>
+          </div>
+        )}
+
+        {/* Loading skeleton */}
+        {isLoading && (
           <div className="space-y-2">
             {[1, 2, 3].map(i => (
               <div key={i} className="h-14 rounded-2xl animate-pulse" style={{ background: "hsl(var(--muted))" }} />
             ))}
           </div>
-        ) : parentCats.length === 0 ? (
-          <div className="text-center py-16">
-            <FolderPlus className="w-10 h-10 mx-auto mb-3" style={{ color: MUTED }} />
-            <p className="font-semibold">No categories yet</p>
-            <p className="text-sm mt-1" style={{ color: MUTED }}>Tap "Add Category" to create one</p>
-          </div>
-        ) : filteredParents.length === 0 ? (
-          <div className="text-center py-14">
-            <Search className="w-9 h-9 mx-auto mb-3" style={{ color: MUTED }} />
-            <p className="font-semibold">No results for "{searchQ}"</p>
-            <p className="text-sm mt-1" style={{ color: MUTED }}>Try a different keyword</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {filteredParents.map(parent => (
-              <div key={parent.id} className="rounded-2xl overflow-hidden border" style={{ borderColor: BORDER }}>
-                {/* Parent row */}
-                <div className="flex items-center gap-3 px-4 py-3.5" style={{ background: "hsl(var(--muted))" }}>
-                  <FolderOpen className="w-4 h-4 flex-shrink-0" style={{ color: PRIMARY }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{parent.name}</p>
-                    {parent.description && (
-                      <p className="text-xs truncate" style={{ color: MUTED }}>{parent.description}</p>
-                    )}
-                  </div>
-                  <button onClick={() => { setEditTarget(parent); setFormMode("edit"); }}
-                    className="p-2 rounded-xl" style={{ color: PRIMARY, background: `hsl(var(--primary) / 0.1)` }}>
-                    <Edit3 className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => handleDelete(parent)}
-                    className="p-2 rounded-xl"
-                    style={{ color: "hsl(var(--destructive))", background: "hsl(0 84% 60% / 0.08)" }}>
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+        )}
+
+        {/* Category list */}
+        {!isLoading && filteredParents.map(parent => (
+          <div key={parent.id} className="rounded-2xl border overflow-hidden" style={{ borderColor: BORDER }}>
+            {/* Parent row */}
+            <div className="flex items-center gap-3 px-4 py-3.5" style={{ background: CARD }}>
+              <Tag className="w-4 h-4 flex-shrink-0" style={{ color: PRIMARY }} />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm truncate">{parent.name}</p>
+                {parent.description && (
+                  <p className="text-xs truncate" style={{ color: MUTED }}>{parent.description}</p>
+                )}
+              </div>
+              <button onClick={() => { setEditTarget(parent); setFormMode("edit"); }}
+                className="p-2 rounded-xl" style={{ color: PRIMARY, background: `hsl(var(--primary) / 0.1)` }}>
+                <Edit3 className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={() => handleDelete(parent)}
+                className="p-2 rounded-xl"
+                style={{ color: "hsl(var(--destructive))", background: "hsl(0 84% 60% / 0.08)" }}>
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            {/* Sub-category rows */}
+            {filteredSubOf(parent.id).map(sub => (
+              <div key={sub.id} className="flex items-center gap-3 px-4 py-3 border-t"
+                style={{ borderColor: BORDER, background: CARD }}>
+                <span className="text-xs w-4 flex-shrink-0" style={{ color: MUTED }}>↳</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm truncate">{sub.name}</p>
+                  {sub.description && (
+                    <p className="text-xs truncate" style={{ color: MUTED }}>{sub.description}</p>
+                  )}
                 </div>
-                {/* Sub-category rows */}
-                {filteredSubOf(parent.id).map(sub => (
-                  <div key={sub.id} className="flex items-center gap-3 px-4 py-3 border-t"
-                    style={{ borderColor: BORDER, background: CARD }}>
-                    <span className="text-xs w-4 flex-shrink-0" style={{ color: MUTED }}>↳</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{sub.name}</p>
-                      {sub.description && (
-                        <p className="text-xs truncate" style={{ color: MUTED }}>{sub.description}</p>
-                      )}
-                    </div>
-                    <button onClick={() => { setEditTarget(sub); setFormMode("edit"); }}
-                      className="p-2 rounded-xl" style={{ color: PRIMARY, background: `hsl(var(--primary) / 0.1)` }}>
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => handleDelete(sub)}
-                      className="p-2 rounded-xl"
-                      style={{ color: "hsl(var(--destructive))", background: "hsl(0 84% 60% / 0.08)" }}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
+                <button onClick={() => { setEditTarget(sub); setFormMode("edit"); }}
+                  className="p-2 rounded-xl" style={{ color: PRIMARY, background: `hsl(var(--primary) / 0.1)` }}>
+                  <Edit3 className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => handleDelete(sub)}
+                  className="p-2 rounded-xl"
+                  style={{ color: "hsl(var(--destructive))", background: "hsl(0 84% 60% / 0.08)" }}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
             ))}
           </div>
-        )}
+        ))}
       </div>
 
       {/* Form modal */}
@@ -322,6 +343,8 @@ export default function ManageCategories() {
           mode={formMode}
           existing={formMode === "edit" ? editTarget : undefined}
           parentCategories={parentCats}
+          isFree={isFree}
+          userId={userId}
           onClose={() => { setFormMode(null); setEditTarget(undefined); }}
         />
       )}

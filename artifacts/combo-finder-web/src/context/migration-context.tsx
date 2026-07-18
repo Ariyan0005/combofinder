@@ -6,7 +6,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-context";
-import { localRepairs, localInventory, localCustomers, localLedger, localSales, localExpenses, hasAnyLocalData } from "@/lib/local-store";
+import { localRepairs, localInventory, localCustomers, localLedger, localSales, localExpenses, localSuppliers, localCategories, hasAnyLocalData } from "@/lib/local-store";
 
 type MigCtx = {
   isMigrating: boolean;
@@ -43,13 +43,15 @@ export function MigrationProvider({ children }: { children: ReactNode }) {
       const customers = localCustomers.exportAll(uid);
       const ledger    = localLedger.exportAll(uid);
       const sales     = localSales.exportAll(uid);
-      const expenses  = localExpenses.exportAll(uid);
+      const expenses   = localExpenses.exportAll(uid);
+      const suppliers  = localSuppliers.exportAll(uid);
+      const categories = localCategories.exportAll(uid);
 
       const res = await fetch("/api/migrate", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repairs, inventory, customers, ledger, sales, expenses }),
+        body: JSON.stringify({ repairs, inventory, customers, ledger, sales, expenses, suppliers, categories }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Migration failed");
@@ -61,6 +63,8 @@ export function MigrationProvider({ children }: { children: ReactNode }) {
       localLedger.clear(uid);
       localSales.clear(uid);
       localExpenses.clear(uid);
+      localSuppliers.clear(uid);
+      localCategories.clear(uid);
 
       setHasPendingData(false);
       qc.invalidateQueries({ queryKey: ["repairs"] });
@@ -69,6 +73,8 @@ export function MigrationProvider({ children }: { children: ReactNode }) {
       qc.invalidateQueries({ queryKey: ["ledger"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
       qc.invalidateQueries({ queryKey: ["expenses"] });
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      qc.invalidateQueries({ queryKey: ["inv-categories"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
     } catch (err: any) {
       setError(err.message ?? "Migration failed. Please try again.");
@@ -120,7 +126,7 @@ function MigrationBanner({
       <div>
         <p style={{ fontWeight: 700, fontSize: 15, margin: 0 }}>🎉 আপনি Pro হয়েছেন!</p>
         <p style={{ fontSize: 13, opacity: 0.88, margin: "4px 0 0", lineHeight: 1.4 }}>
-          আপনার সব local data (Repairs, Inventory, Customers, Ledger, Sales) এখন cloud-এ migrate করুন।
+          আপনার সব local data (Repairs, Inventory, Customers, Suppliers, Categories, Ledger, Sales) এখন cloud-এ migrate করুন।
           একবার migrate করলে সব device থেকে access করা যাবে।
         </p>
         {error && (

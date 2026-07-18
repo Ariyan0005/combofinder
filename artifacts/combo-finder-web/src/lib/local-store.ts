@@ -326,14 +326,16 @@ export const localExpenses = {
 /** Export ALL local data for a user as a single JSON object */
 export function exportAllLocalData(uid: number): object {
   return {
-    exportedAt: new Date().toISOString(),
-    userId: uid,
-    repairs:   localRepairs.exportAll(uid),
-    inventory: localInventory.exportAll(uid),
-    customers: localCustomers.exportAll(uid),
-    ledger:    localLedger.exportAll(uid),
-    sales:     localSales.exportAll(uid),
-    expenses:  localExpenses.exportAll(uid),
+    exportedAt:  new Date().toISOString(),
+    userId:      uid,
+    repairs:     localRepairs.exportAll(uid),
+    inventory:   localInventory.exportAll(uid),
+    customers:   localCustomers.exportAll(uid),
+    ledger:      localLedger.exportAll(uid),
+    sales:       localSales.exportAll(uid),
+    expenses:    localExpenses.exportAll(uid),
+    suppliers:   localSuppliers.exportAll(uid),
+    categories:  localCategories.exportAll(uid),
   };
 }
 
@@ -359,6 +361,91 @@ export function hasAnyLocalData(uid: number): boolean {
     localCustomers.hasData(uid) ||
     localLedger.hasData(uid) ||
     localSales.hasData(uid) ||
-    localExpenses.hasData(uid)
+    localExpenses.hasData(uid) ||
+    localSuppliers.hasData(uid) ||
+    localCategories.hasData(uid)
   );
 }
+
+// ── Suppliers ─────────────────────────────────────────────────────────────────
+const suplKey = (uid: number) => `cf_supl_${uid}`;
+
+type LocalSupplier = {
+  id: number; userId: number; name: string; phone?: string | null;
+  whatsapp?: string | null; partTypes?: string | null; notes?: string | null;
+  isActive: boolean; createdAt: string; updatedAt: string;
+};
+
+export const localSuppliers = {
+  getAll(uid: number): LocalSupplier[] { return read<LocalSupplier>(suplKey(uid)); },
+  create(uid: number, data: any): LocalSupplier {
+    const items = read<LocalSupplier>(suplKey(uid));
+    const item: LocalSupplier = {
+      ...data,
+      id: genLocalId(),
+      userId: uid,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    items.push(item);
+    write(suplKey(uid), items);
+    return item;
+  },
+  update(uid: number, id: number, data: any): LocalSupplier {
+    const items = read<LocalSupplier>(suplKey(uid));
+    const idx = items.findIndex(i => i.id === id);
+    if (idx === -1) throw new Error("Supplier not found");
+    items[idx] = { ...items[idx], ...data, id, updatedAt: new Date().toISOString() };
+    write(suplKey(uid), items);
+    return items[idx];
+  },
+  delete(uid: number, id: number) {
+    write(suplKey(uid), read<LocalSupplier>(suplKey(uid)).filter(i => i.id !== id));
+  },
+  exportAll(uid: number): LocalSupplier[] { return read<LocalSupplier>(suplKey(uid)); },
+  clear(uid: number) { localStorage.removeItem(suplKey(uid)); },
+  hasData(uid: number): boolean { return read<LocalSupplier>(suplKey(uid)).length > 0; },
+};
+
+// ── Inventory Categories ──────────────────────────────────────────────────────
+const catKey = (uid: number) => `cf_cat_${uid}`;
+
+type LocalCategory = {
+  id: number; userId: number; name: string; description?: string | null;
+  parentId?: number | null; icon?: string | null; color?: string | null; createdAt: string;
+};
+
+export const localCategories = {
+  getAll(uid: number): LocalCategory[] { return read<LocalCategory>(catKey(uid)); },
+  create(uid: number, data: any): LocalCategory {
+    const items = read<LocalCategory>(catKey(uid));
+    const item: LocalCategory = {
+      ...data,
+      id: genLocalId(),
+      userId: uid,
+      createdAt: new Date().toISOString(),
+    };
+    items.push(item);
+    write(catKey(uid), items);
+    return item;
+  },
+  update(uid: number, id: number, data: any): LocalCategory {
+    const items = read<LocalCategory>(catKey(uid));
+    const idx = items.findIndex(i => i.id === id);
+    if (idx === -1) throw new Error("Category not found");
+    items[idx] = { ...items[idx], ...data, id };
+    write(catKey(uid), items);
+    return items[idx];
+  },
+  delete(uid: number, id: number) {
+    // Also delete all subcategories of this parent
+    const items = read<LocalCategory>(catKey(uid));
+    const toDelete = new Set<number>([id]);
+    items.filter(i => i.parentId === id).forEach(i => toDelete.add(i.id));
+    write(catKey(uid), items.filter(i => !toDelete.has(i.id)));
+  },
+  exportAll(uid: number): LocalCategory[] { return read<LocalCategory>(catKey(uid)); },
+  clear(uid: number) { localStorage.removeItem(catKey(uid)); },
+  hasData(uid: number): boolean { return read<LocalCategory>(catKey(uid)).length > 0; },
+};
