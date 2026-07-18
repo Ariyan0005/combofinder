@@ -47,7 +47,9 @@ app.use(
     // Persist sessions in PostgreSQL so they survive server restarts.
     // Without this, every restart wipes all sessions → users get 401 on backup.
     store: new PgSession({
-      conString: process.env["DATABASE_URL"],
+      // Use the same DB URL the rest of the app uses: SUPABASE_DATABASE_URL takes
+      // priority (VPS production), falling back to DATABASE_URL (Replit/local dev).
+      conString: process.env["SUPABASE_DATABASE_URL"] ?? process.env["DATABASE_URL"],
       tableName: "user_sessions",
       createTableIfMissing: true,   // auto-creates the table on first run
       ttl: 7 * 24 * 60 * 60,       // 7 days in seconds
