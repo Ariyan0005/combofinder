@@ -178,6 +178,17 @@ const MIGRATIONS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_prt_user_id ON password_reset_tokens(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_prt_token ON password_reset_tokens(token)`,
+
+  // ── Session Store (connect-pg-simple) ─────────────────────────────────
+  // Stores express-session data in PostgreSQL so sessions survive server restarts.
+  // Without this table the server falls back to MemoryStore → backup 401 on restart.
+  `CREATE TABLE IF NOT EXISTS user_sessions (
+    sid  VARCHAR   NOT NULL,
+    sess JSON      NOT NULL,
+    expire TIMESTAMP(6) NOT NULL,
+    CONSTRAINT user_sessions_pkey PRIMARY KEY (sid)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_user_sessions_expire ON user_sessions (expire)`,
 ];
 
 async function run() {
