@@ -13,7 +13,7 @@ import fs from "fs";
 import path from "path";
 import P from "pino";
 
-const SESSIONS_DIR = process.env["WA_SESSIONS_DIR"] ?? "/tmp/wa-sessions";
+const SESSIONS_DIR = process.env["WA_SESSIONS_DIR"] ?? "/var/www/combofinder/data/wa-sessions";
 const baileysLog = P({ level: "silent" }) as any;
 
 interface Session {

@@ -35,6 +35,9 @@ BASE_PATH=/admin/ PORT=1 pnpm --filter @workspace/admin-panel run build
 BASE_PATH=/ PORT=1 pnpm --filter @workspace/combo-finder-web run build
 
 echo "=== [6/6] Deploy static files (clear old, copy new) ==="
+# Ensure WhatsApp session directory exists (survives restarts, unlike /tmp)
+mkdir -p /var/www/combofinder/data/wa-sessions
+
 # Clear first — prevents stale hashed JS chunks from accumulating
 rm -rf /var/www/combofinder/admin
 mkdir -p /var/www/combofinder/admin
