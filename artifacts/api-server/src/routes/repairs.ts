@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, repairsTable, usersTable, inventoryTable, stockMovementsTable } from "@workspace/db";
 import { eq, ilike, or, desc, sql, and, gte } from "drizzle-orm";
+import * as WA from "../lib/whatsapp.js";
 
 const router = Router();
 
@@ -89,6 +90,23 @@ router.post("/", async (req, res) => {
 
     const [row] = await db.insert(repairsTable).values({ ...req.body, userId, updatedAt: new Date() }).returning();
     res.status(201).json(row);
+
+    // ── WhatsApp alert: repair created (Pro users only, fire-and-forget) ──
+    if ((userRow?.subscriptionPlan ?? "Free") !== "Free" && row.customerPhone) {
+      const [u] = await db.select({ shopName: usersTable.shopName, currency: usersTable.currency })
+        .from(usersTable).where(eq(usersTable.id, userId));
+      WA.sendMessage(userId, row.customerPhone, WA.buildAlertMessage("created", {
+        customerName:  row.customerName,
+        customerPhone: row.customerPhone,
+        phoneBrand:    row.phoneBrand,
+        phoneModel:    row.phoneModel,
+        problem:       row.problem,
+        totalCost:     row.totalCost,
+        advancePaid:   row.advancePaid,
+        shopName:      u?.shopName ?? "",
+        currency:      u?.currency ?? "USD",
+      })).catch(() => {});
+    }
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to create repair" }); }
 });
 
@@ -104,12 +122,15 @@ router.put("/:id", async (req, res) => {
       try { return b.partsUsed ? JSON.parse(b.partsUsed) : []; } catch { return []; }
     })();
 
+    let prevStatus = "";   // captured inside tx, used for alert after tx completes
+
     const result = await db.transaction(async (tx) => {
-      // Fetch existing repair to compute inventory delta
-      const [existing] = await tx.select({ partsUsed: repairsTable.partsUsed })
+      // Fetch existing repair to compute inventory delta + detect status change
+      const [existing] = await tx.select({ partsUsed: repairsTable.partsUsed, status: repairsTable.status })
         .from(repairsTable)
         .where(and(eq(repairsTable.id, repairId), eq(repairsTable.userId, userId)));
       if (!existing) throw Object.assign(new Error("Not found"), { status: 404 });
+      prevStatus = existing.status ?? "";
 
       const oldParts: PartEntry[] = (() => {
         try { return existing.partsUsed ? JSON.parse(existing.partsUsed) : []; } catch { return []; }
@@ -188,6 +209,37 @@ router.put("/:id", async (req, res) => {
 
     if (!result) return res.status(404).json({ error: "Not found" });
     res.json(result);
+
+    // ── WhatsApp alert on status change to Ready / Cancelled ──────────────
+    const newStatus = result.status;
+    if (
+      result.customerPhone &&
+      ["Ready", "Cancelled"].includes(newStatus) &&
+      newStatus !== prevStatus
+    ) {
+      const [u] = await db.select({
+        subscriptionPlan: usersTable.subscriptionPlan,
+        shopName:         usersTable.shopName,
+        currency:         usersTable.currency,
+      }).from(usersTable).where(eq(usersTable.id, userId));
+
+      if ((u?.subscriptionPlan ?? "Free") !== "Free") {
+        WA.sendMessage(userId, result.customerPhone, WA.buildAlertMessage(
+          newStatus === "Ready" ? "ready" : "cancelled",
+          {
+            customerName:  result.customerName,
+            customerPhone: result.customerPhone,
+            phoneBrand:    result.phoneBrand,
+            phoneModel:    result.phoneModel,
+            problem:       result.problem,
+            totalCost:     result.totalCost,
+            advancePaid:   result.advancePaid,
+            shopName:      u?.shopName ?? "",
+            currency:      u?.currency ?? "USD",
+          }
+        )).catch(() => {});
+      }
+    }
   } catch (err: any) {
     const status = err.status ?? 500;
     if (status < 500) return res.status(status).json({ error: err.message });

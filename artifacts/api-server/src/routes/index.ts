@@ -33,6 +33,7 @@ import batteryCompatRouter from "./battery-compat";
 import icCompatRouter from "./ic-compat";
 import migrateRouter from "./migrate";
 import backupRouter from "./backup";
+import whatsappRouter from "./whatsapp";
 
 const router: IRouter = Router();
 
@@ -99,5 +100,6 @@ router.use("/subscriptions", subscriptionsRouter);
 router.use("/documents", documentsRouter);
 router.use(requireUserAuth, migrateRouter);
 router.use("/backup", requireUserAuth, backupRouter);
+router.use("/whatsapp", requireUserAuth, whatsappRouter);
 
 export default router;

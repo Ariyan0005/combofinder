@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { bootSessions } from "./lib/whatsapp.js";
 
 // NOTE: Background cleanup job removed — was incorrectly deleting users.
 // The 10-min OTP expiry is enforced at verify-email time instead.
@@ -23,6 +24,7 @@ app.listen(port, (err) => {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
   }
-
   logger.info({ port }, "Server listening");
+  // Reconnect any WhatsApp sessions that were active before server restart
+  bootSessions();
 });
