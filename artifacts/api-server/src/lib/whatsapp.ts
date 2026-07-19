@@ -1,14 +1,9 @@
 /**
  * WhatsApp Alert Service — per-user Baileys sessions
- * Each Pro user connects their own WhatsApp number by scanning a QR code.
- * Sessions are stored on the filesystem at WA_SESSIONS_DIR/{userId}/.
+ * Baileys is loaded lazily via dynamic import so that if it is unavailable
+ * (e.g. native build scripts were not run), the rest of the server still
+ * starts and all non-WhatsApp routes keep working normally.
  */
-import makeWASocket, {
-  DisconnectReason,
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-} from "@whiskeysockets/baileys";
-import { Boom } from "@hapi/boom";
 import fs from "fs";
 import path from "path";
 import P from "pino";
@@ -16,9 +11,24 @@ import P from "pino";
 const SESSIONS_DIR = process.env["WA_SESSIONS_DIR"] ?? "/var/www/combofinder/data/wa-sessions";
 const baileysLog = P({ level: "silent" }) as any;
 
+// ── Lazy Baileys loader — returns null if unavailable ─────────────────────
+let baileysCache: any = null;
+
+async function loadBaileys(): Promise<any | null> {
+  if (baileysCache) return baileysCache;
+  try {
+    baileysCache = await import("@whiskeysockets/baileys");
+    return baileysCache;
+  } catch (e) {
+    console.warn("[WhatsApp] Baileys unavailable — WhatsApp alerts disabled:", (e as any).message);
+    return null;
+  }
+}
+
+// ── Session store ─────────────────────────────────────────────────────────
 interface Session {
-  sock: ReturnType<typeof makeWASocket> | null;
-  qr: string | null;           // PNG data-URL for display
+  sock: any;
+  qr: string | null;
   isConnected: boolean;
   phoneNumber: string | null;
   reconnectTimer?: ReturnType<typeof setTimeout>;
@@ -30,8 +40,11 @@ function sessionDir(userId: number): string {
   return path.join(SESSIONS_DIR, String(userId));
 }
 
-// ── Start / reconnect a session ────────────────────────────────────────────
+// ── Start / reconnect a session ───────────────────────────────────────────
 export async function startSession(userId: number): Promise<void> {
+  const B = await loadBaileys();
+  if (!B) return; // Baileys not available — silent no-op
+
   const dir = sessionDir(userId);
   fs.mkdirSync(dir, { recursive: true });
 
@@ -39,10 +52,10 @@ export async function startSession(userId: number): Promise<void> {
   if (existing?.isConnected) return;
   if (existing?.reconnectTimer) clearTimeout(existing.reconnectTimer);
 
-  const { state, saveCreds } = await useMultiFileAuthState(dir);
-  const { version } = await fetchLatestBaileysVersion();
+  const { state, saveCreds } = await B.useMultiFileAuthState(dir);
+  const { version } = await B.fetchLatestBaileysVersion();
 
-  const sock = makeWASocket({
+  const sock = B.default({
     version,
     auth: state,
     logger: baileysLog,
@@ -55,7 +68,7 @@ export async function startSession(userId: number): Promise<void> {
 
   sock.ev.on("creds.update", saveCreds);
 
-  sock.ev.on("connection.update", async (update) => {
+  sock.ev.on("connection.update", async (update: any) => {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
@@ -77,8 +90,9 @@ export async function startSession(userId: number): Promise<void> {
     if (connection === "close") {
       session.isConnected = false;
       session.phoneNumber = null;
-      const code = (lastDisconnect?.error as Boom)?.output?.statusCode;
-      const shouldReconnect = code !== DisconnectReason.loggedOut;
+      const code = lastDisconnect?.error?.output?.statusCode;
+      const loggedOut = B.DisconnectReason?.loggedOut;
+      const shouldReconnect = code !== loggedOut;
       if (shouldReconnect) {
         session.reconnectTimer = setTimeout(() => startSession(userId).catch(() => {}), 5_000);
       } else {
@@ -89,7 +103,7 @@ export async function startSession(userId: number): Promise<void> {
   });
 }
 
-// ── On server boot, scan session dir and reconnect all saved sessions ────
+// ── On server boot, scan session dir and reconnect all saved sessions ─────
 export function bootSessions(): void {
   if (!fs.existsSync(SESSIONS_DIR)) return;
   try {
@@ -102,7 +116,7 @@ export function bootSessions(): void {
   } catch {}
 }
 
-// ── Status helpers ─────────────────────────────────────────────────────────
+// ── Status helpers ────────────────────────────────────────────────────────
 export function getStatus(userId: number) {
   const s = sessions.get(userId);
   return {
@@ -125,7 +139,7 @@ export async function disconnect(userId: number): Promise<void> {
   fs.rmSync(sessionDir(userId), { recursive: true, force: true });
 }
 
-// ── Send a plain-text WhatsApp message ────────────────────────────────────
+// ── Send a plain-text WhatsApp message ───────────────────────────────────
 export async function sendMessage(userId: number, phone: string, text: string): Promise<boolean> {
   const s = sessions.get(userId);
   if (!s?.isConnected || !s.sock) return false;
@@ -140,7 +154,7 @@ export async function sendMessage(userId: number, phone: string, text: string): 
   }
 }
 
-// ── Alert message builders ─────────────────────────────────────────────────
+// ── Alert message builders (no Baileys needed) ───────────────────────────
 export interface RepairAlertData {
   customerName:  string;
   customerPhone: string;
