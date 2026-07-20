@@ -6,10 +6,13 @@ import { ProtectedPage } from "@/components/protected-page";
 import { exportAllLocalData, importLocalBackup } from "@/lib/local-store";
 import {
   isGDriveConnected,
+  hadGDriveConnected,
+  silentRefreshToken,
   requestGDriveToken,
   uploadToDrive,
   downloadFromDrive,
   clearGDriveToken,
+  disconnectGDrive,
   getStoredToken,
 } from "@/lib/google-drive";
 
@@ -279,6 +282,7 @@ export default function Settings() {
 
   // Google Drive backup state
   const [gDriveConnected, setGDriveConnected] = useState(() => isGDriveConnected());
+  const [gDriveRefreshing, setGDriveRefreshing] = useState(false);
   const [backupSending, setBackupSending] = useState(false);
   const [backupStatus, setBackupStatus] = useState<"idle"|"success"|"error">("idle");
   const [backupErr, setBackupErr] = useState("");
@@ -307,6 +311,17 @@ export default function Settings() {
     return `${days} day${days > 1 ? "s" : ""} ago`;
   }
 
+  // On mount: if token expired but user previously connected, silently refresh
+  useEffect(() => {
+    if (!isGDriveConnected() && hadGDriveConnected()) {
+      setGDriveRefreshing(true);
+      silentRefreshToken()
+        .then(ok => { if (ok) setGDriveConnected(true); })
+        .catch(() => {})
+        .finally(() => setGDriveRefreshing(false));
+    }
+  }, []);
+
   async function handleConnectDrive() {
     setConnecting(true);
     try {
@@ -321,7 +336,7 @@ export default function Settings() {
 
   function handleDisconnectDrive() {
     if (!confirm("Disconnect Google Drive? Auto-backup will stop.")) return;
-    clearGDriveToken();
+    disconnectGDrive(); // clears token + ever-connected flag
     setGDriveConnected(false);
     setBackupStatus("idle");
     setRestoreStatus("idle");

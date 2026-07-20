@@ -8,8 +8,10 @@ const CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "") as string;
 const SCOPE = "https://www.googleapis.com/auth/drive.file";
 const BACKUP_FILENAME = "combofinder-backup.json";
 
-const TOKEN_KEY        = "cf_gdrive_token";
-const TOKEN_EXPIRY_KEY = "cf_gdrive_token_expiry";
+const TOKEN_KEY           = "cf_gdrive_token";
+const TOKEN_EXPIRY_KEY    = "cf_gdrive_token_expiry";
+/** Persists across token expiry — set on first connect, cleared only on explicit disconnect */
+const EVER_CONNECTED_KEY  = "cf_gdrive_ever_connected";
 
 // ── Token management ──────────────────────────────────────────────────────────
 
@@ -21,15 +23,39 @@ export function getStoredToken(): string | null {
   return token;
 }
 
-/** True if a valid Drive token is in localStorage */
+/** True if a valid (non-expired) Drive token is in localStorage */
 export function isGDriveConnected(): boolean {
   return !!getStoredToken();
 }
 
-/** Remove Drive token from localStorage (disconnect) */
+/**
+ * True if the user has ever connected Drive in this browser.
+ * Remains true even after token expiry so we can silently refresh.
+ */
+export function hadGDriveConnected(): boolean {
+  return localStorage.getItem(EVER_CONNECTED_KEY) === "1";
+}
+
+/** Remove only the access token (e.g. on upload failure). Does NOT clear the
+ *  ever-connected flag so silent refresh can be attempted next time. */
 export function clearGDriveToken() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(TOKEN_EXPIRY_KEY);
+}
+
+/** Full disconnect — clears token AND the ever-connected flag.
+ *  Call this only when the user explicitly clicks "Disconnect". */
+export function disconnectGDrive() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(TOKEN_EXPIRY_KEY);
+  localStorage.removeItem(EVER_CONNECTED_KEY);
+}
+
+function saveToken(token: string, expiresIn: number) {
+  const expiry = Date.now() + expiresIn * 1000;
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(TOKEN_EXPIRY_KEY, String(expiry));
+  localStorage.setItem(EVER_CONNECTED_KEY, "1");
 }
 
 /**
@@ -55,13 +81,43 @@ export function requestGDriveToken(): Promise<string> {
           reject(new Error(resp.error ?? "Google auth failed"));
           return;
         }
-        const expiry = Date.now() + (resp.expires_in ?? 3600) * 1000;
-        localStorage.setItem(TOKEN_KEY, resp.access_token);
-        localStorage.setItem(TOKEN_EXPIRY_KEY, String(expiry));
+        saveToken(resp.access_token, resp.expires_in ?? 3600);
         resolve(resp.access_token);
       },
     });
     client.requestAccessToken({ prompt: "consent" });
+  });
+}
+
+/**
+ * Silently request a new token using previously-granted consent (no popup).
+ * Returns true if a fresh token was obtained, false if user revoked access
+ * or Google can't refresh silently.
+ * Safe to call without a user gesture.
+ */
+export function silentRefreshToken(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!CLIENT_ID) { resolve(false); return; }
+    const g = (window as any).google;
+    if (!g?.accounts?.oauth2) { resolve(false); return; }
+    const client = g.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPE,
+      callback: (resp: { access_token?: string; expires_in?: number; error?: string }) => {
+        if (resp.error || !resp.access_token) {
+          // Access was revoked or silent refresh not possible — clear the token
+          // but keep EVER_CONNECTED_KEY so the UI can show "reconnect" instead
+          // of "connect" (better UX — user knows they had it connected before).
+          clearGDriveToken();
+          resolve(false);
+          return;
+        }
+        saveToken(resp.access_token, resp.expires_in ?? 3600);
+        resolve(true);
+      },
+    });
+    // prompt: "" means "use existing consent, no popup"
+    client.requestAccessToken({ prompt: "" });
   });
 }
 
@@ -117,11 +173,11 @@ export async function downloadFromDrive(token: string): Promise<object | null> {
   return res.json();
 }
 
-// ── Auto-backup (WhatsApp-style) ──────────────────────────────────────────────
+// ── Auto-backup ───────────────────────────────────────────────────────────────
 
 /**
  * Silently upload a backup to Drive if:
- *   - A valid token is already stored (user has connected Drive)
+ *   - A valid token is already stored OR can be silently refreshed
  *   - The last backup was more than 24 hours ago
  * Never shows a popup — skips silently if not connected.
  */
@@ -129,7 +185,12 @@ export async function silentDriveBackup(
   userId: number,
   exportData: () => object,
 ): Promise<boolean> {
-  const token = getStoredToken();
+  // Try to get a valid token — refresh silently if expired
+  let token = getStoredToken();
+  if (!token && hadGDriveConnected()) {
+    const refreshed = await silentRefreshToken();
+    if (refreshed) token = getStoredToken();
+  }
   if (!token) return false; // not connected — skip
 
   const key  = `cf_last_backup_${userId}`;
@@ -141,7 +202,8 @@ export async function silentDriveBackup(
     localStorage.setItem(key, String(Date.now()));
     return true;
   } catch {
-    // Token likely expired — clear so user sees "reconnect" prompt in Settings
+    // Token likely expired mid-session — clear token but keep ever-connected
+    // flag so next session can try silent refresh again.
     clearGDriveToken();
     return false;
   }
