@@ -66,3 +66,14 @@
   .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 1rem); }
 }
+
+@media print {
+  /* Hide app chrome */
+  header, nav { display: none !important; }
+  /* Remove padding so invoice fills the page */
+  main { padding: 0 !important; padding-bottom: 0 !important; }
+  /* Hide action buttons, back bar etc. */
+  .no-print { display: none !important; }
+  /* Remove background from body */
+  body { background: white !important; }
+}

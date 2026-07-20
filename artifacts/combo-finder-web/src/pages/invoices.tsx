@@ -179,7 +179,7 @@ export default function Invoices() {
       <ProtectedPage>
         <div className="pb-6">
           {/* ── Top bar: Back + action icon buttons ────────────── */}
-          <div className="flex items-center justify-between py-2 mb-4">
+          <div className="no-print flex items-center justify-between py-2 mb-4">
             <button onClick={() => { setSelectedId(null); setReturnMode(false); }}
               className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: MUTED }}>
               <ArrowLeft className="w-4 h-4" /> Back to Invoices

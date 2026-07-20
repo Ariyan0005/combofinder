@@ -181,24 +181,37 @@ async function buildInvoiceDoc(invoice: InvoiceData): Promise<jsPDF> {
   doc.line(14, y, W - 14, y);
 
   // ── Items table ──────────────────────────────────────────────────────────────
+  // Only show "Returned" column when at least one item has a returned quantity
+  const hasReturnedQty = invoice.items.some(it => (it.returnedQuantity ?? 0) > 0);
+
   autoTable(doc, {
     startY: y + 3,
-    head: [["Item", "Qty", `Unit (${sym})`, `Total (${sym})`, "Returned"]],
-    body: invoice.items.map(it => [
-      it.partName,
-      String(it.quantity),
-      it.unitPrice.toLocaleString(),
-      it.total.toLocaleString(),
-      it.returnedQuantity ? String(it.returnedQuantity) : "—",
-    ]),
+    head: [hasReturnedQty
+      ? ["Item", "Qty", `Unit (${sym})`, `Total (${sym})`, "Returned"]
+      : ["Item", "Qty", `Unit (${sym})`, `Total (${sym})`]
+    ],
+    body: invoice.items.map(it => {
+      const row: string[] = [
+        it.partName,
+        String(it.quantity),
+        Number(it.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        Number(it.total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      ];
+      if (hasReturnedQty) row.push(it.returnedQuantity ? String(it.returnedQuantity) : "—");
+      return row;
+    }),
     theme: "striped",
     headStyles:   { fillColor: [25, 50, 180], fontSize: 9, fontStyle: "bold", halign: "left" },
     bodyStyles:   { fontSize: 9 },
-    columnStyles: {
+    columnStyles: hasReturnedQty ? {
       1: { halign: "center", cellWidth: 14 },
       2: { halign: "right",  cellWidth: 28 },
       3: { halign: "right",  cellWidth: 28 },
       4: { halign: "center", cellWidth: 22 },
+    } : {
+      1: { halign: "center", cellWidth: 14 },
+      2: { halign: "right",  cellWidth: 32 },
+      3: { halign: "right",  cellWidth: 32 },
     },
     margin: { left: 14, right: 14 },
   });
