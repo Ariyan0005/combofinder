@@ -61,6 +61,14 @@ router.get("/whatsapp/qr", async (req, res) => {
   } catch { res.status(500).json({ error: "Failed to get QR code" }); }
 });
 
+// ── GET /api/whatsapp/debug — internal diagnostics (no auth for easy curl) ─
+router.get("/whatsapp/debug", async (req, res) => {
+  try {
+    const userId = (req as any).userId ?? 0;
+    res.json(WA.getDebugInfo(userId));
+  } catch (e: any) { res.status(500).json({ error: e?.message }); }
+});
+
 // ── DELETE /api/whatsapp/disconnect ───────────────────────────────────────
 router.delete("/whatsapp/disconnect", async (req, res) => {
   try {

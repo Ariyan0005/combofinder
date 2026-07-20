@@ -41,17 +41,30 @@ function sessionDir(userId: number): string {
 }
 
 // ── Start / reconnect a session ───────────────────────────────────────────
+// Tracks the last error per user for the debug endpoint
+const sessionErrors = new Map<number, string>();
+
 export async function startSession(userId: number): Promise<void> {
+  console.log(`[WA] startSession(${userId}) — loading Baileys...`);
   const B = await loadBaileys();
-  if (!B) return; // Baileys not available — silent no-op
+  if (!B) { console.error(`[WA] Baileys failed to load for user ${userId}`); return; }
+  console.log(`[WA] Baileys loaded. makeWASocket=${typeof B.makeWASocket}, default=${typeof B.default}`);
 
   const dir = sessionDir(userId);
   fs.mkdirSync(dir, { recursive: true });
 
   const existing = sessions.get(userId);
-  if (existing?.isConnected) return;
+  if (existing?.isConnected) { console.log(`[WA] user ${userId} already connected`); return; }
   if (existing?.reconnectTimer) clearTimeout(existing.reconnectTimer);
 
+  // If a session already exists but isn't connected and has no QR yet,
+  // don't start another socket — let the existing one keep trying.
+  if (existing?.sock && !existing.isConnected && !existing.qr) {
+    console.log(`[WA] user ${userId} session pending (socket exists, no QR yet) — skipping duplicate`);
+    return;
+  }
+
+  console.log(`[WA] user ${userId} — loading auth state from ${dir}`);
   const { state, saveCreds } = await B.useMultiFileAuthState(dir);
 
   // fetchLatestBaileysVersion makes an external call to WhatsApp servers —
@@ -60,33 +73,56 @@ export async function startSession(userId: number): Promise<void> {
   try {
     const versionResult = await B.fetchLatestBaileysVersion();
     version = versionResult.version;
-  } catch {
+    console.log(`[WA] user ${userId} — WA version: ${version}`);
+  } catch (e: any) {
     version = [2, 3000, 1023557039]; // known-good Baileys fallback
-    console.warn("[WhatsApp] fetchLatestBaileysVersion failed, using fallback version");
+    console.warn(`[WA] fetchLatestBaileysVersion failed (${e?.message}) — using fallback ${version}`);
   }
 
   const makeWASocket = B.makeWASocket ?? B.default;
-  const sock = makeWASocket({
-    version,
-    auth: state,
-    logger: baileysLog,
-    printQRInTerminal: false,
-    browser: ["ComboFinder", "Chrome", "1.0"],
-  });
+  if (typeof makeWASocket !== "function") {
+    const msg = `makeWASocket is not a function (type=${typeof makeWASocket}). Baileys exports: ${Object.keys(B).join(",")}`;
+    console.error(`[WA] ${msg}`);
+    sessionErrors.set(userId, msg);
+    return;
+  }
+
+  console.log(`[WA] user ${userId} — creating socket...`);
+  let sock: any;
+  try {
+    sock = makeWASocket({
+      version,
+      auth: state,
+      logger: baileysLog,
+      printQRInTerminal: false,
+      browser: ["ComboFinder", "Chrome", "1.0"],
+    });
+    console.log(`[WA] user ${userId} — socket created OK`);
+  } catch (e: any) {
+    const msg = `Socket creation failed: ${e?.message}`;
+    console.error(`[WA] ${msg}`);
+    sessionErrors.set(userId, msg);
+    return;
+  }
 
   const session: Session = { sock, qr: null, isConnected: false, phoneNumber: null };
   sessions.set(userId, session);
+  sessionErrors.delete(userId);
 
   sock.ev.on("creds.update", saveCreds);
 
   sock.ev.on("connection.update", async (update: any) => {
     const { connection, lastDisconnect, qr } = update;
+    console.log(`[WA] user ${userId} connection.update: connection=${connection} hasQR=${!!qr}`);
 
     if (qr) {
+      console.log(`[WA] user ${userId} — QR received, converting to data URL...`);
       try {
         const QRCode = (await import("qrcode")).default;
         session.qr = await QRCode.toDataURL(qr);
-      } catch {
+        console.log(`[WA] user ${userId} — QR data URL ready (len=${session.qr?.length})`);
+      } catch (e: any) {
+        console.error(`[WA] user ${userId} — qrcode.toDataURL failed: ${e?.message}`);
         session.qr = null;
       }
     }
@@ -96,6 +132,7 @@ export async function startSession(userId: number): Promise<void> {
       session.qr = null;
       const jid = sock.user?.id ?? "";
       session.phoneNumber = jid.split(":")[0].split("@")[0];
+      console.log(`[WA] user ${userId} — connected! phone=${session.phoneNumber}`);
     }
 
     if (connection === "close") {
@@ -104,6 +141,7 @@ export async function startSession(userId: number): Promise<void> {
       const code = lastDisconnect?.error?.output?.statusCode;
       const loggedOut = B.DisconnectReason?.loggedOut;
       const shouldReconnect = code !== loggedOut;
+      console.log(`[WA] user ${userId} — closed. code=${code} loggedOut=${loggedOut} reconnect=${shouldReconnect}`);
       if (shouldReconnect) {
         session.reconnectTimer = setTimeout(() => startSession(userId).catch(() => {}), 5_000);
       } else {
@@ -125,6 +163,18 @@ export function bootSessions(): void {
       }
     }
   } catch {}
+}
+
+// ── Debug info ────────────────────────────────────────────────────────────
+export function getDebugInfo(userId: number) {
+  const s = sessions.get(userId);
+  return {
+    hasSession: !!s,
+    isConnected: s?.isConnected ?? false,
+    hasQR: !!s?.qr,
+    phoneNumber: s?.phoneNumber ?? null,
+    lastError: sessionErrors.get(userId) ?? null,
+  };
 }
 
 // ── Status helpers ────────────────────────────────────────────────────────
