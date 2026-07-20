@@ -185,7 +185,10 @@ function WhatsAppSection() {
       return json;
     },
     enabled: !status?.isConnected,
-    refetchInterval: !status?.isConnected && !qrData?.error ? 8000 : false,
+    // Use function form so we can read the already-fetched data without
+    // referencing qrData inside its own const declaration (TDZ crash).
+    refetchInterval: (query) =>
+      !status?.isConnected && !(query.state.data as any)?.error ? 8000 : false,
   });
 
   async function handleDisconnect() {
