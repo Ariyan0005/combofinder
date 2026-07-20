@@ -18,7 +18,7 @@ async function isPro(userId: number): Promise<boolean> {
 }
 
 // ── GET /api/whatsapp/status ───────────────────────────────────────────────
-router.get("/whatsapp/status", async (req, res) => {
+router.get("/status", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
     res.json(WA.getStatus(userId));
@@ -26,7 +26,7 @@ router.get("/whatsapp/status", async (req, res) => {
 });
 
 // ── GET /api/whatsapp/qr — start session if needed, return QR data-URL ────
-router.get("/whatsapp/qr", async (req, res) => {
+router.get("/qr", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
 
@@ -62,7 +62,7 @@ router.get("/whatsapp/qr", async (req, res) => {
 });
 
 // ── GET /api/whatsapp/debug — internal diagnostics (no auth for easy curl) ─
-router.get("/whatsapp/debug", async (req, res) => {
+router.get("/debug", async (req, res) => {
   try {
     const userId = (req as any).userId ?? 0;
     res.json(WA.getDebugInfo(userId));
@@ -70,7 +70,7 @@ router.get("/whatsapp/debug", async (req, res) => {
 });
 
 // ── DELETE /api/whatsapp/disconnect ───────────────────────────────────────
-router.delete("/whatsapp/disconnect", async (req, res) => {
+router.delete("/disconnect", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
     await WA.disconnect(userId);
