@@ -185,28 +185,31 @@ export default function Invoices() {
               <ArrowLeft className="w-4 h-4" /> Back to Invoices
             </button>
             {detail && !returnMode && (
-              <div className="flex items-center gap-1.5">
-                <button title="Download PDF"
+              <div className="flex items-center gap-2">
+                <button
                   onClick={() => {
                     const d = saleToInvoiceData(detail);
                     d.shopName = shopName; d.shopAddress = shopAddress;
                     d.shopLogo = shopLogo ?? undefined; d.currencySymbol = sym;
                     void generateInvoicePdf(d);
                   }}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center"
-                  style={{ background: "hsl(var(--muted))" }}>
-                  <FileDown className="w-4 h-4" style={{ color: MUTED }} />
+                  className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl"
+                  style={{ background: "#EFF6FF" }}>
+                  <FileDown className="w-5 h-5" style={{ color: "#2563EB" }} />
+                  <span className="text-[10px] font-bold" style={{ color: "#2563EB" }}>PDF</span>
                 </button>
-                <button title="Print" onClick={() => window.print()}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center"
-                  style={{ background: "hsl(var(--muted))" }}>
-                  <Printer className="w-4 h-4" style={{ color: MUTED }} />
+                <button onClick={() => window.print()}
+                  className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl"
+                  style={{ background: "#F0FDF4" }}>
+                  <Printer className="w-5 h-5" style={{ color: "#16A34A" }} />
+                  <span className="text-[10px] font-bold" style={{ color: "#16A34A" }}>Print</span>
                 </button>
                 {detail.status !== "Returned" && (
-                  <button title="Return / Refund" onClick={() => setReturnMode(true)}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center"
-                    style={{ background: "hsl(var(--muted))" }}>
-                    <RotateCcw className="w-4 h-4" style={{ color: MUTED }} />
+                  <button onClick={() => setReturnMode(true)}
+                    className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl"
+                    style={{ background: "#FFF7ED" }}>
+                    <RotateCcw className="w-5 h-5" style={{ color: "#EA580C" }} />
+                    <span className="text-[10px] font-bold" style={{ color: "#EA580C" }}>Return</span>
                   </button>
                 )}
               </div>
@@ -220,41 +223,44 @@ export default function Invoices() {
 
               {/* ── 1. Invoice Header Card ─────────────────────── */}
               <div className="rounded-2xl border p-4" style={{ borderColor: BORDER, background: CARD }}>
+                {/* Business info — centered at top */}
+                <div className="flex flex-col items-center gap-1 mb-4">
+                  {shopLogo ? (
+                    <img src={shopLogo} alt="logo" className="w-16 h-16 rounded-2xl object-cover border"
+                      style={{ borderColor: BORDER }} />
+                  ) : (
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl"
+                      style={{ background: PRIMARY }}>
+                      {shopName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <p className="text-sm font-extrabold text-center leading-tight">{shopName}</p>
+                  {shopAddress && (
+                    <p className="text-[11px] text-center leading-tight" style={{ color: MUTED }}>
+                      {shopAddress}
+                    </p>
+                  )}
+                </div>
+                {/* Divider */}
+                <div className="mb-3" style={{ height: 1, background: BORDER }} />
+                {/* Invoice info */}
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
+                  <div>
                     <h1 className="text-xl font-extrabold">{detail.invoiceNumber}</h1>
                     <span className="inline-block text-[10px] font-bold px-2.5 py-1 rounded-full mt-1.5"
                       style={STATUS_COLOR[detail.status] ?? { background: "hsl(var(--muted))", color: MUTED }}>
                       {detail.status}
                     </span>
-                    <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-                      <span className="text-xs px-2.5 py-1 rounded-full font-medium"
-                        style={{ background: "hsl(var(--muted))", color: MUTED }}>
-                        {detail.date}
-                      </span>
-                      <span className="text-xs px-2.5 py-1 rounded-full font-medium"
-                        style={{ background: "hsl(var(--muted))", color: MUTED }}>
-                        {detail.paymentMethod}
-                      </span>
-                    </div>
                   </div>
-                  {/* Business info */}
-                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                    {shopLogo ? (
-                      <img src={shopLogo} alt="logo" className="w-11 h-11 rounded-xl object-cover border"
-                        style={{ borderColor: BORDER }} />
-                    ) : (
-                      <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-extrabold text-lg"
-                        style={{ background: PRIMARY }}>
-                        {shopName.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <p className="text-xs font-bold text-right max-w-[120px] leading-tight">{shopName}</p>
-                    {shopAddress && (
-                      <p className="text-[10px] text-right max-w-[120px] leading-tight" style={{ color: MUTED }}>
-                        {shopAddress}
-                      </p>
-                    )}
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <span className="text-xs px-2.5 py-1 rounded-full font-medium"
+                      style={{ background: "hsl(var(--muted))", color: MUTED }}>
+                      {detail.date}
+                    </span>
+                    <span className="text-xs px-2.5 py-1 rounded-full font-medium"
+                      style={{ background: "hsl(var(--muted))", color: MUTED }}>
+                      {detail.paymentMethod}
+                    </span>
                   </div>
                 </div>
               </div>
