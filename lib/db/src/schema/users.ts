@@ -12,6 +12,8 @@ export const usersTable = pgTable("users", {
   subscriptionExpiresAt: timestamp("subscription_expires_at"),
   country: text("country"),
   shopName: text("shop_name"),
+  shopAddress: text("shop_address"),
+  shopLogo: text("shop_logo"),
   currency: text("currency").default("USD"),
   isActive: boolean("is_active").default(true).notNull(),
   isApproved: boolean("is_approved").default(false).notNull(),

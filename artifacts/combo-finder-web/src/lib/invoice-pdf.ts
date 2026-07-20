@@ -36,6 +36,8 @@ export interface InvoiceData {
   totalRefunded?: number;
   // Branding (passed from user context)
   shopName?: string | null;
+  shopAddress?: string | null;
+  shopLogo?: string | null;
   currencySymbol?: string | null;
 }
 
@@ -70,24 +72,47 @@ function buildInvoiceDoc(invoice: InvoiceData): jsPDF {
   const doc   = new jsPDF({ unit: "mm", format: "a4" });
   const W     = doc.internal.pageSize.getWidth();  // 210
 
+  const address = (invoice.shopAddress ?? "").trim();
+  const hasAddress = address.length > 0;
+  const headerH = hasAddress ? 36 : 32;
+
   // ── Header band ─────────────────────────────────────────────────────────────
   doc.setFillColor(25, 50, 180);
-  doc.rect(0, 0, W, 32, "F");
+  doc.rect(0, 0, W, headerH, "F");
+
+  // Logo (top-right corner) if provided
+  const logoAreaW = 22;
+  const logoX = W - 14 - logoAreaW;
+  if (invoice.shopLogo) {
+    try {
+      const fmt = invoice.shopLogo.startsWith("data:image/png") ? "PNG" : "JPEG";
+      doc.addImage(invoice.shopLogo, fmt, logoX, 4, logoAreaW, logoAreaW);
+    } catch { /* skip if image invalid */ }
+  }
 
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.text(shop, 14, 14);
+  doc.setFontSize(18);
+  doc.text(shop, 14, 13);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text("Sales Receipt", 14, 21);
+  doc.setFontSize(8.5);
+  doc.text("Sales Receipt", 14, 20);
+  if (hasAddress) {
+    doc.setFontSize(7.5);
+    doc.setTextColor(200, 210, 255);
+    const addrLines = doc.splitTextToSize(address, W - 14 - logoAreaW - 20);
+    doc.text(addrLines, 14, 27);
+    doc.setTextColor(255, 255, 255);
+  }
 
+  // Invoice number & date (top-left of right section if no logo, else below logo area)
+  const rightX = invoice.shopLogo ? logoX - 4 : W - 14;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text(invoice.invoiceNumber, W - 14, 14, { align: "right" });
+  doc.text(invoice.invoiceNumber, rightX, 13, { align: "right" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(invoice.date, W - 14, 21, { align: "right" });
+  doc.text(invoice.date, rightX, 20, { align: "right" });
 
   // ── Status chip ──────────────────────────────────────────────────────────────
   doc.setTextColor(0, 0, 0);
@@ -100,15 +125,16 @@ function buildInvoiceDoc(invoice: InvoiceData): jsPDF {
   doc.setFillColor(sr, sg, sb);
   const statusText = invoice.status.toUpperCase();
   const statusW = doc.getTextWidth(statusText) + 6;
-  doc.roundedRect(14, 36, statusW, 6, 1.5, 1.5, "F");
+  const chipY = headerH + 4;
+  doc.roundedRect(14, chipY, statusW, 6, 1.5, 1.5, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7);
-  doc.text(statusText, 14 + statusW / 2, 40, { align: "center" });
+  doc.text(statusText, 14 + statusW / 2, chipY + 4, { align: "center" });
   doc.setTextColor(0, 0, 0);
 
   // ── Meta info block ──────────────────────────────────────────────────────────
-  let y = 48;
+  let y = headerH + 16;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
 
@@ -127,7 +153,7 @@ function buildInvoiceDoc(invoice: InvoiceData): jsPDF {
     }
   }
 
-  y = 58;
+  y = headerH + 26;
   doc.setDrawColor(200, 200, 200);
   doc.line(14, y, W - 14, y);
 

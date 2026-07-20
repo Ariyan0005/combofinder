@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
-  Search, Receipt, ChevronRight, X, Download, RotateCcw,
-  CheckCircle, FileDown, ArrowLeft, Package,
+  Search, Receipt, ChevronRight, X, RotateCcw,
+  FileDown, ArrowLeft, UserCircle, CreditCard, Phone, Printer, MapPin,
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 import { generateInvoicePdf, generateSalesReportPdf } from "@/lib/invoice-pdf";
@@ -40,8 +40,10 @@ const STATUS_COLOR: Record<string, { bg: string; color: string }> = {
 export default function Invoices() {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const sym      = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
-  const shopName = user?.shopName ?? user?.name ?? "My Shop";
+  const sym        = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
+  const shopName   = user?.shopName ?? user?.name ?? "My Shop";
+  const shopAddress = user?.shopAddress ?? "";
+  const shopLogo   = user?.shopLogo ?? null;
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -175,71 +177,216 @@ export default function Invoices() {
   if (selectedId != null) {
     return (
       <ProtectedPage>
-        <div className="space-y-4 pb-6">
-          <button onClick={() => { setSelectedId(null); setReturnMode(false); }}
-            className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: MUTED }}>
-            <ArrowLeft className="w-4 h-4" /> Back to Invoices
-          </button>
+        <div className="pb-6">
+          {/* ── Top bar: Back + action icon buttons ────────────── */}
+          <div className="flex items-center justify-between py-2 mb-4">
+            <button onClick={() => { setSelectedId(null); setReturnMode(false); }}
+              className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: MUTED }}>
+              <ArrowLeft className="w-4 h-4" /> Back to Invoices
+            </button>
+            {detail && !returnMode && (
+              <div className="flex items-center gap-1.5">
+                <button title="Download PDF"
+                  onClick={() => {
+                    const d = saleToInvoiceData(detail);
+                    d.shopName = shopName; d.shopAddress = shopAddress;
+                    d.shopLogo = shopLogo ?? undefined; d.currencySymbol = sym;
+                    generateInvoicePdf(d);
+                  }}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center"
+                  style={{ background: "hsl(var(--muted))" }}>
+                  <FileDown className="w-4 h-4" style={{ color: MUTED }} />
+                </button>
+                <button title="Print" onClick={() => window.print()}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center"
+                  style={{ background: "hsl(var(--muted))" }}>
+                  <Printer className="w-4 h-4" style={{ color: MUTED }} />
+                </button>
+                {detail.status !== "Returned" && (
+                  <button title="Return / Refund" onClick={() => setReturnMode(true)}
+                    className="w-8 h-8 rounded-xl flex items-center justify-center"
+                    style={{ background: "hsl(var(--muted))" }}>
+                    <RotateCcw className="w-4 h-4" style={{ color: MUTED }} />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
 
           {!detail ? (
             <div className="h-40 rounded-2xl animate-pulse" style={{ background: "hsl(var(--muted))" }} />
           ) : (
-            <>
-              <div className="rounded-2xl border p-4" style={{ borderColor: BORDER, background: CARD }}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h1 className="text-lg font-extrabold">{detail.invoiceNumber}</h1>
-                    <p className="text-xs mt-0.5" style={{ color: MUTED }}>{detail.date}</p>
-                  </div>
-                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full"
-                    style={STATUS_COLOR[detail.status] ?? { bg: "hsl(var(--muted))", color: MUTED }}>
-                    {detail.status}
-                  </span>
-                </div>
-                {(detail.customerName || detail.customerPhone) && (
-                  <p className="text-xs mt-2" style={{ color: MUTED }}>
-                    {detail.customerName} {detail.customerPhone && `· ${detail.customerPhone}`}
-                  </p>
-                )}
+            <div className="space-y-3">
 
-                <div className="mt-4 divide-y" style={{ borderColor: BORDER }}>
-                  {detail.items.map(it => {
-                    const eligible = it.quantity - it.returnedQuantity;
-                    return (
-                      <div key={it.id} className="py-2.5 flex items-center gap-2">
-                        <Package className="w-3.5 h-3.5 flex-shrink-0" style={{ color: MUTED }} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold truncate">{it.partName}</p>
-                          <p className="text-xs" style={{ color: MUTED }}>
-                            {it.quantity} × {sym}{Number(it.unitPrice).toLocaleString()}
-                            {it.returnedQuantity > 0 && <span> · {it.returnedQuantity} returned</span>}
-                          </p>
+              {/* ── 1. Invoice Header Card ─────────────────────── */}
+              <div className="rounded-2xl border p-4" style={{ borderColor: BORDER, background: CARD }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h1 className="text-xl font-extrabold">{detail.invoiceNumber}</h1>
+                    <span className="inline-block text-[10px] font-bold px-2.5 py-1 rounded-full mt-1.5"
+                      style={STATUS_COLOR[detail.status] ?? { background: "hsl(var(--muted))", color: MUTED }}>
+                      {detail.status}
+                    </span>
+                    <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                      <span className="text-xs px-2.5 py-1 rounded-full font-medium"
+                        style={{ background: "hsl(var(--muted))", color: MUTED }}>
+                        {detail.date}
+                      </span>
+                      <span className="text-xs px-2.5 py-1 rounded-full font-medium"
+                        style={{ background: "hsl(var(--muted))", color: MUTED }}>
+                        {detail.paymentMethod}
+                      </span>
+                    </div>
+                  </div>
+                  {/* Business info */}
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    {shopLogo ? (
+                      <img src={shopLogo} alt="logo" className="w-11 h-11 rounded-xl object-cover border"
+                        style={{ borderColor: BORDER }} />
+                    ) : (
+                      <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-extrabold text-lg"
+                        style={{ background: PRIMARY }}>
+                        {shopName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <p className="text-xs font-bold text-right max-w-[120px] leading-tight">{shopName}</p>
+                    {shopAddress && (
+                      <p className="text-[10px] text-right max-w-[120px] leading-tight" style={{ color: MUTED }}>
+                        {shopAddress}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── 2. Customer Section ───────────────────────── */}
+              {(detail.customerName || detail.customerPhone) && (
+                <div className="rounded-2xl border p-4" style={{ borderColor: BORDER, background: CARD }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <UserCircle className="w-4 h-4" style={{ color: PRIMARY }} />
+                    <p className="text-sm font-bold" style={{ color: PRIMARY }}>Customer</p>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm">{detail.customerName}</p>
+                      {detail.customerPhone && (
+                        <p className="text-xs mt-0.5" style={{ color: MUTED }}>{detail.customerPhone}</p>
+                      )}
+                    </div>
+                    {detail.customerPhone && (
+                      <a href={`tel:${detail.customerPhone}`}>
+                        <button className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                          style={{ background: "hsl(var(--primary) / 0.1)" }}>
+                          <Phone className="w-4 h-4" style={{ color: PRIMARY }} />
+                        </button>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── 3. Payment Info (Credit only) ─────────────── */}
+              {detail.paymentMethod === "Credit" && (() => {
+                const total = Number(detail.total);
+                const advance = Number(detail.advancePaid ?? 0);
+                const totalRefunded = (detail.returns ?? []).reduce(
+                  (s: number, r: any) => s + Number(r.refundAmount), 0
+                );
+                const due = Math.max(0, total - advance - totalRefunded);
+                return (
+                  <div className="rounded-2xl border p-4" style={{ borderColor: BORDER, background: CARD }}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <CreditCard className="w-4 h-4" style={{ color: PRIMARY }} />
+                      <p className="text-sm font-bold" style={{ color: PRIMARY }}>Payment Info</p>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span style={{ color: MUTED }}>Payment Method</span>
+                        <span className="font-semibold">{detail.paymentMethod}</span>
+                      </div>
+                      {advance > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span style={{ color: MUTED }}>Advance Paid</span>
+                          <span className="font-semibold" style={{ color: "#059669" }}>{sym}{advance.toLocaleString()}</span>
                         </div>
-                        {returnMode ? (
+                      )}
+                      <div className="flex justify-between text-sm">
+                        <span style={{ color: MUTED }}>Credit Due</span>
+                        <span className="font-bold" style={{ color: due > 0 ? "#DC2626" : "#059669" }}>
+                          {due > 0 ? `${sym}${due.toLocaleString()}` : "Settled ✓"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ── 4. Items Table ────────────────────────────── */}
+              <div className="rounded-2xl border overflow-hidden" style={{ borderColor: BORDER }}>
+                {/* Table header */}
+                <div className="grid gap-x-2 px-4 py-3 text-xs font-bold text-white"
+                  style={{ background: PRIMARY, gridTemplateColumns: "1fr 36px 68px 68px" }}>
+                  <span>Items</span>
+                  <span className="text-center">Qty</span>
+                  <span className="text-right">Price</span>
+                  <span className="text-right">Total</span>
+                </div>
+
+                {/* Item rows */}
+                {detail.items.map((it, idx) => {
+                  const eligible = it.quantity - it.returnedQuantity;
+                  return (
+                    <div key={it.id}
+                      className="grid gap-x-2 px-4 py-3 border-t items-center"
+                      style={{ borderColor: BORDER, gridTemplateColumns: "1fr 36px 68px 68px", background: CARD }}>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold leading-tight">{idx + 1}. {it.partName}</p>
+                        {it.returnedQuantity > 0 && (
+                          <p className="text-[10px] mt-0.5" style={{ color: "#DC2626" }}>{it.returnedQuantity} returned</p>
+                        )}
+                      </div>
+                      {returnMode ? (
+                        <div className="col-span-3 flex justify-end">
                           <input type="number" min="0" max={eligible} placeholder="0"
                             value={returnQty[it.id] ?? ""}
                             onChange={e => setReturnQty(prev => ({ ...prev, [it.id]: e.target.value }))}
                             disabled={eligible === 0}
-                            className="w-16 text-xs px-2 py-1.5 rounded-lg border outline-none disabled:opacity-30" style={{ borderColor: BORDER }} />
-                        ) : (
-                          <span className="text-sm font-bold">{sym}{Number(it.total).toLocaleString()}</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                            className="w-20 text-xs px-2 py-1.5 rounded-lg border outline-none disabled:opacity-30 text-center"
+                            style={{ borderColor: BORDER }} />
+                        </div>
+                      ) : (
+                        <>
+                          <span className="text-xs text-center">{it.quantity}</span>
+                          <span className="text-xs text-right">{sym}{Number(it.unitPrice).toFixed(2)}</span>
+                          <span className="text-xs font-semibold text-right">{sym}{Number(it.total).toFixed(2)}</span>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
 
-                <div className="mt-3 pt-3 border-t space-y-1.5" style={{ borderColor: BORDER }}>
-                  <div className="flex justify-between text-xs"><span style={{ color: MUTED }}>Subtotal</span><span>{sym}{Number(detail.subtotal).toLocaleString()}</span></div>
+                {/* Totals section */}
+                <div className="px-4 py-3 border-t space-y-1.5"
+                  style={{ borderColor: BORDER, background: "hsl(var(--muted) / 0.3)" }}>
+                  <div className="flex justify-between text-xs">
+                    <span style={{ color: MUTED }}>Subtotal</span>
+                    <span>{sym}{Number(detail.subtotal).toLocaleString()}</span>
+                  </div>
                   {Number(detail.discount) > 0 && (
-                    <div className="flex justify-between text-xs"><span style={{ color: MUTED }}>Discount</span><span style={{ color: "#DC2626" }}>-{sym}{Number(detail.discount).toLocaleString()}</span></div>
+                    <div className="flex justify-between text-xs">
+                      <span style={{ color: MUTED }}>Discount</span>
+                      <span style={{ color: "#DC2626" }}>- {sym}{Number(detail.discount).toLocaleString()}</span>
+                    </div>
                   )}
-                  <div className="flex justify-between text-sm font-bold pt-1 border-t" style={{ borderColor: BORDER }}>
-                    <span>Total</span>
+                  <div className="flex justify-between text-xs">
+                    <span style={{ color: MUTED }}>Tax (0%)</span>
+                    <span>{sym}0.00</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-extrabold pt-2 border-t" style={{ borderColor: BORDER }}>
+                    <span>Grand Total</span>
                     <span style={{ color: PRIMARY }}>{sym}{Number(detail.total).toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between text-xs pt-1"><span style={{ color: MUTED }}>Payment Method</span><span className="font-semibold">{detail.paymentMethod}</span></div>
-                  {/* Credit sale breakdown */}
+                  {/* Credit Due inline */}
                   {detail.paymentMethod === "Credit" && (() => {
                     const total = Number(detail.total);
                     const advance = Number(detail.advancePaid ?? 0);
@@ -247,78 +394,65 @@ export default function Invoices() {
                       (s: number, r: any) => s + Number(r.refundAmount), 0
                     );
                     const due = Math.max(0, total - advance - totalRefunded);
-                    return (
-                      <div className="mt-2 p-3 rounded-xl space-y-1.5" style={{ background: "#FFF7E6", border: "1px solid #F59E0B60" }}>
-                        <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#D97706" }}>Credit Sale Details</p>
-                        {advance > 0 && (
-                          <div className="flex justify-between text-xs">
-                            <span style={{ color: "#92400E" }}>Advance Collected</span>
-                            <span className="font-bold" style={{ color: "#059669" }}>{sym}{advance.toLocaleString()}</span>
-                          </div>
-                        )}
-                        {totalRefunded > 0 && (
-                          <div className="flex justify-between text-xs">
-                            <span style={{ color: "#92400E" }}>Refunded (Returns)</span>
-                            <span className="font-bold" style={{ color: "#059669" }}>{sym}{totalRefunded.toLocaleString()}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between text-sm font-bold">
-                          <span style={{ color: "#D97706" }}>Amount Due</span>
-                          <span style={{ color: due > 0 ? "#DC2626" : "#059669" }}>
-                            {due > 0 ? `${sym}${due.toLocaleString()}` : "Settled ✓"}
-                          </span>
-                        </div>
+                    return due > 0 ? (
+                      <div className="flex justify-between text-xs font-semibold">
+                        <span style={{ color: MUTED }}>Credit Due</span>
+                        <span style={{ color: "#DC2626" }}>{sym}{due.toLocaleString()}</span>
                       </div>
-                    );
+                    ) : null;
                   })()}
                 </div>
-
-                {detail.returns?.length > 0 && (
-                  <div className="mt-3 pt-3 border-t" style={{ borderColor: BORDER }}>
-                    <p className="text-xs font-bold mb-1.5" style={{ color: MUTED }}>RETURN HISTORY</p>
-                    {detail.returns.map((r: any) => (
-                      <p key={r.id} className="text-xs" style={{ color: MUTED }}>
-                        {r.date} · {r.quantity} unit(s) · refunded {sym}{Number(r.refundAmount).toLocaleString()} {r.reason && `— ${r.reason}`}
-                      </p>
-                    ))}
-                  </div>
-                )}
               </div>
 
-              {returnMode ? (
+              {/* ── 5. Return History ─────────────────────────── */}
+              {detail.returns?.length > 0 && (
+                <div className="rounded-2xl border p-4" style={{ borderColor: BORDER, background: CARD }}>
+                  <p className="text-xs font-bold mb-2 uppercase tracking-wide" style={{ color: MUTED }}>Return History</p>
+                  {detail.returns.map((r: any) => (
+                    <p key={r.id} className="text-xs py-1 border-b last:border-0" style={{ color: MUTED, borderColor: BORDER }}>
+                      {r.date} · {r.quantity} unit(s) returned
+                      {Number(r.refundAmount) > 0 && ` · refunded ${sym}${Number(r.refundAmount).toLocaleString()}`}
+                      {r.reason && ` — ${r.reason}`}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {/* ── 6. Notes ──────────────────────────────────── */}
+              <div className="rounded-2xl border p-4" style={{ borderColor: BORDER, background: CARD }}>
+                <p className="text-sm font-bold mb-2">Notes</p>
+                <p className="text-sm" style={{ color: MUTED }}>Thank you for your business!</p>
+              </div>
+
+              {/* ── 7. Return Form ────────────────────────────── */}
+              {returnMode && (
                 <div className="rounded-2xl border p-4 space-y-3" style={{ borderColor: BORDER, background: CARD }}>
                   <p className="text-sm font-bold">Process Return / Refund</p>
-                  <input value={returnReason} onChange={e => setReturnReason(e.target.value)} placeholder="Reason (optional)"
-                    className="w-full px-3 py-2.5 rounded-lg border text-sm outline-none" style={{ borderColor: BORDER }} />
-                  {returnError && <p className="text-xs" style={{ color: "hsl(var(--destructive))" }}>{returnError}</p>}
+                  <p className="text-xs" style={{ color: MUTED }}>
+                    Enter return quantities in the rows above, then add an optional reason.
+                  </p>
+                  <input value={returnReason} onChange={e => setReturnReason(e.target.value)}
+                    placeholder="Reason (optional)"
+                    className="w-full px-3 py-2.5 rounded-lg border text-sm outline-none"
+                    style={{ borderColor: BORDER }} />
+                  {returnError && (
+                    <p className="text-xs" style={{ color: "hsl(var(--destructive))" }}>{returnError}</p>
+                  )}
                   <div className="flex gap-2">
                     <button onClick={() => { setReturnMode(false); setReturnQty({}); setReturnError(""); }}
-                      className="flex-1 py-2.5 rounded-xl font-semibold text-sm border" style={{ borderColor: BORDER }}>Cancel</button>
+                      className="flex-1 py-2.5 rounded-xl font-semibold text-sm border" style={{ borderColor: BORDER }}>
+                      Cancel
+                    </button>
                     <button onClick={() => returnMut.mutate()} disabled={returnMut.isPending}
-                      className="flex-1 py-2.5 rounded-xl font-semibold text-sm text-white disabled:opacity-60" style={{ background: "hsl(var(--destructive))" }}>
+                      className="flex-1 py-2.5 rounded-xl font-semibold text-sm text-white disabled:opacity-60"
+                      style={{ background: "hsl(var(--destructive))" }}>
                       {returnMut.isPending ? "Processing…" : "Confirm Return"}
                     </button>
                   </div>
                 </div>
-              ) : (
-                <div className="flex gap-2">
-                  <button onClick={() => {
-                    const d = saleToInvoiceData(detail);
-                    d.shopName = shopName; d.currencySymbol = sym;
-                    generateInvoicePdf(d);
-                  }}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm text-white" style={{ background: PRIMARY }}>
-                    <Download className="w-4 h-4" /> Download PDF
-                  </button>
-                  {detail.status !== "Returned" && (
-                    <button onClick={() => setReturnMode(true)}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm border" style={{ borderColor: BORDER }}>
-                      <RotateCcw className="w-4 h-4" /> Return / Refund
-                    </button>
-                  )}
-                </div>
               )}
-            </>
+
+            </div>
           )}
         </div>
       </ProtectedPage>

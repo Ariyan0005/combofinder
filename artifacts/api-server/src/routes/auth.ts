@@ -540,7 +540,7 @@ router.post("/auth/login", async (req, res) => {
     (req.session as any).userRole = user.accountType;
     (req.session as any).userPlan = user.subscriptionPlan ?? "Free";
     (req.session as any).userCurrency = user.currency ?? "USD";
-    res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan ?? "Free", currency: user.currency ?? "USD", shopName: user.shopName ?? "" } });
+    res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan ?? "Free", currency: user.currency ?? "USD", shopName: user.shopName ?? "", shopAddress: user.shopAddress ?? "", shopLogo: user.shopLogo ?? null } });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Login failed. Please try again." });
@@ -556,6 +556,8 @@ router.get("/auth/me", async (req, res) => {
     const userId = (req.session as any).userId;
     let currency = "USD";
     let shopName = "";
+    let shopAddress = "";
+    let shopLogo: string | null = null;
     let email = "";
     // Read plan fresh from DB so admin plan updates are reflected immediately
     // without requiring the user to log out and back in.
@@ -565,11 +567,15 @@ router.get("/auth/me", async (req, res) => {
         const [u] = await db.select({
           currency: usersTable.currency,
           shopName: usersTable.shopName,
+          shopAddress: usersTable.shopAddress,
+          shopLogo: usersTable.shopLogo,
           email: usersTable.email,
           subscriptionPlan: usersTable.subscriptionPlan,
         }).from(usersTable).where(eq(usersTable.id, userId));
         currency = u?.currency ?? "USD";
         shopName = u?.shopName ?? "";
+        shopAddress = u?.shopAddress ?? "";
+        shopLogo = u?.shopLogo ?? null;
         email = u?.email ?? "";
         plan = u?.subscriptionPlan ?? "Free";
       } catch {}
@@ -584,6 +590,8 @@ router.get("/auth/me", async (req, res) => {
         plan,
         currency,
         shopName,
+        shopAddress,
+        shopLogo,
       },
     });
   } else {
@@ -741,11 +749,13 @@ router.put("/auth/settings", async (req, res) => {
   if (!(req.session as any).authenticated) { res.status(401).json({ error: "Unauthorized" }); return; }
   const userId = (req.session as any).userId;
   if (!userId) { res.status(400).json({ error: "No user ID in session" }); return; }
-  const { currency, shopName } = req.body as { currency?: string; shopName?: string };
+  const { currency, shopName, shopAddress, shopLogo } = req.body as { currency?: string; shopName?: string; shopAddress?: string; shopLogo?: string };
   try {
     const updates: Record<string, any> = { updatedAt: new Date() };
     if (currency) updates.currency = currency;
     if (shopName !== undefined) updates.shopName = shopName;
+    if (shopAddress !== undefined) updates.shopAddress = shopAddress;
+    if (shopLogo !== undefined) updates.shopLogo = shopLogo || null;
     await db.update(usersTable).set(updates).where(eq(usersTable.id, userId));
     res.json({ success: true });
   } catch (err) {

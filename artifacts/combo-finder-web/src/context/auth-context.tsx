@@ -10,6 +10,8 @@ export type UserInfo = {
   plan?: string;
   currency?: string;
   shopName?: string;
+  shopAddress?: string;
+  shopLogo?: string;
 };
 
 type AuthContextType = {

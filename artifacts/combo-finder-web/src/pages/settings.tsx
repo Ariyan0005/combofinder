@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
-import { Store, User, Lock, Bell, ChevronRight, Check, X, Globe, Eye, EyeOff, Search, RotateCcw, CheckCircle2, AlertCircle, CloudOff, Smartphone } from "lucide-react";
+import { Store, User, Lock, Bell, ChevronRight, Check, X, Globe, Eye, EyeOff, Search, RotateCcw, CheckCircle2, AlertCircle, CloudOff, MapPin, Camera, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
@@ -368,6 +368,8 @@ export default function Settings() {
   // Settings (currency + shop)
   const [currency, setCurrency] = useState(user?.currency ?? "USD");
   const [shopName, setShopName] = useState(user?.shopName ?? "");
+  const [shopAddress, setShopAddress] = useState(user?.shopAddress ?? "");
+  const [shopLogo, setShopLogo] = useState<string>(user?.shopLogo ?? "");
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsOk, setSettingsOk] = useState(false);
   const [settingsError, setSettingsError] = useState("");
@@ -375,12 +377,27 @@ export default function Settings() {
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [currencySearch, setCurrencySearch] = useState("");
   const currencyRef = useRef<HTMLDivElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Sync currency/shopName when user loads from server
   useEffect(() => {
     if (user?.currency) setCurrency(user.currency);
     if (user?.shopName) setShopName(user.shopName);
-  }, [user?.currency, user?.shopName]);
+    if (user?.shopAddress !== undefined) setShopAddress(user.shopAddress ?? "");
+    if (user?.shopLogo !== undefined) setShopLogo(user.shopLogo ?? "");
+  }, [user?.currency, user?.shopName, user?.shopAddress, user?.shopLogo]);
+
+  function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 300 * 1024) {
+      setSettingsError("Logo image must be under 300 KB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = ev => setShopLogo(ev.target?.result as string ?? "");
+    reader.readAsDataURL(file);
+  }
 
   // Close currency dropdown when clicking outside
   useEffect(() => {
@@ -455,7 +472,7 @@ export default function Settings() {
       const res = await fetch("/api/auth/settings", {
         method: "PUT", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currency, shopName }),
+        body: JSON.stringify({ currency, shopName, shopAddress, shopLogo }),
       });
       const ct = res.headers.get("content-type") ?? "";
       if (!ct.includes("application/json")) throw new Error("Server error. Please try again later.");
@@ -521,6 +538,37 @@ export default function Settings() {
           <p className="text-xs font-bold uppercase tracking-wide mb-3"
             style={{ color: "hsl(var(--muted-foreground))" }}>Shop & Currency</p>
           <form onSubmit={handleSettings} className="flex flex-col gap-3.5">
+            {/* Shop Logo */}
+            <div>
+              <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>Shop Logo</label>
+              <div className="flex items-center gap-3">
+                {shopLogo ? (
+                  <img src={shopLogo} alt="logo" className="w-14 h-14 rounded-xl object-cover border flex-shrink-0" style={{ borderColor: "hsl(var(--border))" }} />
+                ) : (
+                  <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 border-2 border-dashed"
+                    style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--muted))" }}>
+                    <Camera className="w-5 h-5" style={{ color: "hsl(var(--muted-foreground))" }} />
+                  </div>
+                )}
+                <div className="flex flex-col gap-2">
+                  <button type="button" onClick={() => logoInputRef.current?.click()}
+                    className="px-3 py-2 rounded-lg text-xs font-semibold border"
+                    style={{ borderColor: "hsl(var(--primary))", color: "hsl(var(--primary))", background: "hsl(var(--primary) / 0.06)" }}>
+                    {shopLogo ? "Change Logo" : "Upload Logo"}
+                  </button>
+                  {shopLogo && (
+                    <button type="button" onClick={() => setShopLogo("")}
+                      className="px-3 py-2 rounded-lg text-xs font-semibold border flex items-center gap-1.5"
+                      style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+                      <Trash2 className="w-3 h-3" /> Remove
+                    </button>
+                  )}
+                </div>
+                <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+              </div>
+              <p className="text-[10px] mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>Max 300 KB · Shown on invoices</p>
+            </div>
+            {/* Shop Name */}
             <div>
               <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>Shop Name</label>
               <div className="relative">
@@ -529,6 +577,21 @@ export default function Settings() {
                 <input value={shopName} onChange={e => setShopName(e.target.value)}
                   placeholder="Enter your shop name"
                   className={INPUT_CLS + " pl-10"}
+                  style={INPUT_STYLE}
+                  onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }} />
+              </div>
+            </div>
+            {/* Shop Address */}
+            <div>
+              <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>Shop Address</label>
+              <div className="relative">
+                <MapPin className="w-4 h-4 absolute left-3.5 top-3.5"
+                  style={{ color: "hsl(var(--muted-foreground))" }} />
+                <textarea value={shopAddress} onChange={e => setShopAddress(e.target.value)}
+                  placeholder="e.g. Salalah, Oman"
+                  rows={2}
+                  className={INPUT_CLS + " pl-10 resize-none"}
                   style={INPUT_STYLE}
                   onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
                   onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }} />
