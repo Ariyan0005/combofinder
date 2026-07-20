@@ -721,7 +721,15 @@ export function generateSalesReportPdf(
   const finalY = (doc as any).lastAutoTable?.finalY ?? tableStartY + 20;
 
   // ── Summary footer ───────────────────────────────────────────────────────
-  const sumY = finalY + 6;
+  // Guard: if the table runs close to the page bottom, add a new page so
+  // the 4-line footer (4 × 7mm ≈ 28mm) plus separator (6mm) fits safely.
+  const footerHeight = 6 + 28 + 16; // separator + 4 lines + underline/watermark room
+  if (finalY + footerHeight > 275) {
+    doc.addPage();
+  }
+  const sumY = finalY + footerHeight > 275
+    ? 20   // fresh page — start near top
+    : finalY + 6;
   doc.setDrawColor(229, 231, 235);
   doc.setLineWidth(0.3);
   doc.line(14, sumY, W - 14, sumY);
