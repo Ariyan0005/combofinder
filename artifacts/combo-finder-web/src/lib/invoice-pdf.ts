@@ -532,12 +532,15 @@ export function generateRepairPdfBlob(r: RepairVoucherData): Blob {
   return buildRepairDoc(r).output("blob") as Blob;
 }
 
+
 // ── Sales Report ──────────────────────────────────────────────────────────────
 export interface DateWiseSaleRow {
   invoiceNumber: string;
   date: string;
   customerName?: string | null;
   total: number;
+  totalRefund?: number; // total refunded amount for this sale
+  advancePaid?: number; // advance paid for credit sales
   status: string;
   paymentMethod: string;
 }
@@ -553,48 +556,205 @@ export function generateSalesReportPdf(
   const shop = (shopName ?? "My Shop").trim();
   const doc  = new jsPDF({ unit: "mm", format: "a4" });
   const W    = doc.internal.pageSize.getWidth();
+  const fmt  = (n: number) =>
+    `${sym}${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+  // ── Computed summary values ─────────────────────────────────────────────
+  const completedRows  = rows.filter(r => r.status === "Completed" || r.status === "Partially Returned");
+  const returnedRows   = rows.filter(r => r.status === "Returned");
+
+  const grossSales     = rows.reduce((s, r) => s + r.total, 0);
+  const totalReturned  = rows.reduce((s, r) => s + (r.totalRefund ?? 0), 0);
+  const netRevenue     = grossSales - totalReturned;
+
+  const cashTotal      = rows.filter(r => r.paymentMethod === "Cash")
+                             .reduce((s, r) => s + r.total, 0);
+  const creditTotal    = rows.filter(r => r.paymentMethod === "Credit")
+                             .reduce((s, r) => s + r.total, 0);
+  const creditDue      = rows.reduce((s, r) => {
+    if (r.paymentMethod !== "Credit") return s;
+    if (r.status === "Returned") return s;
+    const due = r.total - (r.advancePaid ?? 0) - (r.totalRefund ?? 0);
+    return s + (due > 0.005 ? due : 0);
+  }, 0);
+
+  const completedCount = completedRows.length;
+  const returnedCount  = returnedRows.length;
+
+  // ── Header band ─────────────────────────────────────────────────────────
   doc.setFillColor(25, 50, 180);
-  doc.rect(0, 0, W, 26, "F");
+  doc.rect(0, 0, W, 28, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
   doc.text(shop, 14, 12);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text("Sales Report", 14, 19);
-  doc.text(`${from || "All time"} — ${to || "Now"}`, W - 14, 19, { align: "right" });
+  doc.text("Sales Report", 14, 20);
+  doc.text(`${from || "All time"} — ${to || "Now"}`, W - 14, 20, { align: "right" });
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.text(`${rows.length} invoice${rows.length !== 1 ? "s" : ""}`, W - 14, 26, { align: "right" });
   doc.setTextColor(0, 0, 0);
 
-  autoTable(doc, {
-    startY: 32,
-    head: [["Invoice", "Date", "Customer", `Total (${sym})`, "Payment", "Status"]],
-    body: rows.map(r => [
-      r.invoiceNumber, r.date, r.customerName ?? "—",
-      r.total.toLocaleString(), r.paymentMethod, r.status,
-    ]),
-    theme: "striped",
-    headStyles:   { fillColor: [25, 50, 180], fontSize: 8.5, fontStyle: "bold" },
-    bodyStyles:   { fontSize: 8.5 },
-    columnStyles: { 3: { halign: "right" } },
-    margin: { left: 14, right: 14 },
+  // ── Summary boxes (2 rows × 3 cols) ─────────────────────────────────────
+  const boxY  = 34;
+  const boxH  = 20;
+  const cols  = 3;
+  const gap   = 3;
+  const boxW  = (W - 28 - gap * (cols - 1)) / cols;
+
+  type RGB = [number, number, number];
+  const summaryItems: { label: string; value: string; textRgb: RGB; bgRgb: RGB }[] = [
+    { label: "Gross Sales",  value: fmt(grossSales),   textRgb: [37,  99,  235], bgRgb: [239, 246, 255] },
+    { label: "Total Returns",value: fmt(totalReturned),textRgb: [220, 38,  38],  bgRgb: [254, 242, 242] },
+    { label: "Net Revenue",  value: fmt(netRevenue),   textRgb: [5,   150, 105], bgRgb: [236, 253, 245] },
+    { label: "Cash Sales",   value: fmt(cashTotal),    textRgb: [55,  65,  81],  bgRgb: [249, 250, 251] },
+    { label: "Credit Sales", value: fmt(creditTotal),  textRgb: [124, 58,  237], bgRgb: [245, 243, 255] },
+    {
+      label: "Credit Due",
+      value: fmt(creditDue),
+      textRgb: creditDue > 0.005 ? [220, 38, 38]  : [55, 65, 81],
+      bgRgb:   creditDue > 0.005 ? [254, 242, 242] : [249, 250, 251],
+    },
+  ];
+
+  summaryItems.forEach((item, i) => {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    const x   = 14 + col * (boxW + gap);
+    const y   = boxY + row * (boxH + gap);
+
+    doc.setFillColor(...item.bgRgb);
+    doc.roundedRect(x, y, boxW, boxH, 2, 2, "F");
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
+    doc.setTextColor(107, 114, 128);
+    doc.text(item.label.toUpperCase(), x + 3, y + 5.5);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...item.textRgb);
+    doc.text(item.value, x + 3, y + 14);
   });
 
-  const finalY   = (doc as any).lastAutoTable?.finalY ?? 40;
-  const totalSum = rows.reduce((s, r) => s + r.total, 0);
+  // ── Completed / Returned count chips ────────────────────────────────────
+  const chipY = boxY + 2 * (boxH + gap) + 4;
 
+  doc.setFillColor(236, 253, 245);
+  doc.roundedRect(14, chipY, 58, 7, 1.5, 1.5, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(25, 50, 180);
-  doc.text(
-    `Grand Total: ${sym}${totalSum.toLocaleString()}   (${rows.length} invoice${rows.length !== 1 ? "s" : ""})`,
-    14, finalY + 10,
-  );
+  doc.setFontSize(7.5);
+  doc.setTextColor(5, 150, 105);
+  doc.text(`✓  ${completedCount} Completed`, 43, chipY + 4.8, { align: "center" });
 
+  doc.setFillColor(254, 242, 242);
+  doc.roundedRect(76, chipY, 58, 7, 1.5, 1.5, "F");
+  doc.setTextColor(220, 38, 38);
+  doc.text(`✕  ${returnedCount} Returned`, 105, chipY + 4.8, { align: "center" });
+
+  doc.setTextColor(0, 0, 0);
+
+  // ── Invoice table ────────────────────────────────────────────────────────
+  const tableStartY = chipY + 12;
+
+  type StatusColors = { text: RGB; bg: RGB };
+  const statusColorMap: Record<string, StatusColors> = {
+    "Completed":          { text: [5,   150, 105], bg: [236, 253, 245] },
+    "Returned":           { text: [220,  38,  38], bg: [254, 242, 242] },
+    "Partially Returned": { text: [217, 119,   6], bg: [255, 247, 230] },
+  };
+
+  autoTable(doc, {
+    startY: tableStartY,
+    head: [["Invoice", "Date", "Customer", `Total (${sym})`, `Refund (${sym})`, "Payment", "Status"]],
+    body: rows.map(r => [
+      r.invoiceNumber,
+      r.date,
+      r.customerName ?? "—",
+      r.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      r.totalRefund && r.totalRefund > 0
+        ? r.totalRefund.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : "—",
+      r.paymentMethod,
+      r.status,
+    ]),
+    theme: "striped",
+    headStyles:   { fillColor: [25, 50, 180], fontSize: 7.5, fontStyle: "bold" },
+    bodyStyles:   { fontSize: 7, cellPadding: 2 },
+    columnStyles: {
+      3: { halign: "right" },
+      4: { halign: "right" },
+    },
+    margin: { left: 14, right: 14 },
+    didDrawCell: (data: any) => {
+      // Colour-code the Status column (index 6)
+      if (data.section === "body" && data.column.index === 6) {
+        const status  = String(data.cell.raw ?? "");
+        const colors  = statusColorMap[status];
+        if (colors) {
+          const { x, y, width, height } = data.cell;
+          doc.setFillColor(...colors.bg);
+          doc.roundedRect(x + 0.5, y + 0.8, width - 1, height - 1.5, 1, 1, "F");
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(6);
+          doc.setTextColor(...colors.text);
+          const label = status === "Partially Returned" ? "Part. Return" : status;
+          doc.text(label, x + width / 2, y + height / 2 + 0.5, { align: "center" });
+        }
+      }
+      // Colour return amounts red
+      if (data.section === "body" && data.column.index === 4) {
+        const val = String(data.cell.raw ?? "");
+        if (val !== "—") {
+          const { x, y, width, height } = data.cell;
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7);
+          doc.setTextColor(220, 38, 38);
+          doc.text(val, x + width - 1.5, y + height / 2 + 0.5, { align: "right" });
+        }
+      }
+    },
+  });
+
+  const finalY = (doc as any).lastAutoTable?.finalY ?? tableStartY + 20;
+
+  // ── Summary footer ───────────────────────────────────────────────────────
+  const sumY = finalY + 6;
+  doc.setDrawColor(229, 231, 235);
+  doc.setLineWidth(0.3);
+  doc.line(14, sumY, W - 14, sumY);
+
+  const summaryLines: [string, string, RGB][] = [
+    ["Gross Sales",    fmt(grossSales),                [37,  99, 235]],
+    ["Total Returns",  `- ${fmt(totalReturned)}`,      [220,  38,  38]],
+    ["Net Revenue",    fmt(netRevenue),                [5,  150, 105]],
+    ["Credit Due",     fmt(creditDue),                 creditDue > 0.005 ? [220, 38, 38] : [107, 114, 128]],
+  ];
+
+  let lineY = sumY + 7;
+  summaryLines.forEach(([label, value, color]) => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(75, 85, 99);
+    doc.text(label, W - 65, lineY);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...color);
+    doc.text(value, W - 14, lineY, { align: "right" });
+    lineY += 7;
+  });
+
+  // Underline Net Revenue
+  doc.setDrawColor(5, 150, 105);
+  doc.setLineWidth(0.4);
+  doc.line(W - 65, lineY - 11, W - 14, lineY - 11);
+
+  // ── Watermark footer ─────────────────────────────────────────────────────
   doc.setFont("helvetica", "italic");
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setTextColor(160, 160, 160);
-  doc.text(shop, W - 14, 282, { align: "right" });
+  doc.text(`Generated by ${shop}`, W - 14, 287, { align: "right" });
 
   doc.save(`sales-report_${from || "all"}_${to || "all"}.pdf`);
 }
