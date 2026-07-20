@@ -87,15 +87,29 @@ export async function startSession(userId: number): Promise<void> {
     return;
   }
 
+  // Wrap signal keys in a cache for better performance and session stability
+  const authState = {
+    creds: state.creds,
+    keys: B.makeCacheableSignalKeyStore
+      ? B.makeCacheableSignalKeyStore(state.keys, baileysLog)
+      : state.keys,
+  };
+
   console.log(`[WA] user ${userId} — creating socket...`);
   let sock: any;
   try {
     sock = makeWASocket({
       version,
-      auth: state,
+      auth: authState,
       logger: baileysLog,
       printQRInTerminal: false,
-      browser: ["ComboFinder", "Chrome", "1.0"],
+      // Standard browser fingerprint — custom strings get flagged by WhatsApp
+      browser: ["Ubuntu", "Chrome", "130.0.0.0"],
+      // REQUIRED for multi-device sessions: without this WhatsApp terminates
+      // the session immediately because it can't sync message history.
+      getMessage: async (_key: any) => undefined,
+      // Don't request full message history — reduces load and disconnect risk
+      syncFullHistory: false,
     });
     console.log(`[WA] user ${userId} — socket created OK`);
   } catch (e: any) {
@@ -138,6 +152,9 @@ export async function startSession(userId: number): Promise<void> {
     if (connection === "close") {
       session.isConnected = false;
       session.phoneNumber = null;
+      session.qr = null;
+      // Clear sock so the reconnect guard in startSession doesn't block re-entry
+      session.sock = null;
       const code = lastDisconnect?.error?.output?.statusCode;
       const loggedOut = B.DisconnectReason?.loggedOut;
       const shouldReconnect = code !== loggedOut;
@@ -145,8 +162,10 @@ export async function startSession(userId: number): Promise<void> {
       if (shouldReconnect) {
         session.reconnectTimer = setTimeout(() => startSession(userId).catch(() => {}), 5_000);
       } else {
+        // Logged out — remove session so user can scan a fresh QR
         sessions.delete(userId);
         fs.rmSync(dir, { recursive: true, force: true });
+        console.log(`[WA] user ${userId} — session cleared (logged out)`);
       }
     }
   });

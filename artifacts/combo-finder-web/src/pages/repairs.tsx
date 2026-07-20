@@ -271,8 +271,8 @@ function AddCustomerModal({ onClose, onAdded }: { onClose: () => void; onAdded: 
           className="flex flex-col gap-3">
           {[
             { label: "Full Name *", key: "name", placeholder: "Customer name", type: "text" },
-            { label: "Phone", key: "phone", placeholder: "Phone number", type: "tel" },
-            { label: "WhatsApp", key: "whatsapp", placeholder: "WhatsApp number", type: "tel" },
+            { label: "Phone", key: "phone", placeholder: "e.g. +96893162391 (with country code)", type: "tel" },
+            { label: "WhatsApp", key: "whatsapp", placeholder: "e.g. +96893162391 (with country code)", type: "tel" },
             { label: "Notes", key: "notes", placeholder: "Optional notes", type: "text" },
           ].map(({ label, key, placeholder, type }) => (
             <div key={key}>
