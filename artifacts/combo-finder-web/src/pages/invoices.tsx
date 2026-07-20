@@ -223,44 +223,41 @@ export default function Invoices() {
 
               {/* ── 1. Invoice Header Card ─────────────────────── */}
               <div className="rounded-2xl border p-4" style={{ borderColor: BORDER, background: CARD }}>
-                {/* Business info — centered at top */}
-                <div className="flex flex-col items-center gap-1 mb-4">
-                  {shopLogo ? (
-                    <img src={shopLogo} alt="logo" className="w-16 h-16 rounded-2xl object-cover border"
-                      style={{ borderColor: BORDER }} />
-                  ) : (
-                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl"
-                      style={{ background: PRIMARY }}>
-                      {shopName.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <p className="text-sm font-extrabold text-center leading-tight">{shopName}</p>
-                  {shopAddress && (
-                    <p className="text-[11px] text-center leading-tight" style={{ color: MUTED }}>
-                      {shopAddress}
-                    </p>
-                  )}
-                </div>
-                {/* Divider */}
-                <div className="mb-3" style={{ height: 1, background: BORDER }} />
-                {/* Invoice info */}
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <h1 className="text-xl font-extrabold">{detail.invoiceNumber}</h1>
                     <span className="inline-block text-[10px] font-bold px-2.5 py-1 rounded-full mt-1.5"
                       style={STATUS_COLOR[detail.status] ?? { background: "hsl(var(--muted))", color: MUTED }}>
                       {detail.status}
                     </span>
+                    <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                      <span className="text-xs px-2.5 py-1 rounded-full font-medium"
+                        style={{ background: "hsl(var(--muted))", color: MUTED }}>
+                        {detail.date}
+                      </span>
+                      <span className="text-xs px-2.5 py-1 rounded-full font-medium"
+                        style={{ background: "hsl(var(--muted))", color: MUTED }}>
+                        {detail.paymentMethod}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap justify-end">
-                    <span className="text-xs px-2.5 py-1 rounded-full font-medium"
-                      style={{ background: "hsl(var(--muted))", color: MUTED }}>
-                      {detail.date}
-                    </span>
-                    <span className="text-xs px-2.5 py-1 rounded-full font-medium"
-                      style={{ background: "hsl(var(--muted))", color: MUTED }}>
-                      {detail.paymentMethod}
-                    </span>
+                  {/* Business info — logo centered above name */}
+                  <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                    {shopLogo ? (
+                      <img src={shopLogo} alt="logo" className="w-11 h-11 rounded-xl object-cover border"
+                        style={{ borderColor: BORDER }} />
+                    ) : (
+                      <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-extrabold text-lg"
+                        style={{ background: PRIMARY }}>
+                        {shopName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <p className="text-xs font-bold text-center max-w-[110px] leading-tight">{shopName}</p>
+                    {shopAddress && (
+                      <p className="text-[10px] text-center max-w-[110px] leading-tight" style={{ color: MUTED }}>
+                        {shopAddress}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
