@@ -70,8 +70,11 @@ autoInstallPeers: false
 
 onlyBuiltDependencies:
   - '@swc/core'
+  - '@whiskeysockets/baileys'
+  - core-js
   - esbuild
   - msw
+  - protobufjs
   - unrs-resolver
 
 overrides:
@@ -159,6 +162,3 @@ overrides:
   "@esbuild-kit/esm-loader": "npm:tsx@^4.21.0"
   esbuild: "0.27.3"
 
-allowBuilds:
-  core-js: set this to true or false
-  esbuild: set this to true or false
