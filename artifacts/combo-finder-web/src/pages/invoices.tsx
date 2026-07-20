@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   Search, Receipt, ChevronRight, X, RotateCcw,
-  FileDown, ArrowLeft, UserCircle, CreditCard, Phone, Printer, MapPin,
+  FileDown, Download, ArrowLeft, UserCircle, CreditCard, Phone, Printer, MapPin,
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 import { generateInvoicePdf, generateSalesReportPdf } from "@/lib/invoice-pdf";
