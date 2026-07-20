@@ -686,8 +686,22 @@ export function generateSalesReportPdf(
     columnStyles: {
       3: { halign: "right" },
       4: { halign: "right" },
+      6: { minCellWidth: 22 }, // wide enough for "Completed" badge
     },
     margin: { left: 14, right: 14 },
+    // Blank out cells we will redraw ourselves so autoTable text
+    // doesn't show through and create a double-text / strikethrough effect.
+    willDrawCell: (data: any) => {
+      if (data.section !== "body") return;
+      // Status chip (col 6) — always blank the raw text
+      if (data.column.index === 6) {
+        data.cell.text = [""];
+      }
+      // Refund amount (col 4) — blank only when there is a real value
+      if (data.column.index === 4 && String(data.cell.raw ?? "") !== "—") {
+        data.cell.text = [""];
+      }
+    },
     didDrawCell: (data: any) => {
       // Colour-code the Status column (index 6)
       if (data.section === "body" && data.column.index === 6) {
@@ -704,7 +718,7 @@ export function generateSalesReportPdf(
           doc.text(label, x + width / 2, y + height / 2 + 0.5, { align: "center" });
         }
       }
-      // Colour return amounts red
+      // Colour return amounts red (drawn fresh — no underlying text)
       if (data.section === "body" && data.column.index === 4) {
         const val = String(data.cell.raw ?? "");
         if (val !== "—") {
@@ -733,6 +747,8 @@ export function generateSalesReportPdf(
   doc.setDrawColor(229, 231, 235);
   doc.setLineWidth(0.3);
   doc.line(14, sumY, W - 14, sumY);
+  // Note: summary labels are at W-75 and values at W-22 to keep clear of
+  // mobile PDF viewer FAB buttons that sit in the bottom-right corner.
 
   const summaryLines: [string, string, RGB][] = [
     ["Gross Sales",    fmt(grossSales),                [37,  99, 235]],
@@ -746,17 +762,17 @@ export function generateSalesReportPdf(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(75, 85, 99);
-    doc.text(label, W - 65, lineY);
+    doc.text(label, W - 75, lineY);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...color);
-    doc.text(value, W - 14, lineY, { align: "right" });
+    doc.text(value, W - 22, lineY, { align: "right" });
     lineY += 7;
   });
 
   // Underline Net Revenue
   doc.setDrawColor(5, 150, 105);
   doc.setLineWidth(0.4);
-  doc.line(W - 65, lineY - 11, W - 14, lineY - 11);
+  doc.line(W - 75, lineY - 11, W - 22, lineY - 11);
 
   // ── Watermark footer ─────────────────────────────────────────────────────
   doc.setFont("helvetica", "italic");
