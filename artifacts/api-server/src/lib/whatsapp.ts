@@ -222,14 +222,31 @@ export async function disconnect(userId: number): Promise<void> {
 // ── Send a plain-text WhatsApp message ───────────────────────────────────
 export async function sendMessage(userId: number, phone: string, text: string): Promise<boolean> {
   const s = sessions.get(userId);
-  if (!s?.isConnected || !s.sock) return false;
+  if (!s) {
+    console.warn(`[WA] sendMessage user=${userId}: no session in memory (server restarted?)`);
+    return false;
+  }
+  if (!s.isConnected) {
+    console.warn(`[WA] sendMessage user=${userId}: session not connected (isConnected=false)`);
+    return false;
+  }
+  if (!s.sock) {
+    console.warn(`[WA] sendMessage user=${userId}: sock is null`);
+    return false;
+  }
   try {
     const digits = phone.replace(/\D/g, "");
-    if (!digits) return false;
+    if (!digits) {
+      console.warn(`[WA] sendMessage user=${userId}: empty phone after stripping non-digits (raw="${phone}")`);
+      return false;
+    }
     const jid = `${digits}@s.whatsapp.net`;
+    console.log(`[WA] sendMessage user=${userId} → ${jid} (${text.length} chars)`);
     await s.sock.sendMessage(jid, { text });
+    console.log(`[WA] sendMessage user=${userId} → ✓ sent OK`);
     return true;
-  } catch {
+  } catch (e: any) {
+    console.error(`[WA] sendMessage user=${userId} → ✗ FAILED: ${e?.message ?? e}`);
     return false;
   }
 }

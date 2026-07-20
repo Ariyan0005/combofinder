@@ -92,7 +92,9 @@ router.post("/", async (req, res) => {
     res.status(201).json(row);
 
     // ── WhatsApp alert: repair created (Pro users only, fire-and-forget) ──
-    if ((userRow?.subscriptionPlan ?? "Free") !== "Free" && row.customerPhone) {
+    const plan = userRow?.subscriptionPlan ?? "Free";
+    console.log(`[WA-Alert] repair created: userId=${userId} plan="${plan}" phone="${row.customerPhone}"`);
+    if (plan !== "Free" && row.customerPhone) {
       const [u] = await db.select({ shopName: usersTable.shopName, currency: usersTable.currency })
         .from(usersTable).where(eq(usersTable.id, userId));
       WA.sendMessage(userId, row.customerPhone, WA.buildAlertMessage("created", {
@@ -105,7 +107,13 @@ router.post("/", async (req, res) => {
         advancePaid:   row.advancePaid,
         shopName:      u?.shopName ?? "",
         currency:      u?.currency ?? "USD",
-      })).catch(() => {});
+      })).then(ok => {
+        if (!ok) console.warn(`[WA-Alert] repair created alert NOT sent for user=${userId} — check WA session`);
+        else console.log(`[WA-Alert] repair created alert sent OK for user=${userId}`);
+      }).catch(e => console.error(`[WA-Alert] repair created alert error: ${e?.message}`));
+    } else {
+      if (plan === "Free") console.log(`[WA-Alert] skipped — user is on Free plan`);
+      if (!row.customerPhone) console.log(`[WA-Alert] skipped — no customer phone`);
     }
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to create repair" }); }
 });
@@ -212,6 +220,7 @@ router.put("/:id", async (req, res) => {
 
     // ── WhatsApp alert on status change to Ready / Cancelled ──────────────
     const newStatus = result.status;
+    console.log(`[WA-Alert] status update: userId=${userId} ${prevStatus}→${newStatus} phone="${result.customerPhone}"`);
     if (
       result.customerPhone &&
       ["Ready", "Cancelled"].includes(newStatus) &&
@@ -223,7 +232,9 @@ router.put("/:id", async (req, res) => {
         currency:         usersTable.currency,
       }).from(usersTable).where(eq(usersTable.id, userId));
 
-      if ((u?.subscriptionPlan ?? "Free") !== "Free") {
+      const uPlan = u?.subscriptionPlan ?? "Free";
+      console.log(`[WA-Alert] status alert: plan="${uPlan}" → will send: ${uPlan !== "Free"}`);
+      if (uPlan !== "Free") {
         WA.sendMessage(userId, result.customerPhone, WA.buildAlertMessage(
           newStatus === "Ready" ? "ready" : "cancelled",
           {
@@ -237,8 +248,15 @@ router.put("/:id", async (req, res) => {
             shopName:      u?.shopName ?? "",
             currency:      u?.currency ?? "USD",
           }
-        )).catch(() => {});
+        )).then(ok => {
+          if (!ok) console.warn(`[WA-Alert] status alert NOT sent for user=${userId} — check WA session`);
+          else console.log(`[WA-Alert] status alert sent OK for user=${userId}`);
+        }).catch(e => console.error(`[WA-Alert] status alert error: ${e?.message}`));
       }
+    } else {
+      if (!result.customerPhone) console.log(`[WA-Alert] skipped — no customer phone on repair`);
+      if (!["Ready", "Cancelled"].includes(newStatus)) console.log(`[WA-Alert] skipped — status "${newStatus}" doesn't trigger alert`);
+      if (newStatus === prevStatus) console.log(`[WA-Alert] skipped — status unchanged`);
     }
   } catch (err: any) {
     const status = err.status ?? 500;
