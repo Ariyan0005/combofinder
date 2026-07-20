@@ -64,9 +64,31 @@ export interface RepairVoucherData {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helper: fetch any image URL → base64 data-URL (returns null on failure)
+// ─────────────────────────────────────────────────────────────────────────────
+async function urlToBase64(url: string): Promise<string | null> {
+  if (!url) return null;
+  // Already a data URL — use as-is
+  if (url.startsWith("data:")) return url;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Internal builder — returns jsPDF doc (no side effects)
 // ─────────────────────────────────────────────────────────────────────────────
-function buildInvoiceDoc(invoice: InvoiceData): jsPDF {
+async function buildInvoiceDoc(invoice: InvoiceData): Promise<jsPDF> {
   const sym   = invoice.currencySymbol ?? "$";
   const shop  = (invoice.shopName ?? "My Shop").trim();
   const doc   = new jsPDF({ unit: "mm", format: "a4" });
@@ -80,13 +102,14 @@ function buildInvoiceDoc(invoice: InvoiceData): jsPDF {
   doc.setFillColor(25, 50, 180);
   doc.rect(0, 0, W, headerH, "F");
 
-  // Logo (top-right corner) if provided
+  // Logo (top-right corner) if provided — fetch URL → base64 first
   const logoAreaW = 22;
   const logoX = W - 14 - logoAreaW;
-  if (invoice.shopLogo) {
+  const logoBase64 = invoice.shopLogo ? await urlToBase64(invoice.shopLogo) : null;
+  if (logoBase64) {
     try {
-      const fmt = invoice.shopLogo.startsWith("data:image/png") ? "PNG" : "JPEG";
-      doc.addImage(invoice.shopLogo, fmt, logoX, 4, logoAreaW, logoAreaW);
+      const fmt = logoBase64.startsWith("data:image/png") ? "PNG" : "JPEG";
+      doc.addImage(logoBase64, fmt, logoX, 4, logoAreaW, logoAreaW);
     } catch { /* skip if image invalid */ }
   }
 
@@ -106,7 +129,7 @@ function buildInvoiceDoc(invoice: InvoiceData): jsPDF {
   }
 
   // Invoice number & date (top-left of right section if no logo, else below logo area)
-  const rightX = invoice.shopLogo ? logoX - 4 : W - 14;
+  const rightX = logoBase64 ? logoX - 4 : W - 14;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.text(invoice.invoiceNumber, rightX, 13, { align: "right" });
@@ -287,13 +310,13 @@ function buildInvoiceDoc(invoice: InvoiceData): jsPDF {
   return doc;
 }
 
-export function generateInvoicePdf(invoice: InvoiceData) {
-  buildInvoiceDoc(invoice).save(`${invoice.invoiceNumber}.pdf`);
+export async function generateInvoicePdf(invoice: InvoiceData): Promise<void> {
+  (await buildInvoiceDoc(invoice)).save(`${invoice.invoiceNumber}.pdf`);
 }
 
 /** Returns a PDF Blob — use with navigator.share({ files }) for WhatsApp sharing */
-export function generateInvoicePdfBlob(invoice: InvoiceData): Blob {
-  return buildInvoiceDoc(invoice).output("blob") as Blob;
+export async function generateInvoicePdfBlob(invoice: InvoiceData): Promise<Blob> {
+  return (await buildInvoiceDoc(invoice)).output("blob") as Blob;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

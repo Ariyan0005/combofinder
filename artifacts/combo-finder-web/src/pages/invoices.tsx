@@ -191,7 +191,7 @@ export default function Invoices() {
                     const d = saleToInvoiceData(detail);
                     d.shopName = shopName; d.shopAddress = shopAddress;
                     d.shopLogo = shopLogo ?? undefined; d.currencySymbol = sym;
-                    generateInvoicePdf(d);
+                    void generateInvoicePdf(d);
                   }}
                   className="w-8 h-8 rounded-xl flex items-center justify-center"
                   style={{ background: "hsl(var(--muted))" }}>

@@ -68,7 +68,7 @@ function InvoiceDetailModal({
     const data = saleToInvoiceData(detail);
     data.shopName = shopName;
     data.currencySymbol = sym;
-    generateInvoicePdf(data);
+    await generateInvoicePdf(data);
   }
 
   async function handleShare() {
@@ -77,7 +77,7 @@ function InvoiceDetailModal({
     data.shopName = shopName;
     data.currencySymbol = sym;
 
-    const blob = generateInvoicePdfBlob(data);
+    const blob = await generateInvoicePdfBlob(data);
     const file = new File([blob], `${data.invoiceNumber}.pdf`, { type: "application/pdf" });
 
     if (typeof navigator.share !== "undefined" && navigator.canShare?.({ files: [file] })) {

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
-import { Store, User, Lock, Bell, ChevronRight, Check, X, Globe, Eye, EyeOff, Search, RotateCcw, CheckCircle2, AlertCircle, CloudOff, MapPin, Camera, Trash2 } from "lucide-react";
+import { Store, User, Lock, Bell, ChevronRight, Check, X, Globe, Eye, EyeOff, Search, RotateCcw, CheckCircle2, AlertCircle, CloudOff, MapPin, ImageIcon } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
@@ -377,8 +377,6 @@ export default function Settings() {
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [currencySearch, setCurrencySearch] = useState("");
   const currencyRef = useRef<HTMLDivElement>(null);
-  const logoInputRef = useRef<HTMLInputElement>(null);
-
   // Sync currency/shopName when user loads from server
   useEffect(() => {
     if (user?.currency) setCurrency(user.currency);
@@ -386,18 +384,6 @@ export default function Settings() {
     if (user?.shopAddress !== undefined) setShopAddress(user.shopAddress ?? "");
     if (user?.shopLogo !== undefined) setShopLogo(user.shopLogo ?? "");
   }, [user?.currency, user?.shopName, user?.shopAddress, user?.shopLogo]);
-
-  function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 300 * 1024) {
-      setSettingsError("Logo image must be under 300 KB");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = ev => setShopLogo(ev.target?.result as string ?? "");
-    reader.readAsDataURL(file);
-  }
 
   // Close currency dropdown when clicking outside
   useEffect(() => {
@@ -538,35 +524,44 @@ export default function Settings() {
           <p className="text-xs font-bold uppercase tracking-wide mb-3"
             style={{ color: "hsl(var(--muted-foreground))" }}>Shop & Currency</p>
           <form onSubmit={handleSettings} className="flex flex-col gap-3.5">
-            {/* Shop Logo */}
+            {/* Shop Logo URL */}
             <div>
-              <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>Shop Logo</label>
-              <div className="flex items-center gap-3">
+              <label className="text-xs font-semibold block mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>Shop Logo URL</label>
+              <div className="flex items-center gap-3 mb-2">
                 {shopLogo ? (
-                  <img src={shopLogo} alt="logo" className="w-14 h-14 rounded-xl object-cover border flex-shrink-0" style={{ borderColor: "hsl(var(--border))" }} />
+                  <img src={shopLogo} alt="logo"
+                    className="w-14 h-14 rounded-xl object-cover border flex-shrink-0"
+                    style={{ borderColor: "hsl(var(--border))" }}
+                    onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                 ) : (
                   <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 border-2 border-dashed"
                     style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--muted))" }}>
-                    <Camera className="w-5 h-5" style={{ color: "hsl(var(--muted-foreground))" }} />
+                    <ImageIcon className="w-5 h-5" style={{ color: "hsl(var(--muted-foreground))" }} />
                   </div>
                 )}
-                <div className="flex flex-col gap-2">
-                  <button type="button" onClick={() => logoInputRef.current?.click()}
-                    className="px-3 py-2 rounded-lg text-xs font-semibold border"
-                    style={{ borderColor: "hsl(var(--primary))", color: "hsl(var(--primary))", background: "hsl(var(--primary) / 0.06)" }}>
-                    {shopLogo ? "Change Logo" : "Upload Logo"}
-                  </button>
+                <div className="flex-1 min-w-0">
+                  <div className="relative">
+                    <input
+                      value={shopLogo}
+                      onChange={e => setShopLogo(e.target.value)}
+                      placeholder="https://res.cloudinary.com/..."
+                      className={INPUT_CLS}
+                      style={INPUT_STYLE}
+                      onFocus={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
+                      onBlur={e => { e.currentTarget.style.borderColor = "hsl(var(--border))"; }}
+                    />
+                  </div>
                   {shopLogo && (
                     <button type="button" onClick={() => setShopLogo("")}
-                      className="px-3 py-2 rounded-lg text-xs font-semibold border flex items-center gap-1.5"
-                      style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-                      <Trash2 className="w-3 h-3" /> Remove
+                      className="mt-1.5 text-[10px] font-semibold" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      ✕ Clear URL
                     </button>
                   )}
                 </div>
-                <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
               </div>
-              <p className="text-[10px] mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>Max 300 KB · Shown on invoices</p>
+              <p className="text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>
+                Upload to <span className="font-semibold">Cloudinary</span>, <span className="font-semibold">ImgBB</span>, or any image host → paste the direct image URL here
+              </p>
             </div>
             {/* Shop Name */}
             <div>

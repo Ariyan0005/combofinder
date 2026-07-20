@@ -668,7 +668,7 @@ export default function Pos() {
                 const data = saleToInvoiceData(completedInvoice);
                 data.shopName = shopName;
                 data.currencySymbol = sym;
-                generateInvoicePdf(data);
+                void generateInvoicePdf(data);
               }}
               className="w-full py-3 rounded-xl font-bold text-white text-sm"
               style={{ background: PRIMARY }}>
