@@ -55,7 +55,8 @@ export async function startSession(userId: number): Promise<void> {
   const { state, saveCreds } = await B.useMultiFileAuthState(dir);
   const { version } = await B.fetchLatestBaileysVersion();
 
-  const sock = B.default({
+  const makeWASocket = B.makeWASocket ?? B.default;
+  const sock = makeWASocket({
     version,
     auth: state,
     logger: baileysLog,
