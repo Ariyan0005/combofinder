@@ -354,27 +354,23 @@ export default function Invoices() {
 
         {/* Summary */}
         {sales.length > 0 && (
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-2xl border p-3" style={{ borderColor: BORDER, background: "#EFF6FF" }}>
-                <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#2563EB" }}>Gross Sales</p>
-                <p className="font-bold text-base" style={{ color: "#1D4ED8" }}>{sym}{rangeTotal.toLocaleString()}</p>
+          <div className="grid grid-cols-2 gap-1.5">
+              <div className="rounded-xl border px-2.5 py-1.5" style={{ borderColor: BORDER, background: "#EFF6FF" }}>
+                <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#2563EB" }}>Gross Sales</p>
+                <p className="font-bold text-sm leading-tight" style={{ color: "#1D4ED8" }}>{sym}{rangeTotal.toLocaleString()}</p>
               </div>
-              <div className="rounded-2xl border p-3" style={{ borderColor: BORDER, background: rangeTotalReturns > 0 ? "#FEF2F2" : CARD }}>
-                <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: rangeTotalReturns > 0 ? "#DC2626" : MUTED }}>Total Returns</p>
-                <p className="font-bold text-base" style={{ color: rangeTotalReturns > 0 ? "#DC2626" : undefined }}>{sym}{rangeTotalReturns.toLocaleString()}</p>
+              <div className="rounded-xl border px-2.5 py-1.5" style={{ borderColor: BORDER, background: rangeTotalReturns > 0 ? "#FEF2F2" : CARD }}>
+                <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: rangeTotalReturns > 0 ? "#DC2626" : MUTED }}>Total Returns</p>
+                <p className="font-bold text-sm leading-tight" style={{ color: rangeTotalReturns > 0 ? "#DC2626" : undefined }}>{sym}{rangeTotalReturns.toLocaleString()}</p>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-2xl border p-3" style={{ borderColor: BORDER, background: "#ECFDF5" }}>
-                <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#059669" }}>Net Revenue</p>
-                <p className="font-bold text-base" style={{ color: "#047857" }}>{sym}{rangeNetRevenue.toLocaleString()}</p>
+              <div className="rounded-xl border px-2.5 py-1.5" style={{ borderColor: BORDER, background: "#ECFDF5" }}>
+                <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#059669" }}>Net Revenue</p>
+                <p className="font-bold text-sm leading-tight" style={{ color: "#047857" }}>{sym}{rangeNetRevenue.toLocaleString()}</p>
               </div>
-              <div className="rounded-2xl border p-3" style={{ borderColor: BORDER, background: rangeCreditDue > 0 ? "#FEF2F2" : CARD }}>
-                <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: rangeCreditDue > 0 ? "#DC2626" : MUTED }}>Credit Due</p>
-                <p className="font-bold text-base" style={{ color: rangeCreditDue > 0 ? "#DC2626" : undefined }}>{sym}{rangeCreditDue.toLocaleString()}</p>
+              <div className="rounded-xl border px-2.5 py-1.5" style={{ borderColor: BORDER, background: rangeCreditDue > 0 ? "#FEF2F2" : CARD }}>
+                <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: rangeCreditDue > 0 ? "#DC2626" : MUTED }}>Credit Due</p>
+                <p className="font-bold text-sm leading-tight" style={{ color: rangeCreditDue > 0 ? "#DC2626" : undefined }}>{sym}{rangeCreditDue.toLocaleString()}</p>
               </div>
-            </div>
           </div>
         )}
 

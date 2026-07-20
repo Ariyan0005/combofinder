@@ -680,13 +680,21 @@ export function generateSalesReportPdf(
       r.paymentMethod,
       r.status,
     ]),
-    theme: "striped",
-    headStyles:   { fillColor: [25, 50, 180], fontSize: 7.5, fontStyle: "bold" },
-    bodyStyles:   { fontSize: 7, cellPadding: 2 },
+    theme: "grid",
+    tableLineColor: [209, 213, 219], // gray-300 border like Excel
+    tableLineWidth: 0.2,
+    headStyles:   { fillColor: [25, 50, 180], fontSize: 7.5, fontStyle: "bold",
+                    lineColor: [255, 255, 255], lineWidth: 0.2 },
+    bodyStyles:   { fontSize: 7, cellPadding: { top: 1.8, right: 2, bottom: 1.8, left: 2 },
+                    overflow: "hidden" },
     columnStyles: {
-      3: { halign: "right" },
-      4: { halign: "right" },
-      6: { minCellWidth: 22 }, // wide enough for "Completed" badge
+      0: { cellWidth: 28 },                          // Invoice #
+      1: { cellWidth: 22 },                          // Date
+      2: { cellWidth: 46, overflow: "hidden" },      // Customer (fixed, clips long names)
+      3: { cellWidth: 22, halign: "right" },         // Total
+      4: { cellWidth: 22, halign: "right" },         // Refund
+      5: { cellWidth: 18 },                          // Payment
+      6: { cellWidth: 24 },                          // Status
     },
     margin: { left: 14, right: 14 },
     // Blank out cells we will redraw ourselves so autoTable text
