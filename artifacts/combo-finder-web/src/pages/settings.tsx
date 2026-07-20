@@ -177,10 +177,12 @@ function WhatsAppSection() {
     queryKey: ["wa-qr"],
     queryFn: async () => {
       const r = await fetch("/api/whatsapp/qr", { credentials: "include" });
-      return r.json() as Promise<{ connected: boolean; qr: string | null; phoneNumber?: string | null; message?: string }>;
+      const json = await r.json() as { connected: boolean; qr: string | null; phoneNumber?: string | null; message?: string; error?: string };
+      if (!r.ok) return { connected: false, qr: null, error: json.error ?? `Error ${r.status}` };
+      return json;
     },
     enabled: !status?.isConnected,
-    refetchInterval: !status?.isConnected ? 8000 : false,
+    refetchInterval: !status?.isConnected && !qrData?.error ? 8000 : false,
   });
 
   async function handleDisconnect() {
@@ -247,6 +249,17 @@ function WhatsAppSection() {
             </p>
           </div>
         </>
+      ) : qrData?.error ? (
+        /* Error state (e.g. Free plan, server error) */
+        <div className="flex flex-col items-center gap-2 py-4 text-center">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: "#FEE2E2" }}>
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="#DC2626" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </div>
+          <p className="text-xs font-semibold" style={{ color: "#DC2626" }}>{qrData.error}</p>
+        </div>
       ) : (
         /* Generating QR */
         <div className="flex flex-col items-center gap-2 py-4">

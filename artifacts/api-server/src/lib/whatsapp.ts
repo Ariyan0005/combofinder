@@ -53,7 +53,17 @@ export async function startSession(userId: number): Promise<void> {
   if (existing?.reconnectTimer) clearTimeout(existing.reconnectTimer);
 
   const { state, saveCreds } = await B.useMultiFileAuthState(dir);
-  const { version } = await B.fetchLatestBaileysVersion();
+
+  // fetchLatestBaileysVersion makes an external call to WhatsApp servers —
+  // fall back to a known-good version if it fails (e.g. network blocked).
+  let version: number[];
+  try {
+    const versionResult = await B.fetchLatestBaileysVersion();
+    version = versionResult.version;
+  } catch {
+    version = [2, 3000, 1023557039]; // known-good Baileys fallback
+    console.warn("[WhatsApp] fetchLatestBaileysVersion failed, using fallback version");
+  }
 
   const makeWASocket = B.makeWASocket ?? B.default;
   const sock = makeWASocket({

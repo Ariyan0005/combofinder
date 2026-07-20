@@ -41,9 +41,12 @@ router.get("/whatsapp/qr", async (req, res) => {
 
     // Start session if no QR yet
     if (!status.hasQR) {
-      WA.startSession(userId).catch(() => {});
-      // Poll up to 8 s for QR to be generated
-      for (let i = 0; i < 16; i++) {
+      WA.startSession(userId).catch((err) => {
+        console.error("[WhatsApp] startSession error:", err?.message ?? err);
+      });
+      // Poll up to 20 s for QR to be generated (Baileys needs time to
+      // establish WebSocket connection + negotiate handshake with WhatsApp)
+      for (let i = 0; i < 40; i++) {
         await new Promise(r => setTimeout(r, 500));
         if (WA.getQR(userId)) break;
       }
