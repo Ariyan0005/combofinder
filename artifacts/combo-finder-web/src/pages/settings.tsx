@@ -315,7 +315,9 @@ export default function Settings() {
   }
 
   // On mount: if token expired but user previously connected, silently refresh
+  // Skip for Pro users — they use server storage, not Google Drive backup
   useEffect(() => {
+    if (user?.plan === "Pro") return;
     if (!isGDriveConnected() && hadGDriveConnected()) {
       setGDriveRefreshing(true);
       silentRefreshToken()
@@ -323,7 +325,7 @@ export default function Settings() {
         .catch(() => {})
         .finally(() => setGDriveRefreshing(false));
     }
-  }, []);
+  }, [user?.plan]);
 
   async function handleConnectDrive() {
     setConnecting(true);
