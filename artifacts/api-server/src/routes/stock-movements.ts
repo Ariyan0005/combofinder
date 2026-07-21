@@ -60,6 +60,8 @@ router.post("/", async (req, res) => {
           quantity: sql`GREATEST(0, ${inventoryTable.quantity} + ${delta})`,
           updatedAt: new Date(),
           ...(type === "in" && supplierName ? { supplier: supplierName } : {}),
+          // Also persist the unit price as the item's purchase price on stock-in
+          ...(type === "in" && unitPrice ? { purchasePrice: unitPrice } : {}),
         })
         .where(
           // For outgoing movements enforce quantity >= amount being removed

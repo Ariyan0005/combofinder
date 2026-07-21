@@ -118,12 +118,13 @@ router.post("/", async (req, res) => {
     // ── Atomic: create stock movement + purchase record ────────────────────────
     if (updateStock && inventoryId) {
       const result = await db.transaction(async (tx) => {
-        // Increase inventory quantity
+        // Increase inventory quantity + update purchase price
         const [updatedItem] = await tx.update(inventoryTable)
           .set({
             quantity: sql`${inventoryTable.quantity} + ${qty}`,
             updatedAt: new Date(),
             ...(supplierName ? { supplier: String(supplierName) } : {}),
+            ...(unitPriceStr ? { purchasePrice: unitPriceStr } : {}),
           })
           .where(eq(inventoryTable.id, Number(inventoryId)))
           .returning();
@@ -236,6 +237,7 @@ router.post("/invoice", async (req, res) => {
               quantity: sql`${inventoryTable.quantity} + ${line.qty}`,
               updatedAt: new Date(),
               ...(supplierName ? { supplier: String(supplierName) } : {}),
+              ...(line.unitPrice > 0 ? { purchasePrice: String(line.unitPrice) } : {}),
             })
             .where(eq(inventoryTable.id, Number(line.inventoryId)))
             .returning();
