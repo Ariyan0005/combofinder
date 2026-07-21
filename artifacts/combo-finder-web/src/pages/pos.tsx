@@ -314,12 +314,18 @@ function CartContents({
           </div>
         ) : (
           <div className="space-y-1">
-            {cart.map(l => (
+            {cart.map((l, idx) => (
               <div key={l.item.id} className="rounded-xl border p-3 space-y-2.5"
                 style={{ borderColor: BORDER, background: CARD }}>
                 {/* Name + remove */}
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-semibold leading-snug flex-1">{l.item.partName}</p>
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <span className="text-[10px] font-bold flex-shrink-0 w-5 h-5 rounded-md flex items-center justify-center"
+                      style={{ background: "hsl(var(--primary) / 0.1)", color: PRIMARY }}>
+                      {idx + 1}
+                    </span>
+                    <p className="text-sm font-semibold leading-snug">{l.item.partName}</p>
+                  </div>
                   <button onClick={() => removeLine(l.item.id)} className="flex-shrink-0 mt-0.5"
                     style={{ color: "hsl(var(--destructive))" }}>
                     <Trash2 className="w-3.5 h-3.5" />
