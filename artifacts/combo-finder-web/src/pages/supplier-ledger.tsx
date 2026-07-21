@@ -470,6 +470,119 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+// ─── Invoice Group type (used in both component and detail view) ──────────────
+type InvoiceGroup = {
+  key: string;
+  invoiceNumber: string | null;
+  items: Purchase[];
+  totalAmount: number;
+  paidAmount: number;
+  dueAmount: number;
+  paymentStatus: string;
+  purchaseDate: string;
+};
+
+// ─── Invoice Detail Page ──────────────────────────────────────────────────────
+function InvoiceDetail({ group, supplierName, sym, onBack }: {
+  group: InvoiceGroup; supplierName: string; sym: string; onBack: () => void;
+}) {
+  const totalUnits = group.items.reduce((s, i) => s + (i.quantity ?? 0), 0);
+  return (
+    <div className="space-y-4 pb-24">
+      {/* Header */}
+      <div className="flex items-center gap-3 pt-1">
+        <button onClick={onBack}
+          className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{ background: "hsl(var(--muted))", color: MUTED }}>
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-lg font-extrabold truncate">
+            {group.invoiceNumber ?? "Purchase"}
+          </h1>
+          <p className="text-xs" style={{ color: MUTED }}>
+            {supplierName} · {dateStr(group.purchaseDate)}
+          </p>
+        </div>
+        <StatusBadge status={group.paymentStatus} />
+      </div>
+
+      {/* Summary bar */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-xl px-2 py-2.5 text-center" style={{ background: CARD, border: `1px solid ${BORDER}` }}>
+          <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: MUTED }}>Total</p>
+          <p className="text-xs font-extrabold">{sym}{fmt(group.totalAmount)}</p>
+        </div>
+        <div className="rounded-xl px-2 py-2.5 text-center" style={{ background: "#D1FAE5" }}>
+          <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: GREEN }}>Paid</p>
+          <p className="text-xs font-extrabold" style={{ color: GREEN }}>{sym}{fmt(group.paidAmount)}</p>
+        </div>
+        <div className="rounded-xl px-2 py-2.5 text-center"
+          style={{ background: group.dueAmount > 0.001 ? "#FEE2E2" : "#D1FAE5" }}>
+          <p className="text-[9px] font-semibold uppercase tracking-wide mb-0.5"
+            style={{ color: group.dueAmount > 0.001 ? RED : GREEN }}>Due</p>
+          <p className="text-xs font-extrabold" style={{ color: group.dueAmount > 0.001 ? RED : GREEN }}>
+            {sym}{fmt(group.dueAmount)}
+          </p>
+        </div>
+      </div>
+
+      {/* Items */}
+      <div className="rounded-2xl border overflow-hidden" style={{ borderColor: BORDER, background: CARD }}>
+        {/* Table header */}
+        <div className="grid px-4 py-2.5 text-[10px] font-bold uppercase tracking-wide border-b"
+          style={{ borderColor: BORDER, background: "hsl(var(--muted))", color: MUTED,
+            gridTemplateColumns: "1fr auto auto auto" }}>
+          <span>Product</span>
+          <span className="text-center w-10">Qty</span>
+          <span className="text-right w-20">Unit</span>
+          <span className="text-right w-20">Total</span>
+        </div>
+
+        {group.items.map((item, idx) => {
+          const unitPrice = item.quantity && Number(item.totalAmount) > 0
+            ? Number(item.totalAmount) / item.quantity
+            : null;
+          return (
+            <div key={item.id}
+              className="grid px-4 py-3 border-b last:border-0 items-center"
+              style={{ borderColor: BORDER, gridTemplateColumns: "1fr auto auto auto" }}>
+              <div className="min-w-0 pr-2">
+                <p className="text-sm font-semibold truncate">{item.productName ?? `Item ${idx + 1}`}</p>
+              </div>
+              <span className="text-sm text-center w-10">{item.quantity ?? "—"}</span>
+              <span className="text-sm text-right w-20" style={{ color: MUTED }}>
+                {unitPrice != null ? `${sym}${fmt(unitPrice)}` : "—"}
+              </span>
+              <span className="text-sm font-bold text-right w-20">{sym}{fmt(item.totalAmount)}</span>
+            </div>
+          );
+        })}
+
+        {/* Footer totals */}
+        <div className="px-4 py-3 border-t flex justify-between items-center"
+          style={{ borderColor: BORDER, background: "hsl(var(--muted) / 0.4)" }}>
+          <span className="text-xs font-semibold" style={{ color: MUTED }}>
+            {group.items.length} product{group.items.length !== 1 ? "s" : ""}
+            {totalUnits > 0 ? ` · ${totalUnits} units` : ""}
+          </span>
+          <span className="text-base font-extrabold" style={{ color: PRIMARY }}>
+            {sym}{fmt(group.totalAmount)}
+          </span>
+        </div>
+      </div>
+
+      {/* Notes (if any item has notes) */}
+      {group.items.some(i => i.notes) && (
+        <div className="rounded-2xl border px-4 py-3" style={{ borderColor: BORDER, background: CARD }}>
+          <p className="text-xs font-semibold mb-1" style={{ color: MUTED }}>Notes</p>
+          <p className="text-sm">{group.items.find(i => i.notes)?.notes}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SupplierLedger() {
   const [, setLocation] = useLocation();
@@ -478,14 +591,7 @@ export default function SupplierLedger() {
   const [tab, setTab] = useState<"purchases"|"payments">("purchases");
   const [showAddPurchase, setShowAddPurchase] = useState(false);
   const [showPayNow, setShowPayNow] = useState(false);
-  const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
-
-  const toggleInvoice = (key: string) =>
-    setExpandedInvoices(prev => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
+  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceGroup | null>(null);
   const { user } = useAuth();
   const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
 
@@ -541,16 +647,6 @@ export default function SupplierLedger() {
   const totalDue = balance?.totalDue ?? 0;
 
   // Group purchases by invoice number; solo items (no invoiceNumber) each get their own group
-  type InvoiceGroup = {
-    key: string;
-    invoiceNumber: string | null;
-    items: Purchase[];
-    totalAmount: number;
-    paidAmount: number;
-    dueAmount: number;
-    paymentStatus: string;
-    purchaseDate: string;
-  };
   const invoiceGroups = useMemo<InvoiceGroup[]>(() => {
     const map = new Map<string, InvoiceGroup>();
     for (const p of purchases) {
@@ -580,6 +676,20 @@ export default function SupplierLedger() {
     return Array.from(map.values())
       .sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime());
   }, [purchases]);
+
+  // ── Invoice detail page ───────────────────────────────────────────────────
+  if (selectedInvoice) {
+    return (
+      <ProtectedPage>
+        <InvoiceDetail
+          group={selectedInvoice}
+          supplierName={supplier?.name ?? "Supplier"}
+          sym={sym}
+          onBack={() => setSelectedInvoice(null)}
+        />
+      </ProtectedPage>
+    );
+  }
 
   return (
     <ProtectedPage>
@@ -644,7 +754,7 @@ export default function SupplierLedger() {
           ))}
         </div>
 
-        {/* Purchases tab — grouped by invoice */}
+        {/* Purchases tab — invoice-grouped */}
         {tab === "purchases" && (
           loadingPurchases ? (
             <div className="space-y-2">
@@ -659,19 +769,17 @@ export default function SupplierLedger() {
           ) : (
             <div className="flex flex-col gap-2">
               {invoiceGroups.map(g => {
-                const isExpanded = expandedInvoices.has(g.key);
                 const isInvoice  = !!g.invoiceNumber;
-                const totalItems = g.items.reduce((s, i) => s + (i.quantity ?? 0), 0);
+                const totalUnits = g.items.reduce((s, i) => s + (i.quantity ?? 0), 0);
 
                 return (
-                  <div key={g.key} className="rounded-2xl border overflow-hidden"
-                    style={{ borderColor: BORDER, background: CARD }}>
+                  <button key={g.key}
+                    onClick={() => isInvoice ? setSelectedInvoice(g) : undefined}
+                    className={`w-full rounded-2xl border overflow-hidden text-left ${isInvoice ? "active:opacity-80" : ""}`}
+                    style={{ borderColor: BORDER, background: CARD,
+                      cursor: isInvoice ? "pointer" : "default" }}>
 
-                    {/* Invoice / purchase header — always visible, click to expand */}
-                    <button
-                      className="w-full px-4 py-3.5 flex items-center gap-3 text-left"
-                      onClick={() => toggleInvoice(g.key)}>
-
+                    <div className="px-4 py-3.5 flex items-center gap-3">
                       {/* Icon */}
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
                         style={{ background: isInvoice ? "hsl(var(--primary) / 0.1)" : "hsl(var(--muted))" }}>
@@ -687,57 +795,33 @@ export default function SupplierLedger() {
                         </p>
                         <p className="text-xs mt-0.5" style={{ color: MUTED }}>
                           {dateStr(g.purchaseDate)}
-                          {isInvoice && ` · ${g.items.length} item${g.items.length !== 1 ? "s" : ""}`}
-                          {!isInvoice && g.items[0]?.quantity ? ` · Qty: ${g.items[0].quantity}` : ""}
-                          {isInvoice && totalItems > 0 ? ` · ${totalItems} units` : ""}
+                          {isInvoice
+                            ? ` · ${g.items.length} item${g.items.length !== 1 ? "s" : ""}${totalUnits > 0 ? ` · ${totalUnits} units` : ""}`
+                            : (g.items[0]?.quantity ? ` · Qty: ${g.items[0].quantity}` : "")}
                         </p>
                       </div>
 
-                      {/* Amount + status + chevron */}
+                      {/* Amount + status */}
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
                         <p className="text-sm font-bold">{sym}{fmt(g.totalAmount)}</p>
                         <StatusBadge status={g.paymentStatus} />
                       </div>
-                      {isInvoice && (
-                        <ChevronDown className="w-4 h-4 flex-shrink-0 transition-transform ml-1"
-                          style={{ color: MUTED, transform: isExpanded ? "rotate(180deg)" : "none" }} />
-                      )}
-                    </button>
 
-                    {/* Paid / due row */}
+                      {/* Arrow for invoices */}
+                      {isInvoice && (
+                        <ChevronDown className="w-4 h-4 flex-shrink-0 -rotate-90"
+                          style={{ color: MUTED }} />
+                      )}
+                    </div>
+
+                    {/* Paid/due pill */}
                     {g.dueAmount > 0.001 && (
-                      <div className="px-4 pb-2.5 flex gap-3 text-xs">
+                      <div className="px-4 pb-3 flex gap-3 text-xs">
                         <span style={{ color: GREEN }}>Paid: {sym}{fmt(g.paidAmount)}</span>
                         <span style={{ color: RED }}>Due: {sym}{fmt(g.dueAmount)}</span>
                       </div>
                     )}
-
-                    {/* Expanded items (only for invoice groups) */}
-                    {isInvoice && isExpanded && (
-                      <div className="border-t" style={{ borderColor: BORDER }}>
-                        {g.items.map((item, idx) => (
-                          <div key={item.id}
-                            className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0"
-                            style={{ borderColor: BORDER, background: "hsl(var(--background))" }}>
-                            <span className="text-xs font-semibold w-5 text-center flex-shrink-0"
-                              style={{ color: MUTED }}>{idx + 1}</span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold truncate">{item.productName ?? "Item"}</p>
-                              {item.quantity && (
-                                <p className="text-[11px]" style={{ color: MUTED }}>Qty: {item.quantity}</p>
-                              )}
-                            </div>
-                            <p className="text-xs font-bold flex-shrink-0">{sym}{fmt(item.totalAmount)}</p>
-                          </div>
-                        ))}
-                        {g.items[0]?.notes && (
-                          <p className="px-4 py-2 text-xs italic" style={{ color: MUTED }}>
-                            {g.items[0].notes}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
