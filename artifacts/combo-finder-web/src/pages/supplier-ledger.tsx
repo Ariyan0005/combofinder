@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/context/auth-context";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -12,7 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import {
   ArrowLeft, Plus, CreditCard, CheckCircle2,
-  ShoppingCart, X,
+  ShoppingCart, X, ChevronDown, FileText, Package,
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 import {
@@ -35,6 +35,7 @@ type Purchase = {
   totalAmount: string; paidAmount: string; dueAmount: string;
   paymentStatus: "paid" | "partial" | "due" | "credit";
   purchaseDate?: string; notes?: string; createdAt: string;
+  invoiceNumber?: string | null;
 };
 type Payment = {
   id: number; amount: string; paymentMethod: string;
@@ -477,6 +478,14 @@ export default function SupplierLedger() {
   const [tab, setTab] = useState<"purchases"|"payments">("purchases");
   const [showAddPurchase, setShowAddPurchase] = useState(false);
   const [showPayNow, setShowPayNow] = useState(false);
+  const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
+
+  const toggleInvoice = (key: string) =>
+    setExpandedInvoices(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
   const { user } = useAuth();
   const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
 
@@ -530,6 +539,47 @@ export default function SupplierLedger() {
   });
 
   const totalDue = balance?.totalDue ?? 0;
+
+  // Group purchases by invoice number; solo items (no invoiceNumber) each get their own group
+  type InvoiceGroup = {
+    key: string;
+    invoiceNumber: string | null;
+    items: Purchase[];
+    totalAmount: number;
+    paidAmount: number;
+    dueAmount: number;
+    paymentStatus: string;
+    purchaseDate: string;
+  };
+  const invoiceGroups = useMemo<InvoiceGroup[]>(() => {
+    const map = new Map<string, InvoiceGroup>();
+    for (const p of purchases) {
+      const key = p.invoiceNumber ? `inv:${p.invoiceNumber}` : `solo:${p.id}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          invoiceNumber: p.invoiceNumber ?? null,
+          items: [],
+          totalAmount: 0, paidAmount: 0, dueAmount: 0,
+          paymentStatus: p.paymentStatus,
+          purchaseDate: p.purchaseDate ?? p.createdAt,
+        });
+      }
+      const g = map.get(key)!;
+      g.items.push(p);
+      g.totalAmount += Number(p.totalAmount);
+      g.paidAmount  += Number(p.paidAmount);
+      g.dueAmount   += Number(p.dueAmount);
+    }
+    // Recompute status for grouped invoices
+    for (const g of map.values()) {
+      if (g.dueAmount   <= 0.001) g.paymentStatus = "paid";
+      else if (g.paidAmount <= 0) g.paymentStatus = "credit";
+      else                        g.paymentStatus = "partial";
+    }
+    return Array.from(map.values())
+      .sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime());
+  }, [purchases]);
 
   return (
     <ProtectedPage>
@@ -594,46 +644,102 @@ export default function SupplierLedger() {
           ))}
         </div>
 
-        {/* Purchases tab */}
+        {/* Purchases tab — grouped by invoice */}
         {tab === "purchases" && (
           loadingPurchases ? (
             <div className="space-y-2">
               {[1,2,3].map(i => <div key={i} className="h-20 rounded-2xl animate-pulse" style={{ background: "hsl(var(--muted))" }} />)}
             </div>
-          ) : purchases.length === 0 ? (
+          ) : invoiceGroups.length === 0 ? (
             <div className="text-center py-12">
               <ShoppingCart className="w-10 h-10 mx-auto mb-3" style={{ color: MUTED }} />
               <p className="font-semibold">No purchases yet</p>
               <p className="text-sm mt-1" style={{ color: MUTED }}>Tap "Add Purchase" to record one</p>
             </div>
           ) : (
-            <div className="rounded-2xl border divide-y overflow-hidden" style={{ borderColor: BORDER, background: CARD }}>
-              {purchases.map(p => (
-                <div key={p.id} className="px-4 py-3.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{p.productName ?? "Purchase"}</p>
-                      <p className="text-xs mt-0.5" style={{ color: MUTED }}>
-                        {dateStr(p.purchaseDate ?? p.createdAt)}
-                        {p.quantity ? ` · Qty: ${p.quantity}` : ""}
-                      </p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-sm font-bold">{sym}{fmt(p.totalAmount)}</p>
-                      <StatusBadge status={p.paymentStatus} />
-                    </div>
+            <div className="flex flex-col gap-2">
+              {invoiceGroups.map(g => {
+                const isExpanded = expandedInvoices.has(g.key);
+                const isInvoice  = !!g.invoiceNumber;
+                const totalItems = g.items.reduce((s, i) => s + (i.quantity ?? 0), 0);
+
+                return (
+                  <div key={g.key} className="rounded-2xl border overflow-hidden"
+                    style={{ borderColor: BORDER, background: CARD }}>
+
+                    {/* Invoice / purchase header — always visible, click to expand */}
+                    <button
+                      className="w-full px-4 py-3.5 flex items-center gap-3 text-left"
+                      onClick={() => toggleInvoice(g.key)}>
+
+                      {/* Icon */}
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: isInvoice ? "hsl(var(--primary) / 0.1)" : "hsl(var(--muted))" }}>
+                        {isInvoice
+                          ? <FileText className="w-4 h-4" style={{ color: PRIMARY }} />
+                          : <Package  className="w-4 h-4" style={{ color: MUTED }} />}
+                      </div>
+
+                      {/* Title + meta */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold truncate">
+                          {isInvoice ? g.invoiceNumber : (g.items[0]?.productName ?? "Purchase")}
+                        </p>
+                        <p className="text-xs mt-0.5" style={{ color: MUTED }}>
+                          {dateStr(g.purchaseDate)}
+                          {isInvoice && ` · ${g.items.length} item${g.items.length !== 1 ? "s" : ""}`}
+                          {!isInvoice && g.items[0]?.quantity ? ` · Qty: ${g.items[0].quantity}` : ""}
+                          {isInvoice && totalItems > 0 ? ` · ${totalItems} units` : ""}
+                        </p>
+                      </div>
+
+                      {/* Amount + status + chevron */}
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <p className="text-sm font-bold">{sym}{fmt(g.totalAmount)}</p>
+                        <StatusBadge status={g.paymentStatus} />
+                      </div>
+                      {isInvoice && (
+                        <ChevronDown className="w-4 h-4 flex-shrink-0 transition-transform ml-1"
+                          style={{ color: MUTED, transform: isExpanded ? "rotate(180deg)" : "none" }} />
+                      )}
+                    </button>
+
+                    {/* Paid / due row */}
+                    {g.dueAmount > 0.001 && (
+                      <div className="px-4 pb-2.5 flex gap-3 text-xs">
+                        <span style={{ color: GREEN }}>Paid: {sym}{fmt(g.paidAmount)}</span>
+                        <span style={{ color: RED }}>Due: {sym}{fmt(g.dueAmount)}</span>
+                      </div>
+                    )}
+
+                    {/* Expanded items (only for invoice groups) */}
+                    {isInvoice && isExpanded && (
+                      <div className="border-t" style={{ borderColor: BORDER }}>
+                        {g.items.map((item, idx) => (
+                          <div key={item.id}
+                            className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0"
+                            style={{ borderColor: BORDER, background: "hsl(var(--background))" }}>
+                            <span className="text-xs font-semibold w-5 text-center flex-shrink-0"
+                              style={{ color: MUTED }}>{idx + 1}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold truncate">{item.productName ?? "Item"}</p>
+                              {item.quantity && (
+                                <p className="text-[11px]" style={{ color: MUTED }}>Qty: {item.quantity}</p>
+                              )}
+                            </div>
+                            <p className="text-xs font-bold flex-shrink-0">{sym}{fmt(item.totalAmount)}</p>
+                          </div>
+                        ))}
+                        {g.items[0]?.notes && (
+                          <p className="px-4 py-2 text-xs italic" style={{ color: MUTED }}>
+                            {g.items[0].notes}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  {Number(p.dueAmount) > 0 && (
-                    <div className="mt-1.5 flex gap-3 text-xs">
-                      <span style={{ color: GREEN }}>Paid: {sym}{fmt(p.paidAmount)}</span>
-                      <span style={{ color: RED }}>Due: {sym}{fmt(p.dueAmount)}</span>
-                    </div>
-                  )}
-                  {p.notes && (
-                    <p className="text-xs mt-1" style={{ color: MUTED }}>{p.notes}</p>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )
         )}
