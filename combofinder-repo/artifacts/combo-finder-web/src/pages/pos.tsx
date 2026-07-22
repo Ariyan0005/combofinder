@@ -220,10 +220,17 @@ function PosBarcodeScanner({ onDetect, onClose }: { onDetect: (code: string) => 
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <style>{`
+        @keyframes posScan { 0%,100%{top:10%} 50%{top:82%} }
+        .pos-scan-line { position:absolute; left:10px; right:10px; height:2px; animation:posScan 2s ease-in-out infinite; background:linear-gradient(90deg,transparent,#a855f7,#ec4899,#a855f7,transparent); box-shadow:0 0 10px #a855f7,0 0 4px #ec4899; border-radius:2px; }
+      `}</style>
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl p-5" style={{ background: CARD }}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-base">Scan Product Barcode</h3>
+          <div>
+            <h3 className="font-bold text-base">Scan Product Barcode</h3>
+            <p className="text-xs mt-0.5" style={{ color: MUTED }}>Point at barcode or QR code</p>
+          </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center"
             style={{ background: MUTED_BG, color: MUTED }}>
             <X className="w-4 h-4" />
@@ -245,12 +252,31 @@ function PosBarcodeScanner({ onDetect, onClose }: { onDetect: (code: string) => 
           <div className="space-y-3">
             <div className="relative rounded-2xl overflow-hidden bg-black aspect-[4/3]">
               <video ref={videoRef} muted playsInline className="w-full h-full object-cover" />
+              {/* Vignette overlay */}
+              <div className="absolute inset-0 pointer-events-none"
+                style={{ background: "radial-gradient(ellipse 65% 55% at 50% 50%, transparent 28%, rgba(0,0,0,0.6) 100%)" }} />
+              {/* Viewfinder with corner brackets */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-52 h-32 border-2 border-white/70 rounded-2xl" />
+                <div className="relative" style={{ width: "72%", aspectRatio: "16/9" }}>
+                  {[
+                    { top:0, left:0, borderTop:"2.5px solid white", borderLeft:"2.5px solid white", borderRadius:"6px 0 0 0" },
+                    { top:0, right:0, borderTop:"2.5px solid white", borderRight:"2.5px solid white", borderRadius:"0 6px 0 0" },
+                    { bottom:0, left:0, borderBottom:"2.5px solid white", borderLeft:"2.5px solid white", borderRadius:"0 0 0 6px" },
+                    { bottom:0, right:0, borderBottom:"2.5px solid white", borderRight:"2.5px solid white", borderRadius:"0 0 6px 0" },
+                  ].map((s, i) => (
+                    <div key={i} className="absolute" style={{ ...s, width:22, height:22 }} />
+                  ))}
+                  {/* Animated scan line */}
+                  <div className="pos-scan-line" />
+                </div>
               </div>
-              {scanning && <div className="absolute top-3 left-3 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full">Scanning…</div>}
+              {scanning && (
+                <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/70 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full">
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+                  Scanning…
+                </div>
+              )}
             </div>
-            <p className="text-xs text-center" style={{ color: MUTED }}>Point camera at product barcode</p>
             <div className="flex items-center gap-2">
               <div className="flex-1 h-px" style={{ background: BORDER }} />
               <span className="text-xs" style={{ color: MUTED }}>or type manually</span>
@@ -765,20 +791,18 @@ export default function Pos() {
               </div>
             </div>
 
-            {/* Search + QR */}
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: MUTED }} />
-                <input value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="Search product, barcode…"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm outline-none transition-colors"
-                  style={{ borderColor: BORDER, background: BG }} />
-              </div>
+            {/* Search + QR — scanner icon inside the bar */}
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: MUTED }} />
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search product, barcode…"
+                className="w-full pl-10 pr-12 py-2.5 rounded-xl border text-sm outline-none transition-colors"
+                style={{ borderColor: BORDER, background: BG }} />
               <button onClick={() => setShowPosScanner(true)}
-                className="w-11 h-11 rounded-xl border flex items-center justify-center flex-shrink-0 transition-colors hover:bg-muted/40"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
                 title="Scan barcode"
-                style={{ borderColor: BORDER, background: BG, color: PRIMARY }}>
-                <QrCode className="w-4.5 h-4.5" />
+                style={{ background: `${PRIMARY}15`, color: PRIMARY }}>
+                <QrCode className="w-4 h-4" />
               </button>
             </div>
 

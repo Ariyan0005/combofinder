@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, type FormEvent } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import {
-  Plus, Search, Package, X, AlertCircle, Camera, ChevronRight,
+  Plus, Search, Package, X, AlertCircle, ScanLine, ChevronRight,
   Tag, Truck, ArrowDownToLine, ShoppingCart, Edit3, Trash2,
   QrCode, CheckCircle, ArrowUpFromLine, MoreVertical, Boxes, Settings,
   FolderOpen, ChevronDown,
@@ -36,7 +36,7 @@ type Item = {
   quantity: number; minStock: number; sellingPrice?: string | number;
   purchasePrice?: string | number; supplierId?: number; categoryId?: number;
   barcode?: string; sku?: string; supplier?: string; notes?: string;
-  model?: string; brand?: string;
+  model?: string; brand?: string; shelfLocation?: string;
 };
 type Supplier = { id: number; name: string; phone?: string; whatsapp?: string; partTypes?: string; isActive: boolean; };
 type Category = { id: number; name: string; description?: string; color?: string; icon?: string; parentId?: number; };
@@ -140,6 +140,10 @@ function BarcodeScanner({ onDetect, onClose }: { onDetect: (code: string) => voi
 
   return (
     <ModalShell title="Scan Barcode / QR Code" onClose={onClose}>
+      <style>{`
+        @keyframes scanPulse { 0%,100%{top:8%} 50%{top:84%} }
+        .inv-scan-line { position:absolute; left:8px; right:8px; height:2px; animation:scanPulse 2s ease-in-out infinite; background:linear-gradient(90deg,transparent,#3b82f6,#06b6d4,#3b82f6,transparent); box-shadow:0 0 10px #3b82f6,0 0 4px #06b6d4; border-radius:2px; }
+      `}</style>
       {supported === false ? (
         <div className="space-y-3">
           <p className="text-sm" style={{ color: MUTED }}>Camera scan not supported on this browser. Enter the code manually:</p>
@@ -153,14 +157,31 @@ function BarcodeScanner({ onDetect, onClose }: { onDetect: (code: string) => voi
         <div className="space-y-3">
           <div className="relative rounded-2xl overflow-hidden bg-black aspect-[4/3]">
             <video ref={videoRef} muted playsInline className="w-full h-full object-cover" />
-            {/* scan line overlay */}
+            {/* Dark vignette overlay */}
+            <div className="absolute inset-0 pointer-events-none"
+              style={{ background: "radial-gradient(ellipse 60% 55% at 50% 50%, transparent 30%, rgba(0,0,0,0.55) 100%)" }} />
+            {/* Viewfinder with corner brackets */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-52 h-52 border-2 border-white/60 rounded-2xl">
-                <div className="w-full h-0.5 bg-white/80 animate-[scan_2s_ease-in-out_infinite]"
-                  style={{ animation: "scan 2s ease-in-out infinite" }} />
+              <div className="relative" style={{ width: "68%", aspectRatio: "1" }}>
+                {/* Corner brackets */}
+                {[
+                  { top:0, left:0, borderTop:"2.5px solid white", borderLeft:"2.5px solid white", borderRadius:"6px 0 0 0" },
+                  { top:0, right:0, borderTop:"2.5px solid white", borderRight:"2.5px solid white", borderRadius:"0 6px 0 0" },
+                  { bottom:0, left:0, borderBottom:"2.5px solid white", borderLeft:"2.5px solid white", borderRadius:"0 0 0 6px" },
+                  { bottom:0, right:0, borderBottom:"2.5px solid white", borderRight:"2.5px solid white", borderRadius:"0 0 6px 0" },
+                ].map((s, i) => (
+                  <div key={i} className="absolute" style={{ ...s, width:24, height:24 }} />
+                ))}
+                {/* Animated scan line */}
+                <div className="inv-scan-line" />
               </div>
             </div>
-            {scanning && <div className="absolute top-3 left-3 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full">Scanning…</div>}
+            {scanning && (
+              <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/70 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Scanning…
+              </div>
+            )}
           </div>
           <p className="text-xs text-center" style={{ color: MUTED }}>Point camera at barcode or QR code on the part</p>
           <div className="flex items-center gap-2 my-1"><div className="flex-1 h-px" style={{ background: BORDER }} /><span className="text-xs" style={{ color: MUTED }}>or type manually</span><div className="flex-1 h-px" style={{ background: BORDER }} /></div>
@@ -207,6 +228,7 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
     sku: existing?.sku ?? "",
     model: existing?.model ?? "",
     notes: existing?.notes ?? "",
+    shelfLocation: existing?.shelfLocation ?? "",
   });
   const [error, setError] = useState("");
   const [showScanner, setShowScanner] = useState(false);
@@ -230,6 +252,7 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
         minStock: Number(form.minStock),
         supplierId: form.supplierId ? Number(form.supplierId) : null,
         categoryId: finalCategoryId ? Number(finalCategoryId) : null,
+        shelfLocation: form.shelfLocation.trim() || null,
       };
 
       // ── Free plan: local storage ────────────────────────────────────────────
@@ -342,6 +365,7 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
           <Field label="SKU (internal)"><Input value={form.sku} onChange={e => set("sku", e.target.value)} placeholder="e.g. IP13-LCD-ORG" /></Field>
           <Field label="Model"><Input value={form.model} onChange={e => set("model", e.target.value)} placeholder="e.g. iPhone 13" /></Field>
         </div>
+        <Field label="Shelf / Location"><Input value={form.shelfLocation} onChange={e => set("shelfLocation", e.target.value)} placeholder="e.g. A-2, Row 3, Shelf B" /></Field>
         <Field label="Notes"><Input value={form.notes} onChange={e => set("notes", e.target.value)} placeholder="Optional notes" /></Field>
         {error && (
           <p className="text-xs text-center" style={{ color: "hsl(var(--destructive))" }}>{error}</p>
@@ -478,13 +502,14 @@ function AddSupplierModal({ onClose }: { onClose: () => void }) {
 type StockInLine = {
   _key: string; item?: Item;
   search: string; showDrop: boolean;
-  qty: string; unitPrice: string;
+  qty: string; unitPrice: string; shelf: string;
 };
 function newStockLine(item?: Item): StockInLine {
   return {
     _key: Math.random().toString(36).slice(2),
     item, search: item?.partName ?? "", showDrop: false,
     qty: "1", unitPrice: item?.purchasePrice ? String(item.purchasePrice) : "",
+    shelf: item?.shelfLocation ?? "",
   };
 }
 
@@ -561,7 +586,35 @@ function StockInModal({ onClose, item: initialItem, suppliers, allItems }: {
         return { ok: true };
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Update shelf locations for lines where shelf was provided
+      const shelfLines = validLines.filter(l => l.shelf.trim());
+      for (const l of shelfLines) {
+        try {
+          await fetch(`/api/inventory/${l.item!.id}`, {
+            method: "PUT", credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              partName: l.item!.partName,
+              partType: l.item!.partType ?? "Other",
+              brand: l.item!.brand,
+              model: l.item!.model,
+              quality: l.item!.quality,
+              quantity: l.item!.quantity + Number(l.qty),
+              minStock: l.item!.minStock,
+              purchasePrice: l.item!.purchasePrice,
+              sellingPrice: l.item!.sellingPrice,
+              supplierId: l.item!.supplierId,
+              categoryId: l.item!.categoryId,
+              barcode: l.item!.barcode,
+              sku: l.item!.sku,
+              supplier: l.item!.supplier,
+              shelfLocation: l.shelf.trim(),
+              notes: l.item!.notes,
+            }),
+          });
+        } catch {}
+      }
       qc.invalidateQueries({ queryKey: ["inventory"] });
       qc.invalidateQueries({ queryKey: ["stock-movements"] });
       if (supplierId && recordLedger) {
@@ -667,6 +720,13 @@ function StockInModal({ onClose, item: initialItem, suppliers, allItems }: {
                           placeholder="0.00" />
                       </div>
                     </div>
+                    {line.item && (
+                      <div className="mt-2">
+                        <p className="text-xs mb-1 font-medium" style={{ color: MUTED }}>Shelf / Location</p>
+                        <Input placeholder="e.g. A-2, Row 3" value={line.shelf}
+                          onChange={e => patchLine(line._key, { shelf: e.target.value })} />
+                      </div>
+                    )}
                     {Number(line.qty) > 0 && Number(line.unitPrice) > 0 && (
                       <p className="text-xs mt-1.5 font-semibold text-right" style={{ color: PRIMARY }}>
                         = {sym}{(Number(line.qty) * Number(line.unitPrice)).toLocaleString()}
@@ -1039,6 +1099,7 @@ export default function Inventory() {
   const [catModal, setCatModal] = useState<CatModal>(null);
   const [activeCategoryKey, setActiveCategoryKey] = useState("All");
   const [searchQ, setSearchQ] = useState("");
+  const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
   const [selectedItem, setSelectedItem] = useState<Item | undefined>();
   const [showSheet, setShowSheet] = useState(false);
   const [editCategory, setEditCategory] = useState<Category | undefined>();
@@ -1129,15 +1190,24 @@ export default function Inventory() {
     ? catTabs.filter(t => t.parentId === activeParentId)
     : [];
 
+  // Stats based on full list (before any filter) for accurate counts
+  const lowCount  = list.filter(i => i.minStock > 0 && i.quantity <= i.minStock && i.quantity > 0).length;
+  const outCount  = list.filter(i => i.quantity === 0).length;
+  const totalValue = list.reduce((s, i) => s + (Number(i.purchasePrice) || 0) * i.quantity, 0);
+
   const filtered = list.filter(item => {
     const matchCat = (() => {
       if (activeTab.key === "All") return true;
       if (activeTab.id != null) {
-        // parent selected → include its children too; sub selected → exact match
         const childIds = categories.filter(c => c.parentId === activeTab.id).map(c => c.id);
         return item.categoryId === activeTab.id || childIds.includes(item.categoryId ?? -1);
       }
-      return item.partType === activeTab.name; // fallback part-type
+      return item.partType === activeTab.name;
+    })();
+    const matchStock = (() => {
+      if (stockFilter === "low") return item.minStock > 0 && item.quantity <= item.minStock && item.quantity > 0;
+      if (stockFilter === "out") return item.quantity === 0;
+      return true;
     })();
     const q = searchQ.toLowerCase();
     const matchSearch = !q ||
@@ -1145,11 +1215,8 @@ export default function Inventory() {
       (item.barcode ?? "").toLowerCase().includes(q) ||
       (item.sku ?? "").toLowerCase().includes(q) ||
       (item.model ?? "").toLowerCase().includes(q);
-    return matchCat && matchSearch;
+    return matchCat && matchStock && matchSearch;
   });
-
-  const lowCount = filtered.filter(i => i.minStock > 0 && i.quantity <= i.minStock).length;
-  const totalValue = filtered.reduce((s, i) => s + (Number(i.purchasePrice) || 0) * i.quantity, 0);
 
   function openItemSheet(item: Item) { setSelectedItem(item); setShowSheet(true); }
   function handleFAB(action: FabAction) {
@@ -1182,41 +1249,74 @@ export default function Inventory() {
           <FABMenu onAction={handleFAB} />
         </div>
 
-        {/* Stats bar */}
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { label: "Total Items", value: String(filtered.length), alert: false },
-            { label: "Low Stock",   value: String(lowCount),    alert: lowCount > 0 },
-            { label: "Stock Value", value: `${sym}${totalValue > 999 ? (totalValue/1000).toFixed(1)+"k" : totalValue.toLocaleString()}`, alert: false },
-          ].map(({ label, value, alert }) => (
-            <div key={label} className="rounded-2xl p-3 flex flex-col gap-0.5"
-              style={{
-                background: alert ? "hsl(0 84% 60% / 0.08)" : CARD,
-                border: `1px solid ${alert ? "hsl(0 84% 60% / 0.25)" : BORDER}`,
-              }}>
-              <span className="text-base font-black leading-none"
-                style={{ color: alert ? "hsl(var(--destructive))" : "hsl(var(--foreground))" }}>
-                {value}
-              </span>
-              <span className="text-[10px] font-medium leading-tight" style={{ color: MUTED }}>{label}</span>
-            </div>
-          ))}
+        {/* Stats bar — 2×2 clickable cards with colored borders */}
+        <div className="grid grid-cols-2 gap-2.5">
+          {([
+            {
+              key: "all" as const,
+              label: "Total Items",
+              value: String(list.length),
+              accent: "#3B82F6",
+              activeBg: "rgba(59,130,246,0.10)",
+              idleBg: "rgba(59,130,246,0.05)",
+            },
+            {
+              key: "all" as const,
+              label: "Stock Value",
+              value: `${sym}${totalValue > 999 ? (totalValue/1000).toFixed(1)+"k" : totalValue.toLocaleString()}`,
+              accent: "#10B981",
+              activeBg: "rgba(16,185,129,0.10)",
+              idleBg: "rgba(16,185,129,0.05)",
+            },
+            {
+              key: "low" as const,
+              label: "Low Stock",
+              value: String(lowCount),
+              accent: "#F59E0B",
+              activeBg: "rgba(245,158,11,0.18)",
+              idleBg: "rgba(245,158,11,0.05)",
+            },
+            {
+              key: "out" as const,
+              label: "Out of Stock",
+              value: String(outCount),
+              accent: "#EF4444",
+              activeBg: "rgba(239,68,68,0.18)",
+              idleBg: "rgba(239,68,68,0.05)",
+            },
+          ] as const).map(({ key, label, value, accent, activeBg, idleBg }) => {
+            const isActive = stockFilter === key && (key === "low" || key === "out");
+            return (
+              <button key={label}
+                onClick={() => {
+                  if (key === "all") { setStockFilter("all"); }
+                  else { setStockFilter(prev => prev === key ? "all" : key); }
+                }}
+                className="rounded-2xl p-3.5 flex flex-col gap-1 text-left transition-all active:scale-95"
+                style={{
+                  background: isActive ? activeBg : idleBg,
+                  border: `1.5px solid ${isActive ? accent : `${accent}40`}`,
+                  boxShadow: `0 2px 8px ${accent}18`,
+                }}>
+                <span className="text-xl font-black leading-none" style={{ color: accent }}>{value}</span>
+                <span className="text-[11px] font-semibold" style={{ color: MUTED }}>{label}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Search + scan */}
-        <div className="relative flex gap-2">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: MUTED }} />
-            <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
-              placeholder="Search name, barcode, SKU…"
-              className="w-full pl-10 pr-4 py-3 rounded-2xl border text-sm outline-none"
-              style={{ borderColor: BORDER, background: CARD }} />
-          </div>
+        {/* Search + scan (scanner icon inside the bar) */}
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: MUTED }} />
+          <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
+            placeholder="Search name, barcode, SKU…"
+            className="w-full pl-10 pr-12 py-3 rounded-2xl border text-sm outline-none"
+            style={{ borderColor: BORDER, background: CARD }} />
           <button onClick={() => setModal("scanner")}
-            className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-            style={{ background: CARD, border: `1px solid ${BORDER}`, color: PRIMARY }}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl flex items-center justify-center transition-colors"
+            style={{ background: `${PRIMARY}15`, color: PRIMARY }}
             title="Scan barcode or QR code">
-            <Camera className="w-5 h-5" />
+            <ScanLine className="w-4 h-4" />
           </button>
         </div>
 
@@ -1282,8 +1382,11 @@ export default function Inventory() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate">{item.partName}</p>
                     <p className="text-xs truncate" style={{ color: MUTED }}>
-                      {item.quality ?? "—"}
-                      {supplierName && <span> · {supplierName}</span>}
+                      {(() => {
+                        const catName = categories.find(c => c.id === item.categoryId)?.name;
+                        const parts = [catName, item.quality, item.shelfLocation].filter(Boolean);
+                        return parts.join(" · ") || "—";
+                      })()}
                     </p>
                     {item.barcode && <p className="text-xs mt-0.5 font-mono" style={{ color: MUTED }}>{item.barcode}</p>}
                   </div>
