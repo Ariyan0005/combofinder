@@ -1149,9 +1149,9 @@ export default function Inventory() {
     return matchCat && matchSearch;
   });
 
-  const lowCount = filtered.filter(i => i.minStock > 0 && i.quantity > 0 && i.quantity <= i.minStock).length;
-  const outCount = filtered.filter(i => i.quantity === 0).length;
-  const totalValue = filtered.reduce((s, i) => s + (Number(i.purchasePrice) || 0) * i.quantity, 0);
+  const lowCount = list.filter(i => i.minStock > 0 && i.quantity > 0 && i.quantity <= i.minStock).length;
+  const outCount = list.filter(i => i.quantity === 0).length;
+  const totalValue = list.reduce((s, i) => s + (Number(i.purchasePrice) || 0) * i.quantity, 0);
 
   // Apply stock filter on top of the existing filtered list
   const displayList = activeStockFilter === "low"
@@ -1212,17 +1212,16 @@ export default function Inventory() {
           {/* Low Stock — clickable, filters product list */}
           <button
             onClick={() => setActiveStockFilter(f => f === "low" ? null : "low")}
-            className="rounded-2xl p-2.5 flex flex-col gap-0.5 text-left w-full"
-            style={{
-              background: activeStockFilter === "low" ? "hsl(0 84% 60% / 0.15)" : lowCount > 0 ? "hsl(0 84% 60% / 0.07)" : CARD,
-              border: `1px solid ${activeStockFilter === "low" ? "hsl(0 84% 60% / 0.4)" : lowCount > 0 ? "hsl(0 84% 60% / 0.25)" : BORDER}`,
-            }}>
+            className="rounded-2xl p-2.5 flex flex-col gap-0.5 text-left w-full transition-all"
+            style={activeStockFilter === "low"
+              ? { background: "#DC2626", border: "1px solid #DC2626" }
+              : { background: CARD, border: `1px solid ${BORDER}` }}>
             <span className="text-sm font-black leading-none"
-              style={{ color: lowCount > 0 ? "hsl(var(--destructive))" : "hsl(var(--foreground))" }}>
+              style={{ color: activeStockFilter === "low" ? "#fff" : lowCount > 0 ? "#DC2626" : "hsl(var(--foreground))" }}>
               {lowCount}
             </span>
             <span className="text-[9px] font-medium leading-tight"
-              style={{ color: lowCount > 0 ? "hsl(var(--destructive))" : MUTED }}>
+              style={{ color: activeStockFilter === "low" ? "#fff" : lowCount > 0 ? "#DC2626" : MUTED }}>
               Low Stock
             </span>
           </button>
@@ -1230,17 +1229,16 @@ export default function Inventory() {
           {/* Out of Stock — clickable, filters product list */}
           <button
             onClick={() => setActiveStockFilter(f => f === "out" ? null : "out")}
-            className="rounded-2xl p-2.5 flex flex-col gap-0.5 text-left w-full"
-            style={{
-              background: activeStockFilter === "out" ? "hsl(25 95% 53% / 0.15)" : outCount > 0 ? "hsl(25 95% 53% / 0.07)" : CARD,
-              border: `1px solid ${activeStockFilter === "out" ? "hsl(25 95% 53% / 0.45)" : outCount > 0 ? "hsl(25 95% 53% / 0.3)" : BORDER}`,
-            }}>
+            className="rounded-2xl p-2.5 flex flex-col gap-0.5 text-left w-full transition-all"
+            style={activeStockFilter === "out"
+              ? { background: "#F97316", border: "1px solid #F97316" }
+              : { background: CARD, border: `1px solid ${BORDER}` }}>
             <span className="text-sm font-black leading-none"
-              style={{ color: outCount > 0 ? "#F97316" : "hsl(var(--foreground))" }}>
+              style={{ color: activeStockFilter === "out" ? "#fff" : outCount > 0 ? "#F97316" : "hsl(var(--foreground))" }}>
               {outCount}
             </span>
             <span className="text-[9px] font-medium leading-tight"
-              style={{ color: outCount > 0 ? "#F97316" : MUTED }}>
+              style={{ color: activeStockFilter === "out" ? "#fff" : outCount > 0 ? "#F97316" : MUTED }}>
               Out of Stock
             </span>
           </button>
