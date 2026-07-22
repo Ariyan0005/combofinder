@@ -763,24 +763,6 @@ export default function Pos() {
           {/* Header */}
           <div className="flex-shrink-0 px-4 pt-4 pb-3 border-b space-y-3"
             style={{ borderColor: BORDER, background: CARD }}>
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-lg font-extrabold leading-tight">Point of Sale</h1>
-                <p className="text-xs" style={{ color: MUTED }}>Sell products &amp; checkout</p>
-              </div>
-              <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: MUTED_BG }}>
-                <Link href="/inventory">
-                  <button className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5" style={{ color: MUTED }}>
-                    <Boxes className="w-3.5 h-3.5" /> Inventory
-                  </button>
-                </Link>
-                <button className="px-3 py-1.5 rounded-full text-xs font-bold text-white flex items-center gap-1.5"
-                  style={{ background: PRIMARY }}>
-                  <ShoppingCart className="w-3.5 h-3.5" /> POS
-                </button>
-              </div>
-            </div>
-
             {/* Search + QR */}
             <div className="flex gap-2">
               <div className="relative flex-1">

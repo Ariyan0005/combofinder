@@ -65,16 +65,18 @@ export default function MainLayout({ children }: { children: ReactNode }) {
             </div>
             <span className="font-bold text-base">ComboFinder</span>
           </div>
-          {location === "/inventory" ? (
-            /* Inventory page: show Inventory / POS toggle instead of Donate + Avatar */
+          {(location === "/inventory" || location === "/pos") ? (
+            /* Inventory / POS pages: show toggle instead of Donate + Avatar */
             <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: "hsl(var(--muted))" }}>
-              <button className="px-3 py-1.5 rounded-full text-xs font-bold text-white flex items-center gap-1.5"
-                style={{ background: "hsl(var(--primary))" }}>
-                <Boxes className="w-3.5 h-3.5" /> Inventory
-              </button>
+              <Link href="/inventory">
+                <button className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 ${location === "/inventory" ? "text-white" : ""}`}
+                  style={location === "/inventory" ? { background: "hsl(var(--primary))" } : { color: "hsl(var(--muted-foreground))" }}>
+                  <Boxes className="w-3.5 h-3.5" /> Inventory
+                </button>
+              </Link>
               <Link href="/pos">
-                <button className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5"
-                  style={{ color: "hsl(var(--muted-foreground))" }}>
+                <button className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 ${location === "/pos" ? "text-white" : ""}`}
+                  style={location === "/pos" ? { background: "hsl(var(--primary))" } : { color: "hsl(var(--muted-foreground))" }}>
                   <ShoppingCart className="w-3.5 h-3.5" /> POS
                 </button>
               </Link>
