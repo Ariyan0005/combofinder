@@ -25,7 +25,9 @@ type Customer = {
   createdAt: string;
 };
 
-function CustomerForm({ onClose, existing }: { onClose: () => void; existing?: Customer }) {
+function CustomerForm({ onClose, existing, allCustomers }: {
+  onClose: () => void; existing?: Customer; allCustomers?: Customer[];
+}) {
   const qc = useQueryClient();
   const { user } = useAuth();
   const isFreePlan = user?.plan !== "Pro";
@@ -63,6 +65,17 @@ function CustomerForm({ onClose, existing }: { onClose: () => void; existing?: C
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!form.name) { setError("Name is required"); return; }
+    // ── Phone duplicate check ────────────────────────────────────────────────
+    if (form.phone.trim() && allCustomers) {
+      const normalise = (p: string) => p.replace(/\s+/g, "").replace(/^0+/, "");
+      const incoming = normalise(form.phone.trim());
+      const clash = allCustomers.find(c =>
+        c.id !== (existing?.id ?? 0) &&
+        c.phone &&
+        normalise(c.phone) === incoming
+      );
+      if (clash) { setError(`Phone already used by "${clash.name}"`); return; }
+    }
     mut.mutate(form);
   }
 
@@ -233,7 +246,7 @@ export default function Customers() {
           </div>
         )}
       </div>
-      {showForm && <CustomerForm onClose={() => setShowForm(false)} existing={editCustomer} />}
+      {showForm && <CustomerForm onClose={() => setShowForm(false)} existing={editCustomer} allCustomers={list} />}
     </ProtectedPage>
   );
 }

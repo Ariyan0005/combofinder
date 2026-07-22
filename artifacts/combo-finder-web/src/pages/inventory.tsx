@@ -178,8 +178,8 @@ function BarcodeScanner({ onDetect, onClose }: { onDetect: (code: string) => voi
 }
 
 // ─── Add / Edit Product Modal ─────────────────────────────────────────────────
-function AddProductModal({ onClose, existing, suppliers, categories }: {
-  onClose: () => void; existing?: Item; suppliers: Supplier[]; categories: Category[];
+function AddProductModal({ onClose, existing, suppliers, categories, allItems }: {
+  onClose: () => void; existing?: Item; suppliers: Supplier[]; categories: Category[]; allItems?: Item[];
 }) {
   const qc = useQueryClient();
   const isEdit = !!(existing && existing.id > 0);
@@ -255,6 +255,23 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["inventory"] }); onClose(); },
     onError: (err: any) => setError(err.message),
   });
+
+  function handleSubmit() {
+    setError("");
+    // ── Barcode / SKU duplicate check ───────────────────────────────────────
+    if (allItems) {
+      const others = allItems.filter(i => i.id !== (existing?.id ?? 0));
+      if (form.barcode.trim()) {
+        const clash = others.find(i => (i.barcode ?? "").trim().toLowerCase() === form.barcode.trim().toLowerCase());
+        if (clash) { setError(`Barcode already used by "${clash.partName}"`); return; }
+      }
+      if (form.sku.trim()) {
+        const clash = others.find(i => (i.sku ?? "").trim().toLowerCase() === form.sku.trim().toLowerCase());
+        if (clash) { setError(`SKU already used by "${clash.partName}"`); return; }
+      }
+    }
+    mut.mutate();
+  }
 
   if (showScanner) return (
     <BarcodeScanner onClose={() => setShowScanner(false)}
@@ -346,7 +363,12 @@ function AddProductModal({ onClose, existing, suppliers, categories }: {
         {error && (
           <p className="text-xs text-center" style={{ color: "hsl(var(--destructive))" }}>{error}</p>
         )}
-        <SubmitBtn pending={mut.isPending} label={existing ? "Save Changes" : "Add Product"} />
+        <button type="button" disabled={mut.isPending}
+          onClick={handleSubmit}
+          className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-60 mt-1"
+          style={{ background: "hsl(var(--primary))" }}>
+          {mut.isPending ? "Saving…" : existing ? "Save Changes" : "Add Product"}
+        </button>
       </form>
     </ModalShell>
   );
@@ -1344,7 +1366,7 @@ export default function Inventory() {
 
       {/* Add / Edit product */}
       {modal === "add-product" && (
-        <AddProductModal suppliers={suppliers} categories={categories}
+        <AddProductModal suppliers={suppliers} categories={categories} allItems={list}
           existing={selectedItem?.id ? selectedItem : (selectedItem?.barcode ? { ...selectedItem, id: 0 } as any : undefined)}
           onClose={() => { setModal(null); setSelectedItem(undefined); }} />
       )}
