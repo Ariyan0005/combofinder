@@ -1172,25 +1172,7 @@ export default function Inventory() {
   return (
     <ProtectedPage>
       <div className="space-y-3 pb-6">
-        {/* Header */}
-        <div className="flex items-center justify-between pt-1">
-          <div>
-            <h1 className="text-xl font-extrabold">Inventory</h1>
-            <p className="text-xs" style={{ color: MUTED }}>{list.length} products</p>
-          </div>
-          <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: "hsl(var(--muted))" }}>
-            <button className="px-3 py-1.5 rounded-full text-xs font-bold text-white flex items-center gap-1.5" style={{ background: PRIMARY }}>
-              <Boxes className="w-3.5 h-3.5" /> Inventory
-            </button>
-            <Link href="/pos">
-              <button className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5" style={{ color: MUTED }}>
-                <ShoppingCart className="w-3.5 h-3.5" /> POS
-              </button>
-            </Link>
-          </div>
-          <FABMenu onAction={handleFAB} />
-        </div>
-
+        <FABMenu onAction={handleFAB} />
         {/* Stats bar — 4 cards in one row */}
         <div className="grid grid-cols-4 gap-2">
           {/* Total Item */}

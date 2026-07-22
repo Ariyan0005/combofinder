@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Search, Plus, Package, Menu, X,
   Users, BookOpen, BarChart2, Unlock, Receipt,
   Settings, LogOut, CreditCard, Smartphone, ShoppingCart, FileText,
-  BookMarked, Heart,
+  BookMarked, Heart, Boxes,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import Sidebar from "./sidebar";
@@ -65,31 +65,48 @@ export default function MainLayout({ children }: { children: ReactNode }) {
             </div>
             <span className="font-bold text-base">ComboFinder</span>
           </div>
-          <div className="flex items-center gap-3">
-            <Link href="/donate">
-              <button className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border mr-2"
-                style={{ borderColor: "hsl(var(--primary))", color: "hsl(var(--primary))" }}>
-                <Heart className="w-3 h-3" />
-                Donate
+          {location === "/inventory" ? (
+            /* Inventory page: show Inventory / POS toggle instead of Donate + Avatar */
+            <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: "hsl(var(--muted))" }}>
+              <button className="px-3 py-1.5 rounded-full text-xs font-bold text-white flex items-center gap-1.5"
+                style={{ background: "hsl(var(--primary))" }}>
+                <Boxes className="w-3.5 h-3.5" /> Inventory
               </button>
-            </Link>
-            {user && (
-              <Link href="/settings">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white cursor-pointer"
-                  style={{ background: "hsl(var(--primary))" }}>
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
-              </Link>
-            )}
-            {isGuest && (
-              <Link href="/login">
-                <button className="text-xs font-semibold px-3 py-1.5 rounded-lg"
-                  style={{ background: "hsl(var(--primary))", color: "#fff" }}>
-                  Login
+              <Link href="/pos">
+                <button className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5"
+                  style={{ color: "hsl(var(--muted-foreground))" }}>
+                  <ShoppingCart className="w-3.5 h-3.5" /> POS
                 </button>
               </Link>
-            )}
-          </div>
+            </div>
+          ) : (
+            /* All other pages: Donate + Avatar / Login */
+            <div className="flex items-center gap-3">
+              <Link href="/donate">
+                <button className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border mr-2"
+                  style={{ borderColor: "hsl(var(--primary))", color: "hsl(var(--primary))" }}>
+                  <Heart className="w-3 h-3" />
+                  Donate
+                </button>
+              </Link>
+              {user && (
+                <Link href="/settings">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white cursor-pointer"
+                    style={{ background: "hsl(var(--primary))" }}>
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                </Link>
+              )}
+              {isGuest && (
+                <Link href="/login">
+                  <button className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                    style={{ background: "hsl(var(--primary))", color: "#fff" }}>
+                    Login
+                  </button>
+                </Link>
+              )}
+            </div>
+          )}
         </header>
 
         {/* Page content */}
