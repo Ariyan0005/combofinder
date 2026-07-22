@@ -1149,11 +1149,16 @@ export default function Inventory() {
     return matchCat && matchSearch;
   });
 
-  const lowStockItems = filtered.filter(i => i.minStock > 0 && i.quantity > 0 && i.quantity <= i.minStock);
-  const outOfStockItems = filtered.filter(i => i.quantity === 0);
-  const lowCount = lowStockItems.length;
-  const outCount = outOfStockItems.length;
+  const lowCount = filtered.filter(i => i.minStock > 0 && i.quantity > 0 && i.quantity <= i.minStock).length;
+  const outCount = filtered.filter(i => i.quantity === 0).length;
   const totalValue = filtered.reduce((s, i) => s + (Number(i.purchasePrice) || 0) * i.quantity, 0);
+
+  // Apply stock filter on top of the existing filtered list
+  const displayList = activeStockFilter === "low"
+    ? filtered.filter(i => i.minStock > 0 && i.quantity > 0 && i.quantity <= i.minStock)
+    : activeStockFilter === "out"
+      ? filtered.filter(i => i.quantity === 0)
+      : filtered;
 
   function openItemSheet(item: Item) { setSelectedItem(item); setShowSheet(true); }
   function handleFAB(action: FabAction) {
@@ -1186,102 +1191,60 @@ export default function Inventory() {
           <FABMenu onAction={handleFAB} />
         </div>
 
-        {/* Stats bar */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* Stats bar — 4 cards in one row */}
+        <div className="grid grid-cols-4 gap-2">
           {/* Total Item */}
-          <div className="rounded-2xl p-3 flex flex-col gap-0.5"
+          <div className="rounded-2xl p-2.5 flex flex-col gap-0.5"
             style={{ background: CARD, border: `1px solid ${BORDER}` }}>
-            <span className="text-base font-black leading-none">{filtered.length}</span>
-            <span className="text-[10px] font-medium leading-tight" style={{ color: MUTED }}>Total Item</span>
+            <span className="text-sm font-black leading-none">{list.length}</span>
+            <span className="text-[9px] font-medium leading-tight" style={{ color: MUTED }}>Total Item</span>
           </div>
 
           {/* Stock Value */}
-          <div className="rounded-2xl p-3 flex flex-col gap-0.5"
+          <div className="rounded-2xl p-2.5 flex flex-col gap-0.5"
             style={{ background: CARD, border: `1px solid ${BORDER}` }}>
-            <span className="text-base font-black leading-none">
+            <span className="text-sm font-black leading-none truncate">
               {sym}{totalValue > 999 ? (totalValue / 1000).toFixed(1) + "k" : totalValue.toLocaleString()}
             </span>
-            <span className="text-[10px] font-medium leading-tight" style={{ color: MUTED }}>Stock Value</span>
+            <span className="text-[9px] font-medium leading-tight" style={{ color: MUTED }}>Stock Value</span>
           </div>
 
-          {/* Low Stock — clickable */}
+          {/* Low Stock — clickable, filters product list */}
           <button
             onClick={() => setActiveStockFilter(f => f === "low" ? null : "low")}
-            className="rounded-2xl p-3 flex flex-col gap-0.5 text-left w-full"
+            className="rounded-2xl p-2.5 flex flex-col gap-0.5 text-left w-full"
             style={{
-              background: activeStockFilter === "low" ? "hsl(0 84% 60% / 0.14)" : lowCount > 0 ? "hsl(0 84% 60% / 0.08)" : CARD,
-              border: `1px solid ${lowCount > 0 ? "hsl(0 84% 60% / 0.25)" : BORDER}`,
+              background: activeStockFilter === "low" ? "hsl(0 84% 60% / 0.15)" : lowCount > 0 ? "hsl(0 84% 60% / 0.07)" : CARD,
+              border: `1px solid ${activeStockFilter === "low" ? "hsl(0 84% 60% / 0.4)" : lowCount > 0 ? "hsl(0 84% 60% / 0.25)" : BORDER}`,
             }}>
-            <span className="text-base font-black leading-none"
+            <span className="text-sm font-black leading-none"
               style={{ color: lowCount > 0 ? "hsl(var(--destructive))" : "hsl(var(--foreground))" }}>
               {lowCount}
             </span>
-            <span className="text-[10px] font-medium leading-tight flex items-center gap-0.5"
+            <span className="text-[9px] font-medium leading-tight"
               style={{ color: lowCount > 0 ? "hsl(var(--destructive))" : MUTED }}>
-              Low Stock {lowCount > 0 && <ChevronDown className={`w-3 h-3 transition-transform ${activeStockFilter === "low" ? "rotate-180" : ""}`} />}
+              Low Stock
             </span>
           </button>
 
-          {/* Out of Stock — clickable */}
+          {/* Out of Stock — clickable, filters product list */}
           <button
             onClick={() => setActiveStockFilter(f => f === "out" ? null : "out")}
-            className="rounded-2xl p-3 flex flex-col gap-0.5 text-left w-full"
+            className="rounded-2xl p-2.5 flex flex-col gap-0.5 text-left w-full"
             style={{
-              background: activeStockFilter === "out" ? "hsl(25 95% 53% / 0.14)" : outCount > 0 ? "hsl(25 95% 53% / 0.08)" : CARD,
-              border: `1px solid ${outCount > 0 ? "hsl(25 95% 53% / 0.3)" : BORDER}`,
+              background: activeStockFilter === "out" ? "hsl(25 95% 53% / 0.15)" : outCount > 0 ? "hsl(25 95% 53% / 0.07)" : CARD,
+              border: `1px solid ${activeStockFilter === "out" ? "hsl(25 95% 53% / 0.45)" : outCount > 0 ? "hsl(25 95% 53% / 0.3)" : BORDER}`,
             }}>
-            <span className="text-base font-black leading-none"
+            <span className="text-sm font-black leading-none"
               style={{ color: outCount > 0 ? "#F97316" : "hsl(var(--foreground))" }}>
               {outCount}
             </span>
-            <span className="text-[10px] font-medium leading-tight flex items-center gap-0.5"
+            <span className="text-[9px] font-medium leading-tight"
               style={{ color: outCount > 0 ? "#F97316" : MUTED }}>
-              Out of Stock {outCount > 0 && <ChevronDown className={`w-3 h-3 transition-transform ${activeStockFilter === "out" ? "rotate-180" : ""}`} />}
+              Out of Stock
             </span>
           </button>
         </div>
-
-        {/* Expandable low / out-of-stock product list */}
-        {activeStockFilter !== null && (() => {
-          const items = activeStockFilter === "low" ? lowStockItems : outOfStockItems;
-          const isLowFilter = activeStockFilter === "low";
-          const accentColor = isLowFilter ? "hsl(var(--destructive))" : "#F97316";
-          const accentBg   = isLowFilter ? "hsl(0 84% 60% / 0.08)" : "hsl(25 95% 53% / 0.08)";
-          const accentBorder = isLowFilter ? "hsl(0 84% 60% / 0.2)" : "hsl(25 95% 53% / 0.25)";
-          return (
-            <div className="rounded-2xl border overflow-hidden" style={{ borderColor: accentBorder, background: accentBg }}>
-              <div className="px-3.5 py-2.5 border-b flex items-center gap-2" style={{ borderColor: accentBorder }}>
-                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: accentColor }} />
-                <span className="text-xs font-bold" style={{ color: accentColor }}>
-                  {isLowFilter ? `${lowCount} Low Stock Item${lowCount !== 1 ? "s" : ""}` : `${outCount} Out of Stock Item${outCount !== 1 ? "s" : ""}`}
-                </span>
-              </div>
-              {items.length === 0 ? (
-                <p className="text-xs px-3.5 py-3" style={{ color: MUTED }}>No items</p>
-              ) : (
-                <div className="divide-y" style={{ borderColor: accentBorder }}>
-                  {items.map(item => (
-                    <button key={item.id} onClick={() => openItemSheet(item)}
-                      className="w-full flex items-center justify-between px-3.5 py-2.5 text-left gap-2 hover:opacity-80">
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold truncate">{item.partName}</p>
-                        {item.brand && <p className="text-[10px] truncate" style={{ color: MUTED }}>{item.brand}</p>}
-                      </div>
-                      <div className="flex-shrink-0 text-right">
-                        <span className="text-xs font-bold" style={{ color: accentColor }}>
-                          {isLowFilter ? `Qty: ${item.quantity}` : "0"}
-                        </span>
-                        {isLowFilter && item.minStock > 0 && (
-                          <p className="text-[10px]" style={{ color: MUTED }}>Min: {item.minStock}</p>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })()}
 
         {/* Search + scan */}
         <div className="relative flex gap-2">
@@ -1337,7 +1300,7 @@ export default function Inventory() {
           <div className="space-y-2">
             {[1,2,3].map(i => <div key={i} className="h-20 rounded-2xl animate-pulse" style={{ background: "hsl(var(--muted))" }} />)}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : displayList.length === 0 ? (
           <div className="text-center py-16">
             <Package className="w-10 h-10 mx-auto mb-3" style={{ color: MUTED }} />
             <p className="font-semibold">No products found</p>
@@ -1347,11 +1310,12 @@ export default function Inventory() {
           </div>
         ) : (
           <div className="rounded-2xl border divide-y overflow-hidden" style={{ borderColor: BORDER, background: CARD }}>
-            {filtered.map(item => {
+            {displayList.map(item => {
               const qty = item.quantity;
               const isOut = qty === 0;
               const isLow = !isOut && item.minStock > 0 && qty <= item.minStock;
               const supplierName = suppliers.find(s => s.id === item.supplierId)?.name ?? item.supplier;
+              const categoryName = item.categoryId ? categories.find(c => c.id === item.categoryId)?.name : undefined;
               return (
                 <button key={item.id} onClick={() => openItemSheet(item)}
                   className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-muted/30 transition-colors">
@@ -1363,6 +1327,7 @@ export default function Inventory() {
                     <p className="text-sm font-semibold truncate">{item.partName}</p>
                     <p className="text-xs truncate" style={{ color: MUTED }}>
                       {item.quality ?? "—"}
+                      {categoryName && <span> · {categoryName}</span>}
                       {supplierName && <span> · {supplierName}</span>}
                     </p>
                     {item.barcode && <p className="text-xs mt-0.5 font-mono" style={{ color: MUTED }}>{item.barcode}</p>}
