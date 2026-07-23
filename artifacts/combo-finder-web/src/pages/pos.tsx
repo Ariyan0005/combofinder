@@ -247,23 +247,28 @@ function PosBarcodeScanner({ onDetect, onClose }: { onDetect: (code: string) => 
         ) : (
           <div className="space-y-3">
             <div className="relative rounded-2xl overflow-hidden bg-black aspect-[4/3]">
-              <style>{`@keyframes posScan{0%,100%{top:10%}50%{top:82%}} .pos-scan-line{position:absolute;left:10px;right:10px;height:2px;animation:posScan 2s ease-in-out infinite;background:linear-gradient(90deg,transparent,#a855f7,#ec4899,#a855f7,transparent);box-shadow:0 0 10px #a855f7,0 0 4px #ec4899;border-radius:2px;}`}</style>
+              <style>{`@keyframes posScan2{0%,100%{top:8%}50%{top:86%}} .pos-sl{position:absolute;left:0;right:0;height:3px;animation:posScan2 1.8s ease-in-out infinite;background:linear-gradient(90deg,transparent 0%,#a855f7 20%,#fff 50%,#ec4899 80%,transparent 100%);box-shadow:0 0 12px 3px #a855f7,0 0 6px 1px #ec4899;border-radius:2px;}`}</style>
               <video ref={videoRef} muted playsInline className="w-full h-full object-cover" />
+              {/* Dark edges, clear centre */}
               <div className="absolute inset-0 pointer-events-none"
-                style={{ background: "radial-gradient(ellipse 65% 55% at 50% 50%, transparent 28%, rgba(0,0,0,0.6) 100%)" }} />
+                style={{ background: "radial-gradient(ellipse 60% 50% at 50% 50%, transparent 30%, rgba(0,0,0,0.72) 100%)" }} />
+              {/* Viewfinder */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="relative" style={{ width: "72%", aspectRatio: "16/9" }}>
-                  {[
-                    { top:0, left:0, borderTop:"2.5px solid white", borderLeft:"2.5px solid white", borderRadius:"6px 0 0 0" },
-                    { top:0, right:0, borderTop:"2.5px solid white", borderRight:"2.5px solid white", borderRadius:"0 6px 0 0" },
-                    { bottom:0, left:0, borderBottom:"2.5px solid white", borderLeft:"2.5px solid white", borderRadius:"0 0 0 6px" },
-                    { bottom:0, right:0, borderBottom:"2.5px solid white", borderRight:"2.5px solid white", borderRadius:"0 0 6px 0" },
-                  ].map((s, i) => <div key={i} className="absolute" style={{ ...s, width:22, height:22 }} />)}
-                  <div className="pos-scan-line" />
+                <div className="relative" style={{ width: "76%", aspectRatio: "3/2" }}>
+                  {/* Faint inner fill so the box is visible */}
+                  <div className="absolute inset-0 rounded-sm" style={{ border: "1px solid rgba(255,255,255,0.18)" }} />
+                  {/* Corner brackets — thick & long */}
+                  {([
+                    { top:0, left:0, borderTop:"3px solid #c084fc", borderLeft:"3px solid #c084fc", borderRadius:"6px 0 0 0" },
+                    { top:0, right:0, borderTop:"3px solid #c084fc", borderRight:"3px solid #c084fc", borderRadius:"0 6px 0 0" },
+                    { bottom:0, left:0, borderBottom:"3px solid #c084fc", borderLeft:"3px solid #c084fc", borderRadius:"0 0 0 6px" },
+                    { bottom:0, right:0, borderBottom:"3px solid #c084fc", borderRight:"3px solid #c084fc", borderRadius:"0 0 6px 0" },
+                  ] as const).map((s, i) => <div key={i} className="absolute" style={{ ...s, width:28, height:28 }} />)}
+                  <div className="pos-sl" />
                 </div>
               </div>
               {scanning && (
-                <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
+                <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/75 text-white text-xs px-2.5 py-1.5 rounded-full">
                   <div className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />Scanning…
                 </div>
               )}

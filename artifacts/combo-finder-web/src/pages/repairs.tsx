@@ -267,7 +267,7 @@ function AddCustomerModal({ onClose, onAdded }: { onClose: () => void; onAdded: 
         const res = await fetch(`/api/customers?q=${encodeURIComponent(form.phone.trim())}`, { credentials: "include" });
         const existing = await res.json();
         if (Array.isArray(existing) && existing.some((c: any) => c.phone?.trim() === form.phone.trim())) {
-          setError(`এই ফোন নম্বরে (${form.phone}) ইতোমধ্যে একজন কাস্টমার আছে`);
+          setError(`A customer with phone number (${form.phone}) already exists`);
           setCheckingPhone(false);
           return;
         }

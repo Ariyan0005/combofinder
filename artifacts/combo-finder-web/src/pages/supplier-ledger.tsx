@@ -69,14 +69,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-type InventoryItem = { id: number; partName: string; quantity: number; purchasePrice?: string; };
+type InventoryItem = { id: number; partName: string; quantity: number; purchasePrice?: string; shelfLocation?: string; };
 type PurchaseLine = {
   _key: string; item: InventoryItem | null;
   search: string; showDrop: boolean;
-  qty: string; unitPrice: string;
+  qty: string; unitPrice: string; shelf: string;
 };
 function newPurchaseLine(): PurchaseLine {
-  return { _key: Math.random().toString(36).slice(2), item: null, search: "", showDrop: false, qty: "1", unitPrice: "" };
+  return { _key: Math.random().toString(36).slice(2), item: null, search: "", showDrop: false, qty: "1", unitPrice: "", shelf: "" };
 }
 
 // ─── Add Purchase Modal ───────────────────────────────────────────────────────
@@ -176,7 +176,25 @@ function AddPurchaseModal({ supplierId, supplierName, onClose, isFree, userId }:
       if (!res.ok) throw new Error(d.error ?? "Failed");
       return d;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Update shelf locations for lines where a shelf was entered
+      const shelfLines = stockLines.filter(l => l.shelf.trim());
+      for (const l of shelfLines) {
+        try {
+          await fetch(`/api/inventory/${l.item!.id}`, {
+            method: "PUT", credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              partName: l.item!.partName,
+              partType: "Other",
+              quantity: l.item!.quantity + Number(l.qty),
+              minStock: 0,
+              purchasePrice: l.unitPrice || l.item!.purchasePrice,
+              shelfLocation: l.shelf.trim(),
+            }),
+          });
+        } catch {}
+      }
       qc.invalidateQueries({ queryKey: ["supplier-purchases", supplierId] });
       qc.invalidateQueries({ queryKey: ["supplier-balance", supplierId] });
       qc.invalidateQueries({ queryKey: ["supplier-payments", supplierId] });
@@ -284,6 +302,13 @@ function AddPurchaseModal({ supplierId, supplierName, onClose, isFree, userId }:
                             placeholder="0.00" />
                         </div>
                       </div>
+                      {line.item && (
+                        <div className="mt-2">
+                          <p className="text-xs mb-1 font-medium" style={{ color: MUTED }}>Shelf / Location</p>
+                          <Input placeholder="e.g. A-2, Row 3" value={line.shelf}
+                            onChange={e => patchLine(line._key, { shelf: e.target.value })} />
+                        </div>
+                      )}
                       {Number(line.qty) > 0 && Number(line.unitPrice) > 0 && (
                         <p className="text-xs mt-1.5 font-semibold text-right" style={{ color: PRIMARY }}>
                           = {(Number(line.qty) * Number(line.unitPrice)).toLocaleString()}

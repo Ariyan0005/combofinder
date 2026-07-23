@@ -152,25 +152,27 @@ function BarcodeScanner({ onDetect, onClose }: { onDetect: (code: string) => voi
       ) : (
         <div className="space-y-3">
           <div className="relative rounded-2xl overflow-hidden bg-black aspect-[4/3]">
-            <style>{`@keyframes invScan{0%,100%{top:10%}50%{top:82%}} .inv-scan-line{position:absolute;left:10px;right:10px;height:2px;animation:invScan 2s ease-in-out infinite;background:linear-gradient(90deg,transparent,#22d3ee,#ffffff,#22d3ee,transparent);box-shadow:0 0 10px #22d3ee,0 0 4px #fff;border-radius:2px;}`}</style>
+            <style>{`@keyframes invScan2{0%,100%{top:8%}50%{top:86%}} .inv-sl{position:absolute;left:0;right:0;height:3px;animation:invScan2 1.8s ease-in-out infinite;background:linear-gradient(90deg,transparent 0%,#22d3ee 20%,#fff 50%,#22d3ee 80%,transparent 100%);box-shadow:0 0 12px 3px #22d3ee,0 0 6px 1px #fff;border-radius:2px;}`}</style>
             <video ref={videoRef} muted playsInline className="w-full h-full object-cover" />
-            {/* Vignette */}
+            {/* Dark edges, clear centre */}
             <div className="absolute inset-0 pointer-events-none"
-              style={{ background: "radial-gradient(ellipse 65% 55% at 50% 50%, transparent 28%, rgba(0,0,0,0.6) 100%)" }} />
-            {/* Corner-bracket viewfinder */}
+              style={{ background: "radial-gradient(ellipse 60% 50% at 50% 50%, transparent 30%, rgba(0,0,0,0.72) 100%)" }} />
+            {/* Viewfinder */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="relative" style={{ width: "70%", aspectRatio: "16/9" }}>
-                {[
-                  { top:0, left:0, borderTop:"2.5px solid white", borderLeft:"2.5px solid white", borderRadius:"6px 0 0 0" },
-                  { top:0, right:0, borderTop:"2.5px solid white", borderRight:"2.5px solid white", borderRadius:"0 6px 0 0" },
-                  { bottom:0, left:0, borderBottom:"2.5px solid white", borderLeft:"2.5px solid white", borderRadius:"0 0 0 6px" },
-                  { bottom:0, right:0, borderBottom:"2.5px solid white", borderRight:"2.5px solid white", borderRadius:"0 0 6px 0" },
-                ].map((s, i) => <div key={i} className="absolute" style={{ ...s, width:22, height:22 }} />)}
-                <div className="inv-scan-line" />
+              <div className="relative" style={{ width: "76%", aspectRatio: "3/2" }}>
+                {/* Faint inner outline */}
+                <div className="absolute inset-0 rounded-sm" style={{ border: "1px solid rgba(255,255,255,0.18)" }} />
+                {([
+                  { top:0, left:0, borderTop:"3px solid #22d3ee", borderLeft:"3px solid #22d3ee", borderRadius:"6px 0 0 0" },
+                  { top:0, right:0, borderTop:"3px solid #22d3ee", borderRight:"3px solid #22d3ee", borderRadius:"0 6px 0 0" },
+                  { bottom:0, left:0, borderBottom:"3px solid #22d3ee", borderLeft:"3px solid #22d3ee", borderRadius:"0 0 0 6px" },
+                  { bottom:0, right:0, borderBottom:"3px solid #22d3ee", borderRight:"3px solid #22d3ee", borderRadius:"0 0 6px 0" },
+                ] as const).map((s, i) => <div key={i} className="absolute" style={{ ...s, width:28, height:28 }} />)}
+                <div className="inv-sl" />
               </div>
             </div>
             {scanning && (
-              <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
+              <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/75 text-white text-xs px-2.5 py-1.5 rounded-full">
                 <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />Scanning…
               </div>
             )}
@@ -1246,8 +1248,8 @@ export default function Inventory() {
     <ProtectedPage>
       <div className="space-y-3 pb-6">
         <FABMenu onAction={handleFAB} />
-        {/* Stats bar — 2×2 clickable cards with colored borders */}
-        <div className="grid grid-cols-2 gap-2.5">
+        {/* Stats bar — 2×2 compact clickable cards */}
+        <div className="grid grid-cols-2 gap-2">
           {([
             { key: "all"  as const, label: "Total Items",  value: String(list.length),
               accent: "#3B82F6", activeBg: "rgba(59,130,246,0.12)", idleBg: "rgba(59,130,246,0.05)" },
@@ -1268,14 +1270,13 @@ export default function Inventory() {
                   else
                     setActiveStockFilter(null);
                 }}
-                className="rounded-2xl p-3.5 flex flex-col gap-1 text-left transition-all active:scale-95"
+                className="rounded-xl p-2.5 flex items-center gap-2.5 text-left transition-all active:scale-95"
                 style={{
                   background: isActive ? activeBg : idleBg,
                   border: `1.5px solid ${isActive ? accent : `${accent}40`}`,
-                  boxShadow: `0 2px 8px ${accent}18`,
                 }}>
-                <span className="text-xl font-black leading-none" style={{ color: accent }}>{value}</span>
-                <span className="text-[11px] font-semibold" style={{ color: MUTED }}>{label}</span>
+                <span className="text-base font-black leading-none w-10 flex-shrink-0" style={{ color: accent }}>{value}</span>
+                <span className="text-[11px] font-semibold leading-tight" style={{ color: MUTED }}>{label}</span>
               </button>
             );
           })}
