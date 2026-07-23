@@ -30,6 +30,26 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   SOS:"Sh",KMF:"Fr",MRU:"UM",SLL:"Le",GMD:"D",HTG:"G",NIO:"C$",
 };
 
+// ─── Currency formatter ───────────────────────────────────────────────────────
+// Works for all currencies: RTL symbols (AED, MAD…), multi-char symbols,
+// and large values. Uses Intl.NumberFormat compact notation when available.
+function fmtValue(currencyCode: string, value: number): string {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: currencyCode,
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(value);
+  } catch {
+    // Fallback: manual compact with symbol from the map
+    const sym = CURRENCY_SYMBOLS[currencyCode] ?? currencyCode;
+    if (value >= 1_000_000) return `${sym}${(value / 1_000_000).toFixed(1)}M`;
+    if (value >= 1_000)     return `${sym}${(value / 1_000).toFixed(1)}K`;
+    return `${sym}${value.toLocaleString()}`;
+  }
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Item = {
   id: number; partName: string; partType?: string; quality?: string;
@@ -1226,7 +1246,14 @@ export default function Inventory() {
 
   const lowCount = list.filter(i => i.minStock > 0 && i.quantity > 0 && i.quantity <= i.minStock).length;
   const outCount = list.filter(i => i.quantity === 0).length;
-  const totalValue = list.reduce((s, i) => s + (Number(i.purchasePrice) || 0) * i.quantity, 0);
+  // Category-aware stock value: total when "All", category-specific otherwise
+  const categoryValue = (activeTab.key === "All" ? list : list.filter(item => {
+    if (activeTab.id != null) {
+      const childIds = categories.filter(c => c.parentId === activeTab.id).map(c => c.id);
+      return item.categoryId === activeTab.id || childIds.includes(item.categoryId ?? -1);
+    }
+    return item.partType === activeTab.name;
+  })).reduce((s, i) => s + (Number(i.purchasePrice) || 0) * i.quantity, 0);
 
   // Apply stock filter on top of the existing filtered list
   const displayList = activeStockFilter === "low"
@@ -1253,8 +1280,9 @@ export default function Inventory() {
           {([
             { key: "all"  as const, label: "Total Items",  value: String(list.length),
               accent: "#3B82F6", activeBg: "rgba(59,130,246,0.12)", idleBg: "rgba(59,130,246,0.05)" },
-            { key: "val"  as const, label: "Stock Value",
-              value: `${sym}${totalValue > 999 ? (totalValue/1000).toFixed(1)+"k" : totalValue.toLocaleString()}`,
+            { key: "val"  as const,
+              label: activeTab.key === "All" ? "Stock Value" : `${activeTab.name} Value`,
+              value: fmtValue(user?.currency ?? "USD", categoryValue),
               accent: "#10B981", activeBg: "rgba(16,185,129,0.12)", idleBg: "rgba(16,185,129,0.05)" },
             { key: "low"  as const, label: "Low Stock",    value: String(lowCount),
               accent: "#F59E0B", activeBg: "rgba(245,158,11,0.20)", idleBg: "rgba(245,158,11,0.05)" },
