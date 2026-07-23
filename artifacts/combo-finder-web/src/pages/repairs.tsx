@@ -238,6 +238,7 @@ function AddCustomerModal({ onClose, onAdded }: { onClose: () => void; onAdded: 
   const qc = useQueryClient();
   const [form, setForm] = useState({ name: "", phone: "", whatsapp: "", notes: "" });
   const [error, setError] = useState("");
+  const [checkingPhone, setCheckingPhone] = useState(false);
   const mut = useMutation({
     mutationFn: async () => {
       const res = await fetch("/api/customers", {
@@ -249,13 +250,33 @@ function AddCustomerModal({ onClose, onAdded }: { onClose: () => void; onAdded: 
       return res.json();
     },
     onSuccess: (c) => {
-      // force-refetch customers list everywhere (mounted + unmounted)
       qc.invalidateQueries({ queryKey: ["customers"], refetchType: "all" });
       onAdded(c);
       onClose();
     },
     onError: (err: any) => setError(err.message),
   });
+
+  async function handleAddCustomer(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (!form.name.trim()) { setError("Name required"); return; }
+    if (form.phone.trim()) {
+      setCheckingPhone(true);
+      try {
+        const res = await fetch(`/api/customers?q=${encodeURIComponent(form.phone.trim())}`, { credentials: "include" });
+        const existing = await res.json();
+        if (Array.isArray(existing) && existing.some((c: any) => c.phone?.trim() === form.phone.trim())) {
+          setError(`এই ফোন নম্বরে (${form.phone}) ইতোমধ্যে একজন কাস্টমার আছে`);
+          setCheckingPhone(false);
+          return;
+        }
+      } catch {}
+      setCheckingPhone(false);
+    }
+    mut.mutate();
+  }
+
   return (
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
@@ -267,7 +288,7 @@ function AddCustomerModal({ onClose, onAdded }: { onClose: () => void; onAdded: 
             <X className="w-4 h-4" />
           </button>
         </div>
-        <form onSubmit={e => { e.preventDefault(); if (!form.name.trim()) { setError("Name required"); return; } mut.mutate(); }}
+        <form onSubmit={handleAddCustomer}
           className="flex flex-col gap-3">
           {[
             { label: "Full Name *", key: "name", placeholder: "Customer name", type: "text" },
@@ -285,10 +306,10 @@ function AddCustomerModal({ onClose, onAdded }: { onClose: () => void; onAdded: 
             </div>
           ))}
           {error && <p className="text-xs" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
-          <button type="submit" disabled={mut.isPending}
+          <button type="submit" disabled={mut.isPending || checkingPhone}
             className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-60"
             style={{ background: PRIMARY }}>
-            {mut.isPending ? "Adding…" : "Add Customer"}
+            {checkingPhone ? "Checking…" : mut.isPending ? "Adding…" : "Add Customer"}
           </button>
         </form>
       </div>
