@@ -40,7 +40,6 @@ const navigationGroups = [
       { name: "IC Compatibility", href: "/ic-brands", icon: MemoryStick },
       { name: "Issues & Fixes", href: "/issues-fixes", icon: WrenchIcon },
       { name: "Schematics", href: "/schematics", icon: FolderOpen },
-      { name: "ISP Brands", href: "/isp-brands", icon: Cpu },
       { name: "ISP & Pinout", href: "/isp-pinout", icon: Cpu, badge: "New" },
       { name: "Documents", href: "/documents", icon: FileText },
       { name: "Videos", href: "/videos", icon: Video },
