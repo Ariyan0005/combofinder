@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Search, Trash2, X, ExternalLink, ZoomIn, Cpu, RefreshCw,
@@ -16,6 +16,10 @@ type Pinout = {
   tags?: string;
 };
 
+type IspBrand = { id: number; name: string; logoUrl?: string | null; modelCount: number; createdAt: string };
+type IspModel = { id: number; name: string; brandId: number; brandName: string };
+type Category  = { id: number; name: string; slug: string };
+
 const BRAND_PALETTES = [
   { bg: "#EEF2FF", color: "#6366F1" },
   { bg: "#F5F3FF", color: "#8B5CF6" },
@@ -32,32 +36,60 @@ function brandPalette(name: string) {
 
 // ── Add Form ──────────────────────────────────────────────────────────────────
 function AddPinoutModal({
-  onClose, onSaved, brandSuggestions, modelSuggestions,
+  onClose, onSaved,
 }: {
   onClose: () => void;
   onSaved: () => void;
-  brandSuggestions: string[];
-  modelSuggestions: string[];
 }) {
-  const [brand,  setBrand]  = useState("");
-  const [model,  setModel]  = useState("");
-  const [title,  setTitle]  = useState("");
-  const [imgUrl, setImgUrl] = useState("");
-  const [link,   setLink]   = useState("");
-  const [err,    setErr]    = useState("");
-  const [saving, setSaving] = useState(false);
+  const [brandId, setBrandId] = useState<number | "">("");
+  const [modelId, setModelId] = useState<number | "">("");
+  const [title,   setTitle]   = useState("");
+  const [imgUrl,  setImgUrl]  = useState("");
+  const [link,    setLink]    = useState("");
+  const [err,     setErr]     = useState("");
+  const [saving,  setSaving]  = useState(false);
+
+  // Resolve "isp" category
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: ["categories"],
+    queryFn: () => fetch("/api/categories", { credentials: "include" }).then(r => r.json()),
+  });
+  const ispCategoryId = categories.find(c => c.slug === "isp")?.id;
+
+  // Load ISP brands
+  const { data: brands = [] } = useQuery<IspBrand[]>({
+    queryKey: ["isp-brands-select", ispCategoryId],
+    queryFn: () =>
+      fetch(`/api/brands?category_id=${ispCategoryId}`, { credentials: "include" }).then(r => r.json()),
+    enabled: ispCategoryId !== undefined,
+  });
+
+  // Load models for selected brand
+  const { data: models = [] } = useQuery<IspModel[]>({
+    queryKey: ["isp-models-select", brandId],
+    queryFn: () =>
+      fetch(`/api/brands/${brandId}/models`, { credentials: "include" }).then(r => r.json()),
+    enabled: !!brandId,
+  });
+
+  const selectedBrand = brands.find(b => b.id === Number(brandId));
+  const selectedModel = models.find(m => m.id === Number(modelId));
+
+  // Auto-fill title
+  useEffect(() => {
+    if (selectedBrand && selectedModel && !title.trim()) {
+      setTitle(`${selectedBrand.name} ${selectedModel.name} ISP Pinout`);
+    }
+  }, [selectedBrand, selectedModel]);
 
   function handleBrandChange(val: string) {
-    setBrand(val);
-    if (val && model && !title.trim()) setTitle(`${val} ${model} ISP Pinout`);
-  }
-  function handleModelChange(val: string) {
-    setModel(val);
-    if (brand && val && !title.trim()) setTitle(`${brand} ${val} ISP Pinout`);
+    setBrandId(val ? Number(val) : "");
+    setModelId("");
+    setTitle("");
   }
 
   async function save() {
-    if (!brand.trim() || !model.trim()) { setErr("Brand and model are required"); return; }
+    if (!selectedBrand || !selectedModel) { setErr("Brand and model are required"); return; }
     if (!title.trim() || !imgUrl.trim()) { setErr("Title and Image URL are required"); return; }
     setSaving(true); setErr("");
     try {
@@ -67,8 +99,8 @@ function AddPinoutModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
-          deviceBrand: brand.trim() || null,
-          deviceModel: model.trim() || null,
+          deviceBrand: selectedBrand.name,
+          deviceModel: selectedModel.name,
           schematicType: "ISP Pinout",
           fileUrl: imgUrl.trim(),
           thumbnailUrl: link.trim() || null,
@@ -82,6 +114,8 @@ function AddPinoutModal({
     setSaving(false);
   }
 
+  const noBrands = !ispCategoryId || brands.length === 0;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }}>
       <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
@@ -92,34 +126,39 @@ function AddPinoutModal({
           </button>
         </div>
 
-        {/* Independent brand + model inputs — not tied to display brands */}
-        <datalist id="isp-brand-list">
-          {brandSuggestions.map(b => <option key={b} value={b} />)}
-        </datalist>
-        <datalist id="isp-model-list">
-          {modelSuggestions.map(m => <option key={m} value={m} />)}
-        </datalist>
+        {noBrands && (
+          <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
+            No ISP brands found. Go to <strong>ISP Brands</strong> in the sidebar to add brands and models first.
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-semibold text-muted-foreground block mb-1">Brand *</label>
-            <input
-              list="isp-brand-list"
-              value={brand}
+            <select
+              value={brandId}
               onChange={e => handleBrandChange(e.target.value)}
-              placeholder="e.g. Samsung"
               className="w-full px-3 py-2 rounded-lg border border-border bg-input text-sm text-foreground outline-none focus:ring-1 focus:ring-primary"
-            />
+            >
+              <option value="">— Select brand —</option>
+              {brands.map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="text-xs font-semibold text-muted-foreground block mb-1">Model *</label>
-            <input
-              list="isp-model-list"
-              value={model}
-              onChange={e => handleModelChange(e.target.value)}
-              placeholder="e.g. A05s"
-              className="w-full px-3 py-2 rounded-lg border border-border bg-input text-sm text-foreground outline-none focus:ring-1 focus:ring-primary"
-            />
+            <select
+              value={modelId}
+              onChange={e => setModelId(e.target.value ? Number(e.target.value) : "")}
+              disabled={!brandId}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-input text-sm text-foreground outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+            >
+              <option value="">— Select model —</option>
+              {models.map(m => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -151,7 +190,11 @@ function AddPinoutModal({
 
         <div className="flex gap-3">
           <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
-          <Button onClick={save} disabled={saving || !brand.trim() || !model.trim() || !title.trim() || !imgUrl.trim()} className="flex-1">
+          <Button
+            onClick={save}
+            disabled={saving || !brandId || !modelId || !title.trim() || !imgUrl.trim()}
+            className="flex-1"
+          >
             {saving ? "Saving…" : "Save Pinout"}
           </Button>
         </div>
@@ -207,14 +250,6 @@ export default function IspPinoutAdmin() {
         (p.deviceBrand ?? "").toLowerCase().includes(search.toLowerCase())
       )
     : raw;
-
-  // Unique brand + model suggestions for the add form (independent of display brands)
-  const brandSuggestions = useMemo(() =>
-    Array.from(new Set(raw.map(p => p.deviceBrand).filter(Boolean) as string[])).sort(),
-    [raw]);
-  const modelSuggestions = useMemo(() =>
-    Array.from(new Set(raw.map(p => p.deviceModel).filter(Boolean) as string[])).sort(),
-    [raw]);
 
   // Group by brand
   const byBrand: Record<string, Pinout[]> = {};
@@ -367,8 +402,6 @@ export default function IspPinoutAdmin() {
         <AddPinoutModal
           onClose={() => setShowAdd(false)}
           onSaved={() => qc.invalidateQueries({ queryKey: ["admin-isp-pinouts"] })}
-          brandSuggestions={brandSuggestions}
-          modelSuggestions={modelSuggestions}
         />
       )}
       {zoomed && zoomed.fileUrl && (

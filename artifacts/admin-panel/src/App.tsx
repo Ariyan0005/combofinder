@@ -13,6 +13,8 @@ import BatteryCompat from "@/pages/battery-compat";
 import IcBrands from "@/pages/ic-brands";
 import IcModels from "@/pages/ic-models";
 import IcCompat from "@/pages/ic-compat";
+import IspBrands from "@/pages/isp-brands";
+import IspModels from "@/pages/isp-models";
 import BrandModels from "@/pages/brand-models";
 import ModelDetail from "@/pages/model-detail";
 import Search from "@/pages/search";
@@ -97,6 +99,8 @@ function Router() {
         <Route path="/ic-brands" component={IcBrands} />
         <Route path="/ic-brands/:id/models" component={IcModels} />
         <Route path="/ic-models/:id/compat" component={IcCompat} />
+        <Route path="/isp-brands" component={IspBrands} />
+        <Route path="/isp-brands/:id/models" component={IspModels} />
         <Route path="/brands/:id/models" component={BrandModels} />
         <Route path="/models/:id" component={ModelDetail} />
         <Route path="/issues-fixes" component={IssuesFixes} />
