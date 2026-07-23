@@ -79,7 +79,7 @@ export default function Compatibility() {
   });
   useEffect(() => {
     // ISP & Pinout has its own dedicated page — exclude it from this dropdown
-    if (Array.isArray(cats)) setCategories(cats.filter((c: any) => c.slug !== "isp-pinout"));
+    if (Array.isArray(cats)) setCategories(cats.filter((c: any) => c.slug !== "isp-pinout" && c.slug !== "isp"));
   }, [cats]);
 
   // Default the selection to "Display" when no category is in the URL
