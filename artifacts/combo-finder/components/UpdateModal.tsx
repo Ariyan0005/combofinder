@@ -33,25 +33,25 @@ export function UpdateModal({ info, onDismiss }: Props) {
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.emoji}>🚀</Text>
-            <Text style={styles.title}>নতুন আপডেট পাওয়া গেছে!</Text>
+            <Text style={styles.title}>New Update Available!</Text>
             <Text style={styles.versionBadge}>v{info.version}</Text>
           </View>
 
           {/* Release notes */}
           {info.releaseNotes.trim().length > 0 && (
             <ScrollView style={styles.notesScroll} showsVerticalScrollIndicator={false}>
-              <Text style={styles.notesLabel}>কী কী বদলেছে</Text>
+              <Text style={styles.notesLabel}>What's new</Text>
               <Text style={styles.notes}>{info.releaseNotes.trim()}</Text>
             </ScrollView>
           )}
 
           {/* Buttons */}
           <Pressable style={styles.downloadBtn} onPress={handleDownload}>
-            <Text style={styles.downloadText}>⬇️  এখনই আপডেট করুন</Text>
+            <Text style={styles.downloadText}>⬇️  Update Now</Text>
           </Pressable>
 
           <Pressable style={styles.laterBtn} onPress={onDismiss}>
-            <Text style={styles.laterText}>পরে করব</Text>
+            <Text style={styles.laterText}>Later</Text>
           </Pressable>
         </View>
       </View>
