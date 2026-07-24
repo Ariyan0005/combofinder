@@ -15,6 +15,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { setBaseUrl } from "@workspace/api-client-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { UpdateModal } from "@/components/UpdateModal";
+import { useUpdateChecker } from "@/hooks/useUpdateChecker";
 
 setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
 
@@ -56,6 +58,8 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
+  const { updateInfo, dismiss } = useUpdateChecker();
+
   useEffect(() => {
     if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
@@ -71,6 +75,9 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <RootLayoutNav />
+              {updateInfo && (
+                <UpdateModal info={updateInfo} onDismiss={dismiss} />
+              )}
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>
