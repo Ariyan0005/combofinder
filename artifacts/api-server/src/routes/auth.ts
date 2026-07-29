@@ -534,6 +534,8 @@ router.post("/auth/login", loginLimiter, async (req, res) => {
   const adminUsername = process.env["ADMIN_USERNAME"];
   const adminPassword = process.env["ADMIN_PASSWORD"];
   if (adminUsername && adminPassword &&
+      identifier.length === adminUsername.length &&
+      password.length === adminPassword.length &&
       timingSafeEqual(Buffer.from(identifier), Buffer.from(adminUsername)) &&
       timingSafeEqual(Buffer.from(password), Buffer.from(adminPassword))) {
     (req.session as any).authenticated = true;
