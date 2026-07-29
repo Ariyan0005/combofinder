@@ -13,7 +13,7 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   OMR: "OMR", KWD: "KD", QAR: "QR", MYR: "RM", SGD: "S$",
 };
 
-const STATUSES = ["All", "Repairing", "Ready", "Delivered", "Cancelled"];
+const STATUSES = ["Repairing", "Ready", "Delivered", "Cancelled"];
 const STATUS_COLOR: Record<string, { text: string; bg: string }> = {
   Repairing: { text: "hsl(var(--primary))", bg: "hsl(var(--primary) / 0.1)" },
   Ready:     { text: "#10B981", bg: "#ECFDF5" },
@@ -1117,7 +1117,7 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function Repairs() {
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("Repairing");
   const [searchQ, setSearchQ] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editRepair, setEditRepair] = useState<Repair | undefined>();
@@ -1182,13 +1182,18 @@ export default function Repairs() {
             <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
               placeholder="Search repairs…"
               className="flex-1 text-sm outline-none bg-transparent" />
+            {searchQ && (
+              <button onClick={() => setSearchQ("")} className="flex-shrink-0" style={{ color: MUTED }}>
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
           <button
             onClick={() => setShowAddCustomer(true)}
-            className="px-3 py-2.5 rounded-xl border flex items-center gap-1.5 text-xs font-semibold flex-shrink-0"
+            className="px-2.5 py-2.5 rounded-xl border flex items-center gap-1 text-xs font-semibold flex-shrink-0 whitespace-nowrap"
             style={{ borderColor: PRIMARY, color: PRIMARY, background: `${PRIMARY}10` }}>
-            <UserPlus className="w-3.5 h-3.5" />
-            Customer
+            <UserPlus className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>Customer</span>
           </button>
         </div>
 
