@@ -788,8 +788,15 @@ export default function Pos() {
               <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: MUTED }} />
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Search product, barcode…"
-                className="w-full pl-10 pr-12 py-2.5 rounded-xl border text-sm outline-none transition-colors"
+                className="w-full pl-10 pr-20 py-2.5 rounded-xl border text-sm outline-none transition-colors"
                 style={{ borderColor: BORDER, background: BG }} />
+              {search && (
+                <button onClick={() => setSearch("")}
+                  className="absolute right-11 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg flex items-center justify-center"
+                  style={{ color: MUTED }}>
+                  <X className="w-4 h-4" />
+                </button>
+              )}
               <button onClick={() => setShowPosScanner(true)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl flex items-center justify-center transition-colors"
                 title="Scan barcode"

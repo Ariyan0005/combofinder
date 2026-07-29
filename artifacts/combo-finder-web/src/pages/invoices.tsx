@@ -515,8 +515,15 @@ export default function Invoices() {
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: MUTED }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search invoice #, customer, phone…"
-            className="w-full pl-10 pr-4 py-3 rounded-2xl border text-sm outline-none"
+            className="w-full pl-10 pr-10 py-3 rounded-2xl border text-sm outline-none"
             style={{ borderColor: BORDER, background: CARD }} />
+          {search && (
+            <button onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ color: MUTED }}>
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         <div className="rounded-2xl border p-3 space-y-2" style={{ borderColor: BORDER, background: CARD }}>

@@ -1298,12 +1298,12 @@ export default function Inventory() {
                   else
                     setActiveStockFilter(null);
                 }}
-                className="rounded-xl p-2.5 flex items-center gap-2.5 text-left transition-all active:scale-95"
+                className="rounded-xl p-3 flex flex-col gap-1 text-left transition-all active:scale-95"
                 style={{
                   background: isActive ? activeBg : idleBg,
                   border: `1.5px solid ${isActive ? accent : `${accent}40`}`,
                 }}>
-                <span className="text-base font-black leading-none w-10 flex-shrink-0" style={{ color: accent }}>{value}</span>
+                <span className="text-lg font-black leading-none" style={{ color: accent }}>{value}</span>
                 <span className="text-[11px] font-semibold leading-tight" style={{ color: MUTED }}>{label}</span>
               </button>
             );
@@ -1315,8 +1315,15 @@ export default function Inventory() {
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: MUTED }} />
           <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
             placeholder="Search name, barcode, SKU…"
-            className="w-full pl-10 pr-12 py-3 rounded-2xl border text-sm outline-none"
+            className="w-full pl-10 pr-20 py-3 rounded-2xl border text-sm outline-none"
             style={{ borderColor: BORDER, background: CARD }} />
+          {searchQ && (
+            <button onClick={() => setSearchQ("")}
+              className="absolute right-11 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ color: MUTED }}>
+              <X className="w-4 h-4" />
+            </button>
+          )}
           <button onClick={() => setModal("scanner")}
             className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl flex items-center justify-center"
             style={{ background: `${PRIMARY}15`, color: PRIMARY }}
