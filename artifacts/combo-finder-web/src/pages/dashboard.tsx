@@ -268,7 +268,7 @@ export default function Dashboard() {
 
         {/* ── Low stock alert ── */}
         {(stats?.lowStock ?? 0) > 0 && (
-          <Link href="/inventory">
+          <Link href="/inventory?filter=low">
             <div className="flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer"
               style={{ background: "hsl(0 84% 60% / 0.08)", border: "1px solid hsl(0 84% 60% / 0.2)" }}>
               <Package className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--destructive))" }} />

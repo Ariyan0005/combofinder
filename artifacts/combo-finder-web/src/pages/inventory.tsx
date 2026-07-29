@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import {
   Plus, Search, Package, X, AlertCircle, ScanLine, ChevronRight,
   Tag, Truck, ArrowDownToLine, ShoppingCart, Edit3, Trash2,
@@ -1137,7 +1137,11 @@ export default function Inventory() {
   const [selectedItem, setSelectedItem] = useState<Item | undefined>();
   const [showSheet, setShowSheet] = useState(false);
   const [editCategory, setEditCategory] = useState<Category | undefined>();
-  const [activeStockFilter, setActiveStockFilter] = useState<null | "low" | "out">(null);
+  const search = useSearch();
+  const [activeStockFilter, setActiveStockFilter] = useState<null | "low" | "out">(() => {
+    const p = new URLSearchParams(search).get("filter");
+    return p === "low" || p === "out" ? p : null;
+  });
   const qc = useQueryClient();
 
   const isInvFreePlan = user?.plan === "Free" || !user?.plan;
