@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Search, Plus, X, Cpu, ExternalLink, ArrowLeft, ZoomIn, ZoomOut, Trash2,
+  Search, Plus, X, Cpu, ExternalLink, ArrowLeft, ZoomIn, ZoomOut, Trash2, ChevronRight,
 } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/context/auth-context";
@@ -376,29 +376,30 @@ export default function IspPinout() {
         ) : (
           <div className="space-y-5">
 
-            {/* Brand chips — only when not searching and no brand selected */}
+            {/* Brand cards — only when not searching and no brand selected */}
             {!isSearching && !selectedBrand && allBrands.length > 0 && (
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: MUTED }}>Browse by Brand</p>
-                <div className="flex gap-2 flex-wrap">
+                <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: MUTED }}>Browse by Brand</p>
+                <div className="grid grid-cols-2 gap-2">
                   {allBrands.map(brand => {
                     const pal = brandPalette(brand);
                     const initials = brand.split(/[\s/]/).map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+                    const count = raw.filter(p => (p.deviceBrand ?? "Other") === brand).length;
                     return (
                       <button
                         key={brand}
                         onClick={() => setSelectedBrand(brand)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold transition-all hover:shadow-sm"
+                        className="flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-all hover:shadow-sm text-left"
                         style={{ borderColor: BORDER, background: CARD }}>
-                        <div className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black flex-shrink-0"
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-black"
                           style={{ background: pal.bg, color: pal.color }}>
                           {initials}
                         </div>
-                        <span className="text-sm font-semibold">{brand}</span>
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                          style={{ background: pal.bg, color: pal.color }}>
-                          {raw.filter(p => (p.deviceBrand ?? "Other") === brand).length}
-                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold truncate">{brand}</p>
+                          <p className="text-[10px]" style={{ color: MUTED }}>{count} {count === 1 ? "pinout" : "pinouts"}</p>
+                        </div>
+                        <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: MUTED }} />
                       </button>
                     );
                   })}
