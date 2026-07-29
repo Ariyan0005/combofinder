@@ -61,9 +61,20 @@ router.get("/qr", async (req, res) => {
   } catch { res.status(500).json({ error: "Failed to get QR code" }); }
 });
 
-// ── GET /api/whatsapp/debug — internal diagnostics (no auth for easy curl) ─
+// ── GET /api/whatsapp/debug — internal diagnostics (admin only) ───────────
 router.get("/debug", async (req, res) => {
   try {
+    // Require authenticated admin session — this endpoint exposes internal
+    // WhatsApp session state and must not be publicly accessible.
+    const session = (req as any).session;
+    if (!session?.authenticated) {
+      res.status(401).json({ error: "Unauthorized" }); return;
+    }
+    const role: string = session?.userRole ?? "";
+    const isAdmin = role === "Admin" || role === "admin" || role === "superadmin";
+    if (!isAdmin) {
+      res.status(403).json({ error: "Forbidden: admin access required" }); return;
+    }
     const userId = (req as any).userId ?? 0;
     res.json(WA.getDebugInfo(userId));
   } catch (e: any) { res.status(500).json({ error: e?.message }); }

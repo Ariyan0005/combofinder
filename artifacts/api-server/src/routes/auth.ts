@@ -8,6 +8,56 @@ import nodemailer from "nodemailer";
 const router = Router();
 
 // ---------------------------------------------------------------------------
+// In-memory rate limiter — no external package needed.
+// Keyed by IP + route so limits are independent per endpoint.
+// ---------------------------------------------------------------------------
+interface RateBucket { count: number; resetAt: number; }
+const _rateBuckets = new Map<string, RateBucket>();
+
+// Clean up stale buckets every 10 minutes to prevent memory leak.
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, bucket] of _rateBuckets) {
+    if (now > bucket.resetAt) _rateBuckets.delete(key);
+  }
+}, 10 * 60 * 1000).unref();
+
+/**
+ * Returns an Express middleware that limits requests to `max` per `windowMs`.
+ * Each (IP, route) pair gets its own counter.
+ */
+function rateLimit(route: string, max: number, windowMs: number) {
+  return (req: any, res: any, next: any) => {
+    const ip: string = req.ip ?? req.socket?.remoteAddress ?? "unknown";
+    const key = `${route}:${ip}`;
+    const now = Date.now();
+    let bucket = _rateBuckets.get(key);
+    if (!bucket || now > bucket.resetAt) {
+      bucket = { count: 1, resetAt: now + windowMs };
+      _rateBuckets.set(key, bucket);
+      return next();
+    }
+    bucket.count++;
+    if (bucket.count > max) {
+      const retryAfterSec = Math.ceil((bucket.resetAt - now) / 1000);
+      res.setHeader("Retry-After", String(retryAfterSec));
+      res.status(429).json({
+        error: `Too many requests. Please wait ${retryAfterSec} seconds and try again.`,
+      });
+      return;
+    }
+    next();
+  };
+}
+
+// Shared limiter instances — defined once, reused across requests.
+const loginLimiter    = rateLimit("login",    10, 15 * 60 * 1000); // 10 attempts / 15 min
+const registerLimiter = rateLimit("register",  5, 60 * 60 * 1000); // 5 attempts / 1 hour
+const forgotLimiter   = rateLimit("forgot",    5, 60 * 60 * 1000); // 5 attempts / 1 hour
+const verifyLimiter   = rateLimit("verify",   10, 15 * 60 * 1000); // 10 attempts / 15 min
+const resendLimiter   = rateLimit("resend",    3, 60 * 60 * 1000); // 3 attempts / 1 hour
+
+// ---------------------------------------------------------------------------
 // Disposable / fake email domain blocklist
 // ---------------------------------------------------------------------------
 const DISPOSABLE_DOMAINS = new Set([
@@ -251,7 +301,7 @@ router.get("/auth/check-email", async (req, res) => {
   }
 });
 
-router.post("/auth/register", async (req, res) => {
+router.post("/auth/register", registerLimiter, async (req, res) => {
   const { name, email, phone, password } = req.body as {
     name?: string; email?: string; phone?: string; password?: string;
   };
@@ -379,7 +429,7 @@ router.post("/auth/register", async (req, res) => {
   }
 });
 
-router.post("/auth/verify-email", async (req, res) => {
+router.post("/auth/verify-email", verifyLimiter, async (req, res) => {
   const { email, token } = req.body as { email?: string; token?: string };
   if (!email || !token) {
     res.status(400).json({ error: "Email and verification code are required" }); return;
@@ -436,7 +486,7 @@ router.post("/auth/verify-email", async (req, res) => {
 });
 
 // Resend verification code
-router.post("/auth/resend-verification", async (req, res) => {
+router.post("/auth/resend-verification", resendLimiter, async (req, res) => {
   const { email } = req.body as { email?: string };
   if (!email) { res.status(400).json({ error: "Email is required" }); return; }
   const normalizedEmail = email.toLowerCase().trim();
@@ -474,7 +524,7 @@ router.post("/auth/resend-verification", async (req, res) => {
   }
 });
 
-router.post("/auth/login", async (req, res) => {
+router.post("/auth/login", loginLimiter, async (req, res) => {
   const { username, email, password } = req.body as { username?: string; email?: string; password?: string };
   const identifier = (username ?? email ?? "").trim();
   if (!identifier || !password) {
@@ -605,7 +655,7 @@ router.get("/auth/me", async (req, res) => {
 // Forgot / Reset Password
 // ---------------------------------------------------------------------------
 
-router.post("/auth/forgot-password", async (req, res) => {
+router.post("/auth/forgot-password", forgotLimiter, async (req, res) => {
   const { email } = req.body as { email?: string };
   if (!email) { res.status(400).json({ error: "Email is required" }); return; }
   const normalizedEmail = email.toLowerCase().trim();
