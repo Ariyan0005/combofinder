@@ -1302,13 +1302,13 @@ export default function Inventory() {
                   else
                     setActiveStockFilter(null);
                 }}
-                className="rounded-xl p-3 flex flex-col gap-1 text-left transition-all active:scale-95"
+                className="rounded-xl px-2.5 py-1.5 flex flex-col text-left transition-all active:scale-95"
                 style={{
                   background: isActive ? activeBg : idleBg,
                   border: `1.5px solid ${isActive ? accent : `${accent}40`}`,
                 }}>
-                <span className="text-lg font-black leading-none" style={{ color: accent }}>{value}</span>
-                <span className="text-[11px] font-semibold leading-tight" style={{ color: MUTED }}>{label}</span>
+                <span className="text-[9px] font-bold uppercase tracking-wide leading-tight" style={{ color: accent }}>{label}</span>
+                <span className="font-bold text-sm leading-tight" style={{ color: accent }}>{value}</span>
               </button>
             );
           })}
