@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { pbkdf2Sync, randomBytes, timingSafeEqual } from "node:crypto";
+import { pbkdf2Sync, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { promises as dnsPromises } from "node:dns";
 import { db, usersTable, passwordResetTokensTable } from "@workspace/db";
 import { eq, and, gt, lt } from "drizzle-orm";
@@ -156,7 +156,7 @@ function getMailTransporter() {
       port,
       secure,
       auth: { user: smtpUser, pass: smtpPass },
-      tls: { rejectUnauthorized: false },
+      tls: { rejectUnauthorized: true },
     });
   }
 
@@ -199,7 +199,8 @@ async function sendWelcomeEmail(name: string, email: string) {
       text: `Welcome to ComboFinder, ${name}!\n\nYour account has been created. Login at: https://finder.iunlockd.com/login`,
     });
   } catch (err) {
-    console.error("Welcome email failed:", err);
+    // Non-critical — welcome email failure should not block registration
+    console.warn("[auth] Welcome email failed:", (err as any)?.message ?? err);
   }
 }
 
@@ -251,7 +252,7 @@ async function sendVerificationEmail(name: string, email: string, code: string):
     });
     return true;
   } catch (err) {
-    console.error("Verification email failed:", err);
+    console.warn("[auth] Verification email failed:", (err as any)?.message ?? err);
     return false;
   }
 }
@@ -308,8 +309,8 @@ router.post("/auth/register", registerLimiter, async (req, res) => {
   if (!name || !email || !password) {
     res.status(400).json({ error: "Name, email and password are required" }); return;
   }
-  if (password.length < 6) {
-    res.status(400).json({ error: "Password must be at least 6 characters" }); return;
+  if (password.length < 8) {
+    res.status(400).json({ error: "Password must be at least 8 characters" }); return;
   }
 
   const normalizedEmail = email.toLowerCase().trim();
@@ -388,14 +389,14 @@ router.post("/auth/register", registerLimiter, async (req, res) => {
     // Wrapped in try/catch — if password_reset_tokens table is missing on the VPS,
     // fall back to immediate activation instead of crashing registration entirely.
     let otpStored = false;
-    const verifyCode = String(Math.floor(100000 + Math.random() * 900000));
+    const verifyCode = String(randomInt(100000, 1000000));
     try {
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
       await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, user.id)).catch(() => {});
       await db.insert(passwordResetTokensTable).values({ userId: user.id, token: verifyCode, expiresAt });
       otpStored = true;
     } catch (otpErr) {
-      console.error("OTP insert failed (password_reset_tokens table may be missing) — activating user immediately:", otpErr);
+      req.log.error({ err: otpErr }, "OTP insert failed — activating user immediately");
     }
 
     if (!otpStored) {
@@ -424,7 +425,7 @@ router.post("/auth/register", registerLimiter, async (req, res) => {
     }
     res.json({ success: true, requiresVerification: true, email: user.email });
   } catch (err) {
-    console.error("Register error:", err);
+    req.log.error({ err }, "Register error");
     res.status(500).json({ error: "Registration failed. Please try again." });
   }
 });
@@ -480,7 +481,7 @@ router.post("/auth/verify-email", verifyLimiter, async (req, res) => {
     sendWelcomeEmail(user.name, user.email);
     res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan ?? "Free", currency: user.currency ?? "USD" } });
   } catch (err) {
-    console.error("Verify email error:", err);
+    req.log.error({ err }, "Verify email error");
     res.status(500).json({ error: "Verification failed. Please try again." });
   }
 });
@@ -512,14 +513,14 @@ router.post("/auth/resend-verification", resendLimiter, async (req, res) => {
       }
     }
 
-    const verifyCode = String(Math.floor(100000 + Math.random() * 900000));
+    const verifyCode = String(randomInt(100000, 1000000));
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
     await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, user.id)).catch(() => {});
     await db.insert(passwordResetTokensTable).values({ userId: user.id, token: verifyCode, expiresAt });
     await sendVerificationEmail(user.name, user.email, verifyCode);
     res.json({ success: true });
   } catch (err) {
-    console.error("Resend verification error:", err);
+    req.log.error({ err }, "Resend verification error");
     res.status(500).json({ error: "Failed to resend code." });
   }
 });
@@ -594,7 +595,7 @@ router.post("/auth/login", loginLimiter, async (req, res) => {
     (req.session as any).userCurrency = user.currency ?? "USD";
     res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan ?? "Free", currency: user.currency ?? "USD", shopName: user.shopName ?? "", shopAddress: user.shopAddress ?? "", shopLogo: user.shopLogo ?? null } });
   } catch (err) {
-    console.error("Login error:", err);
+    req.log.error({ err }, "Login error");
     res.status(500).json({ error: "Login failed. Please try again." });
   }
 });
@@ -680,8 +681,8 @@ router.post("/auth/forgot-password", forgotLimiter, async (req, res) => {
     await db.delete(passwordResetTokensTable)
       .where(eq(passwordResetTokensTable.userId, user.id)).catch(() => {});
 
-    // Generate 6-digit code
-    const code = String(Math.floor(100000 + Math.random() * 900000));
+    // Generate 6-digit cryptographically secure code
+    const code = String(randomInt(100000, 1000000));
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     await db.insert(passwordResetTokensTable).values({
@@ -693,8 +694,8 @@ router.post("/auth/forgot-password", forgotLimiter, async (req, res) => {
     await sendPasswordResetEmail(user.name, user.email, code);
     res.json({ success: true, message: "Reset code sent to your email." });
   } catch (err: any) {
-    console.error("Forgot password error:", err);
-    res.status(500).json({ error: err?.message ?? "Failed to send reset email. Please check server SMTP configuration." });
+    req.log.error({ err }, "Forgot password error");
+    res.status(500).json({ error: "Failed to send reset email. Please try again later." });
   }
 });
 
@@ -705,8 +706,8 @@ router.post("/auth/reset-password", async (req, res) => {
   if (!email || !token || !newPassword) {
     res.status(400).json({ error: "Email, reset code and new password are required" }); return;
   }
-  if (newPassword.length < 6) {
-    res.status(400).json({ error: "Password must be at least 6 characters" }); return;
+  if (newPassword.length < 8) {
+    res.status(400).json({ error: "Password must be at least 8 characters" }); return;
   }
   const normalizedEmail = email.toLowerCase().trim();
   try {
@@ -744,7 +745,7 @@ router.post("/auth/reset-password", async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error("Reset password error:", err);
+    req.log.error({ err }, "Reset password error");
     res.status(500).json({ error: "Failed to reset password. Please try again." });
   }
 });
@@ -767,7 +768,7 @@ router.put("/auth/profile", async (req, res) => {
     (req.session as any).userName = user.name;
     res.json({ success: true, user });
   } catch (err) {
-    console.error("Profile update error:", err);
+    req.log.error({ err }, "Profile update error");
     res.status(500).json({ error: "Failed to update profile" });
   }
 });
@@ -780,8 +781,8 @@ router.put("/auth/password", async (req, res) => {
   if (!currentPassword || !newPassword) {
     res.status(400).json({ error: "Current and new password are required" }); return;
   }
-  if (newPassword.length < 6) {
-    res.status(400).json({ error: "New password must be at least 6 characters" }); return;
+  if (newPassword.length < 8) {
+    res.status(400).json({ error: "New password must be at least 8 characters" }); return;
   }
   try {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
@@ -792,7 +793,7 @@ router.put("/auth/password", async (req, res) => {
     await db.update(usersTable).set({ passwordHash: newHash, updatedAt: new Date() }).where(eq(usersTable.id, userId));
     res.json({ success: true });
   } catch (err) {
-    console.error("Password change error:", err);
+    req.log.error({ err }, "Password change error");
     res.status(500).json({ error: "Failed to change password" });
   }
 });
@@ -811,7 +812,7 @@ router.put("/auth/settings", async (req, res) => {
     await db.update(usersTable).set(updates).where(eq(usersTable.id, userId));
     res.json({ success: true });
   } catch (err) {
-    console.error("Settings update error:", err);
+    req.log.error({ err }, "Settings update error");
     res.status(500).json({ error: "Failed to update settings" });
   }
 });

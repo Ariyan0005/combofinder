@@ -1,5 +1,6 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import pinoHttp from "pino-http";
@@ -12,6 +13,9 @@ const app: Express = express();
 
 // Trust the reverse-proxy (nginx) so req.secure, req.ip, etc. are correct in production
 app.set("trust proxy", 1);
+
+// Security headers — sets X-Frame-Options, X-Content-Type-Options, HSTS, etc.
+app.use(helmet());
 
 app.use(
   pinoHttp({

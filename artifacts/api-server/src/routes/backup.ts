@@ -14,7 +14,7 @@ function getMailTransporter() {
   if (smtpHost && smtpUser && smtpPass) {
     const port = parseInt(process.env["SMTP_PORT"] ?? process.env["MAIL_PORT"] ?? "587", 10);
     const secure = process.env["SMTP_SECURE"] === "true" || process.env["MAIL_ENCRYPTION"] === "ssl" || port === 465;
-    return nodemailer.createTransport({ host: smtpHost, port, secure, auth: { user: smtpUser, pass: smtpPass }, tls: { rejectUnauthorized: false } });
+    return nodemailer.createTransport({ host: smtpHost, port, secure, auth: { user: smtpUser, pass: smtpPass }, tls: { rejectUnauthorized: true } });
   }
   const brevoKey = process.env["BREVO_SMTP_KEY"];
   if (brevoKey) {

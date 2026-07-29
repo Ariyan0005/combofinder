@@ -67,7 +67,7 @@ router.post("/", async (req, res) => {
     if (b.shopName !== undefined)           values.shopName = b.shopName || null;
     if (b.currency !== undefined)           values.currency = b.currency || null;
     if (b.password) {
-      if (b.password.length < 6) { res.status(400).json({ error: "Password must be at least 6 characters" }); return; }
+      if (b.password.length < 8) { res.status(400).json({ error: "Password must be at least 8 characters" }); return; }
       values.passwordHash = hashPassword(b.password);
     }
     const [row] = await db.insert(usersTable).values(values).returning();
@@ -97,7 +97,7 @@ router.put("/:id", async (req, res) => {
     if (b.shopName !== undefined)          updates.shopName = b.shopName || null;
     if (b.currency !== undefined)          updates.currency = b.currency || null;
     if (b.password) {
-      if (b.password.length < 6) { res.status(400).json({ error: "Password must be at least 6 characters" }); return; }
+      if (b.password.length < 8) { res.status(400).json({ error: "Password must be at least 8 characters" }); return; }
       updates.passwordHash = hashPassword(b.password);
     }
     const [row] = await db.update(usersTable).set(updates).where(eq(usersTable.id, Number(req.params.id))).returning();
