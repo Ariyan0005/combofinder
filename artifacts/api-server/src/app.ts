@@ -33,7 +33,29 @@ app.use(
   }),
 );
 
-app.use(cors({ origin: true, credentials: true }));
+// Only allow requests from the configured origin(s).
+// Falls back to no wildcard — credential-carrying cross-origin requests are
+// only allowed from origins that are explicitly listed.
+const allowedOrigins = (process.env["CORS_ORIGIN"] ?? "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: allowedOrigins.length > 0
+      ? (origin, callback) => {
+          // Same-origin requests (origin === undefined) are always allowed.
+          if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+          } else {
+            callback(new Error(`CORS: origin '${origin}' not allowed`));
+          }
+        }
+      : false,
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -41,7 +63,11 @@ const isProd = process.env.NODE_ENV === "production";
 
 app.use(
   session({
-    secret: process.env["SESSION_SECRET"] ?? "combofinder-secret",
+    secret: (() => {
+      const s = process.env["SESSION_SECRET"];
+      if (!s) throw new Error("SESSION_SECRET environment variable is required but not set.");
+      return s;
+    })(),
     resave: false,
     saveUninitialized: false,
     // Persist sessions in PostgreSQL so they survive server restarts.
@@ -72,11 +98,12 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const status: number =
     typeof err.status === "number" ? err.status :
     typeof err.statusCode === "number" ? err.statusCode : 500;
-  const cause = (err.cause as any)?.message ?? (err.cause as any)?.detail ?? "";
-  const message: string = cause
-    ? `${err.message ?? "Internal server error"} — DB: ${cause}`
-    : (err.message ?? "Internal server error");
+  // Log full error details server-side only — never expose DB internals to clients.
   logger.error({ err }, "Unhandled error");
+  const isProd = process.env.NODE_ENV === "production";
+  const message: string = isProd
+    ? (status < 500 ? (err.message ?? "Request error") : "Internal server error")
+    : (err.message ?? "Internal server error");
   res.status(status).json({ error: message });
 });
 

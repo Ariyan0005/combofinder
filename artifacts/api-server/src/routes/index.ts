@@ -62,6 +62,19 @@ function requireUserAuth(req: any, res: any, next: any) {
   }
 }
 
+// Requires admin role — used for admin-panel routes (users, subscriptions)
+function requireAdminAuth(req: any, res: any, next: any) {
+  if (!req.session?.authenticated) {
+    res.status(401).json({ error: "Unauthorized" }); return;
+  }
+  const role: string = req.session?.userRole ?? "";
+  const isAdmin = role === "Admin" || role === "admin" || role === "superadmin";
+  if (!isAdmin) {
+    res.status(403).json({ error: "Forbidden: admin access required" }); return;
+  }
+  next();
+}
+
 router.use(requireAuth);
 
 // Public / shared data routes (no user scope needed)
@@ -95,8 +108,8 @@ router.use("/sales", requireUserAuth, salesRouter);
 router.use("/ledger", requireUserAuth, ledgerRouter);
 router.use("/supplier-purchases", requireUserAuth, supplierPurchasesRouter);
 
-router.use("/users", usersRouter);
-router.use("/subscriptions", subscriptionsRouter);
+router.use("/users", requireAdminAuth, usersRouter);
+router.use("/subscriptions", requireAdminAuth, subscriptionsRouter);
 router.use("/documents", documentsRouter);
 router.use(requireUserAuth, migrateRouter);
 router.use("/backup", requireUserAuth, backupRouter);

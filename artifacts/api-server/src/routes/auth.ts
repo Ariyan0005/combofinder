@@ -482,7 +482,9 @@ router.post("/auth/login", async (req, res) => {
   }
   const adminUsername = process.env["ADMIN_USERNAME"];
   const adminPassword = process.env["ADMIN_PASSWORD"];
-  if (adminUsername && adminPassword && identifier === adminUsername && password === adminPassword) {
+  if (adminUsername && adminPassword &&
+      timingSafeEqual(Buffer.from(identifier), Buffer.from(adminUsername)) &&
+      timingSafeEqual(Buffer.from(password), Buffer.from(adminPassword))) {
     (req.session as any).authenticated = true;
     (req.session as any).userName = adminUsername;
     (req.session as any).userRole = "Admin";
