@@ -1190,10 +1190,10 @@ export default function Repairs() {
           </div>
           <button
             onClick={() => setShowAddCustomer(true)}
-            className="rounded-xl border flex items-center justify-center gap-1.5 px-3 text-xs font-semibold flex-shrink-0 whitespace-nowrap"
+            title="Add Customer"
+            className="w-11 rounded-xl border flex items-center justify-center flex-shrink-0"
             style={{ borderColor: PRIMARY, color: PRIMARY, background: `${PRIMARY}10` }}>
-            <UserPlus className="w-3.5 h-3.5 flex-shrink-0" />
-            <span>Customer</span>
+            <UserPlus className="w-4 h-4" />
           </button>
         </div>
 
