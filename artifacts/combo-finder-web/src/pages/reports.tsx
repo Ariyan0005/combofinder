@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Wrench, Clock, CheckCircle, Truck } from "lucide-react";
+import { Wrench, Clock, CheckCircle, Truck, ArrowLeft } from "lucide-react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/context/auth-context";
+import { Link } from "wouter";
 import { localRepairs } from "@/lib/local-store";
 
 const STATUS_COLOR_MAP: Record<string, string> = {
@@ -66,7 +67,15 @@ export default function Reports() {
   return (
     <ProtectedPage>
       <div className="space-y-5 pb-6">
-        <h1 className="text-xl font-extrabold pt-1">Repair Report</h1>
+        <div className="flex items-center gap-3 pt-1">
+          <Link href="/repairs">
+            <button className="w-8 h-8 rounded-full flex items-center justify-center border"
+              style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
+              <ArrowLeft className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
+            </button>
+          </Link>
+          <h1 className="text-xl font-extrabold">Repair Report</h1>
+        </div>
 
         {/* Summary cards — one row */}
         <div className="grid grid-cols-4 gap-2">
