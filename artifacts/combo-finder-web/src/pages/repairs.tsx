@@ -1176,12 +1176,12 @@ export default function Repairs() {
 
         {/* Search + Customer Add */}
         <div className="flex gap-2 items-stretch">
-          <div className="flex-1 flex items-center gap-2 px-3.5 rounded-xl border"
-            style={{ borderColor: BORDER, background: "hsl(var(--card))", minHeight: "42px" }}>
+          <div className="flex items-center gap-2 px-3 rounded-xl border"
+            style={{ borderColor: BORDER, background: "hsl(var(--card))", minHeight: "42px", width: "55%" }}>
             <Search className="w-4 h-4 flex-shrink-0" style={{ color: MUTED }} />
             <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
               placeholder="Search repairs…"
-              className="flex-1 text-sm outline-none bg-transparent py-2.5" />
+              className="flex-1 min-w-0 text-sm outline-none bg-transparent py-2.5" />
             {searchQ && (
               <button onClick={() => setSearchQ("")} className="flex-shrink-0" style={{ color: MUTED }}>
                 <X className="w-4 h-4" />
@@ -1190,10 +1190,10 @@ export default function Repairs() {
           </div>
           <button
             onClick={() => setShowAddCustomer(true)}
-            title="Add Customer"
-            className="w-11 rounded-xl border flex items-center justify-center flex-shrink-0"
+            className="flex-1 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-semibold"
             style={{ borderColor: PRIMARY, color: PRIMARY, background: `${PRIMARY}10` }}>
-            <UserPlus className="w-4 h-4" />
+            <UserPlus className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>Customer</span>
           </button>
         </div>
 
