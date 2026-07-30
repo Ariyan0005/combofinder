@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, X, Wrench, UserPlus, Package, Trash2, ChevronDown, Check, Share2, Pencil, Phone, MessageCircle, Download } from "lucide-react";
+import { Plus, Search, X, Wrench, UserPlus, Package, Trash2, ChevronDown, Check, Share2, Pencil, Phone, MessageCircle, Download, BarChart2 } from "lucide-react";
+import { Link } from "wouter";
 import { ProtectedPage } from "@/components/protected-page";
 import { generateRepairPdf, generateRepairPdfBlob } from "@/lib/invoice-pdf";
 import { useAuth } from "@/context/auth-context";
@@ -1167,11 +1168,20 @@ export default function Repairs() {
             <h1 className="text-xl font-extrabold">Repairs</h1>
             <p className="text-xs" style={{ color: MUTED }}>{list.length} total</p>
           </div>
-          <button onClick={() => { setEditRepair(undefined); setShowForm(true); }}
-            className="flex items-center gap-2 px-4 py-2 rounded-full text-white text-sm font-bold shadow-sm"
-            style={{ background: PRIMARY }}>
-            <Plus className="w-4 h-4" /> New
-          </button>
+          <div className="flex items-center gap-2">
+            <Link href="/reports">
+              <button
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-bold border"
+                style={{ borderColor: PRIMARY, color: PRIMARY, background: `${PRIMARY}10` }}>
+                <BarChart2 className="w-4 h-4" /> Report
+              </button>
+            </Link>
+            <button onClick={() => { setEditRepair(undefined); setShowForm(true); }}
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-white text-sm font-bold shadow-sm"
+              style={{ background: PRIMARY }}>
+              <Plus className="w-4 h-4" /> New
+            </button>
+          </div>
         </div>
 
         {/* Search + Customer Add */}
@@ -1190,9 +1200,9 @@ export default function Repairs() {
           </div>
           <button
             onClick={() => setShowAddCustomer(true)}
-            className="flex-shrink-0 px-3 py-2.5 rounded-xl border flex items-center gap-1.5 text-xs font-semibold whitespace-nowrap"
+            className="flex-shrink-0 px-2.5 py-2 rounded-xl border flex items-center gap-1 text-xs font-semibold whitespace-nowrap"
             style={{ borderColor: PRIMARY, color: PRIMARY, background: `${PRIMARY}10` }}>
-            <UserPlus className="w-3.5 h-3.5" />
+            <UserPlus className="w-3 h-3" />
             Customer
           </button>
         </div>
