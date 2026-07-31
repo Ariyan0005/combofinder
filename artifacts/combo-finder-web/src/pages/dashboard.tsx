@@ -316,8 +316,8 @@ export default function Dashboard() {
             <div style={{ flex: "0 0 100%", scrollSnapAlign: "start" }}>
               <div className="grid grid-cols-2 gap-2.5">
                 {KPI_CARDS.map(({ label, value, color, bg, prefix }) => (
-                  <div key={label} className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-2xl border"
-                    style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))", minHeight: 100 }}>
+                  <div key={label} className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl border"
+                    style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-extrabold"
                       style={{ background: bg, color }}>
                       {prefix}
