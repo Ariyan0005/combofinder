@@ -261,12 +261,12 @@ export default function Dashboard() {
 
           {/* ── 7-day bar chart ── */}
           {weeklyChart.length > 0 && (
-            <div className="h-20 mt-1">
+            <div className="h-12 mt-1">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyChart} barSize={18} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 9 }} axisLine={false} tickLine={false} />
+                <BarChart data={weeklyChart} barSize={12} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                  <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 8 }} axisLine={false} tickLine={false} />
                   <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.08)" }} />
-                  <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="revenue" radius={[3, 3, 0, 0]}>
                     {weeklyChart.map((_: any, i: number) => (
                       <Cell key={i} fill={i === weeklyChart.length - 1 ? "#fff" : "rgba(255,255,255,0.35)"} />
                     ))}
