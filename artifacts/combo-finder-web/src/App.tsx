@@ -35,6 +35,7 @@ import BatteryModelPage from "@/pages/battery-model";
 import IcBrandPage from "@/pages/ic-brand";
 import IcModelPage from "@/pages/ic-model";
 import Privacy from "@/pages/privacy";
+import SalesReport from "@/pages/sales-report";
 import Terms from "@/pages/terms";
 
 const queryClient = new QueryClient({
@@ -108,6 +109,7 @@ function Router() {
             <Route path="/donate" component={Donate} />
             <Route path="/privacy" component={Privacy} />
             <Route path="/terms" component={Terms} />
+            <Route path="/sales-report" component={SalesReport} />
             <Route>
               <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
                 <p className="text-4xl font-bold">404</p>

@@ -34,6 +34,7 @@ import icCompatRouter from "./ic-compat";
 import migrateRouter from "./migrate";
 import backupRouter from "./backup";
 import whatsappRouter from "./whatsapp";
+import salesSummaryRouter from "./sales-summary";
 
 const router: IRouter = Router();
 
@@ -114,5 +115,6 @@ router.use("/documents", documentsRouter);
 router.use(requireUserAuth, migrateRouter);
 router.use("/backup", requireUserAuth, backupRouter);
 router.use("/whatsapp", requireUserAuth, whatsappRouter);
+router.use(requireUserAuth, salesSummaryRouter);
 
 export default router;
