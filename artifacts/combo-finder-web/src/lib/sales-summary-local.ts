@@ -2,7 +2,7 @@
  * Client-side sales summary calculation for Free-plan users.
  * Mirrors the logic of /api/sales-summary but reads from localStorage.
  */
-import { localSales, localExpenses, localRepairs } from "./local-store";
+import { localSales, localExpenses, localRepairs, localInventory } from "./local-store";
 
 export interface SalesSummary {
   todayRevenue:     number;
@@ -66,6 +66,22 @@ export function computeSalesSummary(
   const posYesterday   = sumField(allSales.filter((s: any) => s.date === yDay),   "total");
   const posRange       = sumField(salesInRange, "total");
 
+  // ── POS Cost of Goods Sold (COGS) — local inventory join ───────────────────
+  // Build a lookup map: inventoryId → purchasePrice (current price in localStorage)
+  const invMap: Record<number, number> = {};
+  for (const inv of localInventory.getAll(uid)) {
+    invMap[inv.id] = Number(inv.purchasePrice ?? 0);
+  }
+  // For each sale in range, sum up (soldQty × purchasePrice) per line item
+  let posCost = 0;
+  for (const sale of salesInRange) {
+    for (const item of (sale.items ?? [])) {
+      const soldQty = Number(item.quantity ?? 0) - Number(item.returnedQuantity ?? 0);
+      const costPer = Number(item.costPrice ?? invMap[item.inventoryId] ?? 0);
+      posCost += Math.max(0, soldQty) * costPer;
+    }
+  }
+
   // ── Repairs (delivered + paid) ──────────────────────────────────────────────
   const allRepairs = localRepairs.getAll(uid);
   const paidDelivered = allRepairs.filter((r: any) => r.isPaid && r.status === "Delivered");
@@ -117,9 +133,6 @@ export function computeSalesSummary(
   const todayRevenue     = posToday   + repairRevToday;
   const yesterdayRevenue = posYesterday + repairRevYd;
   const totalRevenue     = posRange   + repairRevRange;
-  // posCost is not available in localStorage (cost price not stored locally).
-  // Pro users get accurate COGS from the API.
-  const posCost          = 0;
   const netProfit        = posRange - posCost + repairRevRange - repairPartsRange - totalExpenses;
 
   return {
