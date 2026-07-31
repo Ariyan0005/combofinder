@@ -12,6 +12,16 @@ import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
 import { computeSalesSummary } from "@/lib/sales-summary-local";
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD:"$", EUR:"€", GBP:"£", JPY:"¥", CNY:"¥", AUD:"A$", CAD:"C$", CHF:"Fr",
+  HKD:"HK$", SGD:"S$", KRW:"₩", TWD:"NT$", BDT:"৳", INR:"₹", PKR:"₨",
+  NPR:"रू", LKR:"Rs", MVR:"Rf", BTN:"Nu", MYR:"RM", THB:"฿", IDR:"Rp",
+  PHP:"₱", VND:"₫", MMK:"K", KHR:"៛", LAK:"₭", BND:"B$", MOP:"P",
+  AED:"د.إ", SAR:"﷼", QAR:"﷼", KWD:"KD", BHD:"BD", OMR:"﷼",
+  TRY:"₺", RUB:"₽", NGN:"₦", ZAR:"R", EGP:"E£", GHS:"₵",
+  KES:"KSh", UGX:"USh", TZS:"TSh", ETB:"Br",
+};
+
 type Range = "today" | "week" | "month" | "custom";
 
 function fmt(n: number): string {
@@ -34,7 +44,7 @@ const RANGE_LABELS: { key: Range; label: string }[] = [
 
 const CAT_COLORS = ["#6366F1","#10B981","#F59E0B","#EF4444","#8B5CF6","#0EA5E9","#EC4899","#14B8A6"];
 
-function SummaryCard({ label, value, color, bg, icon: Icon, prefix = "৳" }: {
+function SummaryCard({ label, value, color, bg, icon: Icon, prefix = "$" }: {
   label: string; value: number; color: string; bg: string;
   icon: React.ElementType; prefix?: string;
 }) {
@@ -54,14 +64,14 @@ function SummaryCard({ label, value, color, bg, icon: Icon, prefix = "৳" }: {
   );
 }
 
-function BreakdownBar({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
+function BreakdownBar({ label, value, total, color, sym }: { label: string; value: number; total: number; color: string; sym: string }) {
   const p = pct(value, total);
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold" style={{ color: "hsl(var(--foreground))" }}>{label}</span>
         <span className="text-xs font-bold" style={{ color }}>
-          ৳ {value.toLocaleString()} <span className="text-[10px] font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>({p}%)</span>
+          {sym} {value.toLocaleString()} <span className="text-[10px] font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>({p}%)</span>
         </span>
       </div>
       <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "hsl(var(--muted))" }}>
@@ -71,13 +81,13 @@ function BreakdownBar({ label, value, total, color }: { label: string; value: nu
   );
 }
 
-function ChartTooltip({ active, payload, label }: any) {
+function ChartTooltip({ active, payload, label, sym }: any) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl px-3 py-2 shadow-lg border text-xs"
       style={{ background: "hsl(var(--card))", borderColor: "hsl(var(--border))" }}>
       <p className="font-semibold mb-0.5" style={{ color: "hsl(var(--foreground))" }}>{label}</p>
-      <p style={{ color: "hsl(var(--primary))" }}>৳ {Number(payload[0].value).toLocaleString()}</p>
+      <p style={{ color: "hsl(var(--primary))" }}>{sym} {Number(payload[0].value).toLocaleString()}</p>
     </div>
   );
 }
@@ -126,6 +136,7 @@ export default function SalesReport() {
   const repairServiceProfit = repairRevenue - repairPartsCost;
 
   const PRIMARY = "hsl(var(--primary))";
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
 
   return (
     <ProtectedPage>
@@ -184,21 +195,21 @@ export default function SalesReport() {
           <>
             {/* ── Summary Cards ── */}
             <div className="grid grid-cols-2 gap-2.5">
-              <SummaryCard label="Total Revenue"   value={totalRevenue}   color="#10B981" bg="#ECFDF5" icon={DollarSign} />
-              <SummaryCard label="Total Expenses"  value={totalExpenses}  color="#F97316" bg="#FFF7ED" icon={Package} />
+              <SummaryCard label="Total Revenue"   value={totalRevenue}   color="#10B981" bg="#ECFDF5" icon={DollarSign} prefix={sym} />
+              <SummaryCard label="Total Expenses"  value={totalExpenses}  color="#F97316" bg="#FFF7ED" icon={Package}    prefix={sym} />
               <SummaryCard label="Net Profit"      value={netProfit}
                 color={netProfit >= 0 ? PRIMARY : "#EF4444"}
                 bg={netProfit >= 0 ? "hsl(var(--primary) / 0.1)" : "#FEF2F2"}
-                icon={netProfit >= 0 ? TrendingUp : TrendingDown} />
-              <SummaryCard label="Outstanding"     value={outstanding}    color="#F59E0B" bg="#FFFBEB" icon={Calendar} />
+                icon={netProfit >= 0 ? TrendingUp : TrendingDown} prefix={sym} />
+              <SummaryCard label="Outstanding"     value={outstanding}    color="#F59E0B" bg="#FFFBEB" icon={Calendar}   prefix={sym} />
             </div>
 
             {/* ── Revenue Breakdown ── */}
             <div className="rounded-2xl border p-4 space-y-3"
               style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
               <h3 className="text-sm font-bold">Revenue Sources</h3>
-              <BreakdownBar label="POS Sales"     value={posRevenue}    total={totalRevenue} color="#10B981" />
-              <BreakdownBar label="Repair Income" value={repairRevenue} total={totalRevenue} color={PRIMARY} />
+              <BreakdownBar label="POS Sales"     value={posRevenue}    total={totalRevenue} color="#10B981" sym={sym} />
+              <BreakdownBar label="Repair Income" value={repairRevenue} total={totalRevenue} color={PRIMARY}  sym={sym} />
 
               {/* Repair profit breakdown */}
               {repairRevenue > 0 && (
@@ -210,19 +221,19 @@ export default function SalesReport() {
                     <div className="flex-1 rounded-xl p-2.5 text-center"
                       style={{ background: "hsl(var(--primary) / 0.08)" }}>
                       <p className="text-xs font-extrabold" style={{ color: PRIMARY }}>
-                        ৳ {fmt(repairServiceProfit)}
+                        {sym} {fmt(repairServiceProfit)}
                       </p>
                       <p className="text-[9px] mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Service Profit</p>
                     </div>
                     <div className="flex-1 rounded-xl p-2.5 text-center" style={{ background: "#FEF2F2" }}>
                       <p className="text-xs font-extrabold" style={{ color: "#EF4444" }}>
-                        ৳ {fmt(repairPartsCost)}
+                        {sym} {fmt(repairPartsCost)}
                       </p>
                       <p className="text-[9px] mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Parts Invested</p>
                     </div>
                     <div className="flex-1 rounded-xl p-2.5 text-center" style={{ background: "#ECFDF5" }}>
                       <p className="text-xs font-extrabold" style={{ color: "#10B981" }}>
-                        ৳ {fmt(repairRevenue)}
+                        {sym} {fmt(repairRevenue)}
                       </p>
                       <p className="text-[9px] mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Total Billed</p>
                     </div>
@@ -245,7 +256,7 @@ export default function SalesReport() {
                   <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{label}</span>
                   <span className="text-xs font-semibold"
                     style={{ color: sign === "+" ? "#10B981" : "#EF4444" }}>
-                    {sign} ৳ {value.toLocaleString()}
+                    {sign} {sym} {value.toLocaleString()}
                   </span>
                 </div>
               ))}
@@ -254,7 +265,7 @@ export default function SalesReport() {
                 <span className="text-sm font-bold">Net Profit</span>
                 <span className="text-sm font-extrabold"
                   style={{ color: netProfit >= 0 ? PRIMARY : "#EF4444" }}>
-                  {netProfit < 0 ? "−" : "+"} ৳ {Math.abs(netProfit).toLocaleString()}
+                  {netProfit < 0 ? "−" : "+"} {sym} {Math.abs(netProfit).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -269,7 +280,7 @@ export default function SalesReport() {
                     <BarChart data={weeklyChart} barSize={22} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                       <XAxis dataKey="day" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 8 }} axisLine={false} tickLine={false} tickFormatter={v => fmt(v)} />
-                      <Tooltip content={<ChartTooltip />} cursor={{ fill: "hsl(var(--muted))" }} />
+                      <Tooltip content={(p: any) => <ChartTooltip {...p} sym={sym} />} cursor={{ fill: "hsl(var(--muted))" }} />
                       <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
                         {weeklyChart.map((_: any, i: number) => (
                           <Cell key={i} fill={i === weeklyChart.length - 1 ? PRIMARY : "hsl(var(--primary) / 0.35)"} />
@@ -300,7 +311,7 @@ export default function SalesReport() {
                           <div className="h-full rounded-full"
                             style={{ width: `${pct(amt, totalExpenses)}%`, background: CAT_COLORS[i % CAT_COLORS.length] }} />
                         </div>
-                        <span className="text-xs font-semibold w-16 text-right">৳ {(amt as number).toLocaleString()}</span>
+                        <span className="text-xs font-semibold w-16 text-right">{sym} {(amt as number).toLocaleString()}</span>
                       </div>
                     </div>
                   ))}

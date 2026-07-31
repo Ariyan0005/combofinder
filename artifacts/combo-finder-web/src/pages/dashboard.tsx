@@ -15,6 +15,16 @@ import { computeSalesSummary } from "@/lib/sales-summary-local";
 const ADMIN_PANEL_URL  = "/admin/";
 const WHATSAPP_URL     = "https://wa.me/96897043234?text=Hi%21+I+need+support.+I%27m+contacting+you+from+the+ComboFinder+app.";
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD:"$", EUR:"€", GBP:"£", JPY:"¥", CNY:"¥", AUD:"A$", CAD:"C$", CHF:"Fr",
+  HKD:"HK$", SGD:"S$", KRW:"₩", TWD:"NT$", BDT:"৳", INR:"₹", PKR:"₨",
+  NPR:"रू", LKR:"Rs", MVR:"Rf", BTN:"Nu", MYR:"RM", THB:"฿", IDR:"Rp",
+  PHP:"₱", VND:"₫", MMK:"K", KHR:"៛", LAK:"₭", BND:"B$", MOP:"P",
+  AED:"د.إ", SAR:"﷼", QAR:"﷼", KWD:"KD", BHD:"BD", OMR:"﷼",
+  TRY:"₺", RUB:"₽", NGN:"₦", ZAR:"R", EGP:"E£", GHS:"₵",
+  KES:"KSh", UGX:"USh", TZS:"TSh", ETB:"Br",
+};
+
 function greeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good Morning";
@@ -68,13 +78,13 @@ function CfToolIcon({ type, color, size = 24 }: { type: "display" | "battery" | 
 }
 
 // Custom tooltip for chart
-function ChartTooltip({ active, payload, label }: any) {
+function ChartTooltip({ active, payload, label, sym }: any) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl px-3 py-2 shadow-lg border text-xs"
       style={{ background: "hsl(var(--card))", borderColor: "hsl(var(--border))" }}>
       <p className="font-semibold mb-0.5" style={{ color: "hsl(var(--foreground))" }}>{label}</p>
-      <p style={{ color: "hsl(var(--primary))" }}>৳ {Number(payload[0].value).toLocaleString()}</p>
+      <p style={{ color: "hsl(var(--primary))" }}>{sym} {Number(payload[0].value).toLocaleString()}</p>
     </div>
   );
 }
@@ -141,12 +151,13 @@ export default function Dashboard() {
   const pct              = pctChange(todayRevenue, yesterdayRevenue);
 
   const PRIMARY = "hsl(var(--primary))";
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
 
   const KPI_CARDS = [
-    { label: "Revenue",     value: totalRevenue,  color: "#10B981", bg: "#ECFDF5", prefix: "৳" },
-    { label: "Expenses",    value: totalExpenses, color: "#F97316", bg: "#FFF7ED", prefix: "৳" },
-    { label: "Net Profit",  value: netProfit,     color: netProfit >= 0 ? PRIMARY : "#EF4444", bg: netProfit >= 0 ? "hsl(var(--primary) / 0.1)" : "#FEF2F2", prefix: "৳" },
-    { label: "Outstanding", value: outstanding,   color: "#F59E0B", bg: "#FFFBEB", prefix: "৳" },
+    { label: "Revenue",     value: totalRevenue,  color: "#10B981", bg: "#ECFDF5", prefix: sym },
+    { label: "Expenses",    value: totalExpenses, color: "#F97316", bg: "#FFF7ED", prefix: sym },
+    { label: "Net Profit",  value: netProfit,     color: netProfit >= 0 ? PRIMARY : "#EF4444", bg: netProfit >= 0 ? "hsl(var(--primary) / 0.1)" : "#FEF2F2", prefix: sym },
+    { label: "Outstanding", value: outstanding,   color: "#F59E0B", bg: "#FFFBEB", prefix: sym },
   ];
 
   return (
@@ -240,7 +251,7 @@ export default function Dashboard() {
             <div>
               <p className="text-[11px] font-semibold text-white/70">Today's Revenue</p>
               <p className="text-3xl font-extrabold text-white leading-tight mt-0.5">
-                ৳ {todayRevenue.toLocaleString()}
+                {sym} {todayRevenue.toLocaleString()}
               </p>
               {pct !== null && (
                 <div className="flex items-center gap-1 mt-1">
@@ -255,7 +266,7 @@ export default function Dashboard() {
             </div>
             <div className="text-right">
               <p className="text-[10px] text-white/60">This Month</p>
-              <p className="text-lg font-extrabold text-white">৳ {fmt(totalRevenue)}</p>
+              <p className="text-lg font-extrabold text-white">{sym} {fmt(totalRevenue)}</p>
             </div>
           </div>
 
@@ -265,7 +276,7 @@ export default function Dashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={weeklyChart} barSize={12} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                   <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 8 }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.08)" }} />
+                  <Tooltip content={(p: any) => <ChartTooltip {...p} sym={sym} />} cursor={{ fill: "rgba(255,255,255,0.08)" }} />
                   <Bar dataKey="revenue" radius={[3, 3, 0, 0]}>
                     {weeklyChart.map((_: any, i: number) => (
                       <Cell key={i} fill={i === weeklyChart.length - 1 ? "#fff" : "rgba(255,255,255,0.35)"} />
