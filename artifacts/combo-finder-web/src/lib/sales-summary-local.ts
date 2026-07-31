@@ -8,6 +8,7 @@ export interface SalesSummary {
   todayRevenue:     number;
   yesterdayRevenue: number;
   posRevenue:       number;
+  posCost:          number;
   repairRevenue:    number;
   repairPartsCost:  number;
   totalRevenue:     number;
@@ -116,12 +117,16 @@ export function computeSalesSummary(
   const todayRevenue     = posToday   + repairRevToday;
   const yesterdayRevenue = posYesterday + repairRevYd;
   const totalRevenue     = posRange   + repairRevRange;
-  const netProfit        = totalRevenue - totalExpenses - repairPartsRange;
+  // posCost is not available in localStorage (cost price not stored locally).
+  // Pro users get accurate COGS from the API.
+  const posCost          = 0;
+  const netProfit        = posRange - posCost + repairRevRange - repairPartsRange - totalExpenses;
 
   return {
     todayRevenue,
     yesterdayRevenue,
     posRevenue:      posRange,
+    posCost,
     repairRevenue:   repairRevRange,
     repairPartsCost: repairPartsRange,
     totalRevenue,

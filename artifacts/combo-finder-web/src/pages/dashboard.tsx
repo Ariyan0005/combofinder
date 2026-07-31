@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Users, Package, Bell,
   ShoppingCart, Wallet, Receipt, Battery,
@@ -150,6 +150,15 @@ export default function Dashboard() {
   const weeklyChart      = summary?.weeklyChart      ?? [];
   const pct              = pctChange(todayRevenue, yesterdayRevenue);
 
+  // ── Hero/KPI slider ───────────────────────────────────────────────────────
+  const sliderRef    = useRef<HTMLDivElement>(null);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const handleSliderScroll = useCallback(() => {
+    if (!sliderRef.current) return;
+    const { scrollLeft, clientWidth } = sliderRef.current;
+    if (clientWidth > 0) setActiveSlide(Math.round(scrollLeft / clientWidth));
+  }, []);
+
   const PRIMARY = "hsl(var(--primary))";
   const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
 
@@ -244,66 +253,105 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── Revenue Hero ── */}
-        <div className="rounded-2xl p-4 space-y-3"
-          style={{ background: "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 80% 55%) 100%)" }}>
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-[11px] font-semibold text-white/70">Today's Revenue</p>
-              <p className="text-3xl font-extrabold text-white leading-tight mt-0.5">
-                {sym} {todayRevenue.toLocaleString()}
-              </p>
-              {pct !== null && (
-                <div className="flex items-center gap-1 mt-1">
-                  {pct >= 0
-                    ? <TrendingUp className="w-3 h-3 text-emerald-300" />
-                    : <TrendingDown className="w-3 h-3 text-red-300" />}
-                  <span className={`text-[11px] font-bold ${pct >= 0 ? "text-emerald-300" : "text-red-300"}`}>
-                    {pct >= 0 ? "+" : ""}{pct}% vs yesterday
-                  </span>
+        {/* ── Hero + KPI Slider ── */}
+        <div>
+          {/* Scrollable track — hide native scrollbar via CSS */}
+          <div
+            ref={sliderRef}
+            onScroll={handleSliderScroll}
+            style={{
+              display: "flex",
+              overflowX: "scroll",
+              scrollSnapType: "x mandatory",
+              scrollbarWidth: "none",
+              gap: 0,
+            }}
+            className="hide-scrollbar"
+          >
+            {/* Slide 1 — Revenue Hero */}
+            <div style={{ flex: "0 0 100%", scrollSnapAlign: "start" }}>
+              <div className="rounded-2xl p-4 space-y-3"
+                style={{ background: "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 80% 55%) 100%)" }}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-[11px] font-semibold text-white/70">Today's Revenue</p>
+                    <p className="text-3xl font-extrabold text-white leading-tight mt-0.5">
+                      {sym} {todayRevenue.toLocaleString()}
+                    </p>
+                    {pct !== null && (
+                      <div className="flex items-center gap-1 mt-1">
+                        {pct >= 0
+                          ? <TrendingUp className="w-3 h-3 text-emerald-300" />
+                          : <TrendingDown className="w-3 h-3 text-red-300" />}
+                        <span className={`text-[11px] font-bold ${pct >= 0 ? "text-emerald-300" : "text-red-300"}`}>
+                          {pct >= 0 ? "+" : ""}{pct}% vs yesterday
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] text-white/60">This Month</p>
+                    <p className="text-lg font-extrabold text-white">{sym} {fmt(totalRevenue)}</p>
+                  </div>
                 </div>
-              )}
+                {weeklyChart.length > 0 && (
+                  <div className="h-12 mt-1">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={weeklyChart} barSize={12} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                        <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 8 }} axisLine={false} tickLine={false} />
+                        <Tooltip content={(p: any) => <ChartTooltip {...p} sym={sym} />} cursor={{ fill: "rgba(255,255,255,0.08)" }} />
+                        <Bar dataKey="revenue" radius={[3, 3, 0, 0]}>
+                          {weeklyChart.map((_: any, i: number) => (
+                            <Cell key={i} fill={i === weeklyChart.length - 1 ? "#fff" : "rgba(255,255,255,0.35)"} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-[10px] text-white/60">This Month</p>
-              <p className="text-lg font-extrabold text-white">{sym} {fmt(totalRevenue)}</p>
+
+            {/* Slide 2 — KPI Cards */}
+            <div style={{ flex: "0 0 100%", scrollSnapAlign: "start" }}>
+              <div className="grid grid-cols-2 gap-2.5">
+                {KPI_CARDS.map(({ label, value, color, bg, prefix }) => (
+                  <div key={label} className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-2xl border"
+                    style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))", minHeight: 100 }}>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-extrabold"
+                      style={{ background: bg, color }}>
+                      {prefix}
+                    </div>
+                    <p className="text-lg font-extrabold leading-none" style={{ color }}>
+                      {fmt(Math.abs(value))}
+                    </p>
+                    <p className="text-[10px] font-semibold text-center leading-tight"
+                      style={{ color: "hsl(var(--muted-foreground))" }}>{label}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* ── 7-day bar chart ── */}
-          {weeklyChart.length > 0 && (
-            <div className="h-12 mt-1">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyChart} barSize={12} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 8 }} axisLine={false} tickLine={false} />
-                  <Tooltip content={(p: any) => <ChartTooltip {...p} sym={sym} />} cursor={{ fill: "rgba(255,255,255,0.08)" }} />
-                  <Bar dataKey="revenue" radius={[3, 3, 0, 0]}>
-                    {weeklyChart.map((_: any, i: number) => (
-                      <Cell key={i} fill={i === weeklyChart.length - 1 ? "#fff" : "rgba(255,255,255,0.35)"} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-
-        {/* ── KPI Row ── */}
-        <div className="grid grid-cols-4 gap-2">
-          {KPI_CARDS.map(({ label, value, color, bg, prefix }) => (
-            <div key={label} className="flex flex-col items-center gap-1 p-2.5 rounded-2xl border"
-              style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-extrabold"
-                style={{ background: bg, color }}>
-                {prefix}
-              </div>
-              <p className="text-sm font-extrabold leading-none" style={{ color }}>
-                {fmt(Math.abs(value))}
-              </p>
-              <p className="text-[8px] font-semibold text-center leading-tight"
-                style={{ color: "hsl(var(--muted-foreground))" }}>{label}</p>
-            </div>
-          ))}
+          {/* Pagination dots */}
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 10 }}>
+            {[0, 1].map(i => (
+              <button
+                key={i}
+                onClick={() => sliderRef.current?.scrollTo({ left: i * (sliderRef.current?.clientWidth ?? 0), behavior: "smooth" })}
+                style={{
+                  width: i === activeSlide ? 18 : 6,
+                  height: 6,
+                  borderRadius: 3,
+                  background: i === activeSlide ? PRIMARY : "hsl(var(--muted-foreground) / 0.3)",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  transition: "all 0.25s ease",
+                }}
+              />
+            ))}
+          </div>
         </div>
 
         {/* ── Low stock alert (Pro only) ── */}

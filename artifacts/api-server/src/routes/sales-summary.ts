@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, salesTable, expensesTable, repairsTable } from "@workspace/db";
-import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { db, salesTable, saleItemsTable, inventoryTable, expensesTable, repairsTable } from "@workspace/db";
+import { and, eq, gte, lte, sql, inArray } from "drizzle-orm";
 
 const router = Router();
 
@@ -60,6 +60,28 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
         sql`${salesTable.status} != 'Returned'`,
       ));
     const posYesterday = sumArr(salesYd.map(s => Number(s.total)));
+
+    // ── POS Cost of Goods Sold (COGS) ─────────────────────────────────────────
+    // Join sale_items with inventory to get purchase price at time of sale.
+    // Items without an inventory record (custom items) are counted as 0 cost.
+    let posCost = 0;
+    const saleIds = sales.map(s => s.id);
+    if (saleIds.length > 0) {
+      const saleItems = await db
+        .select({
+          quantity:         saleItemsTable.quantity,
+          returnedQuantity: saleItemsTable.returnedQuantity,
+          purchasePrice:    inventoryTable.purchasePrice,
+        })
+        .from(saleItemsTable)
+        .leftJoin(inventoryTable, eq(saleItemsTable.inventoryId, inventoryTable.id))
+        .where(inArray(saleItemsTable.saleId, saleIds));
+
+      posCost = saleItems.reduce((sum, item) => {
+        const soldQty = item.quantity - (item.returnedQuantity ?? 0);
+        return sum + Math.max(0, soldQty) * Number(item.purchasePrice ?? 0);
+      }, 0);
+    }
 
     // ── Repairs (delivered + paid) ────────────────────────────────────────────
     const repairs = await db.select().from(repairsTable)
@@ -125,13 +147,14 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
     const todayRevenue     = posToday + repairRevToday;
     const yesterdayRevenue = posYesterday + repairRevYd;
     const totalRevenue     = posRange + repairRevRange;
-    // Profit = Revenue - Operating Expenses - Parts invested in repairs
-    const netProfit        = totalRevenue - totalExpenses - repairPartsRange;
+    // Profit = POS Revenue - POS Cost of Goods + Repair Revenue - Parts invested in repairs - Operating Expenses
+    const netProfit        = posRange - posCost + repairRevRange - repairPartsRange - totalExpenses;
 
     res.json({
       todayRevenue,
       yesterdayRevenue,
       posRevenue:      posRange,
+      posCost,
       repairRevenue:   repairRevRange,
       repairPartsCost: repairPartsRange,
       totalRevenue,

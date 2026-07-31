@@ -123,6 +123,7 @@ export default function SalesReport() {
   const loading = !isFreePlan && isLoading;
 
   const posRevenue      = s?.posRevenue      ?? 0;
+  const posCost         = s?.posCost         ?? 0;
   const repairRevenue   = s?.repairRevenue   ?? 0;
   const repairPartsCost = s?.repairPartsCost ?? 0;
   const totalRevenue    = s?.totalRevenue    ?? 0;
@@ -247,7 +248,8 @@ export default function SalesReport() {
               style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
               <h3 className="text-sm font-bold">Profit & Loss</h3>
               {[
-                { label: "POS Sales",        value: posRevenue,      sign: "+"  },
+                { label: "POS Revenue",      value: posRevenue,      sign: "+"  },
+                { label: "POS Cost (COGS)",  value: posCost,         sign: "−"  },
                 { label: "Repair Income",    value: repairRevenue,   sign: "+"  },
                 { label: "Parts Invested",   value: repairPartsCost, sign: "−"  },
                 { label: "Expenses",         value: totalExpenses,   sign: "−"  },
