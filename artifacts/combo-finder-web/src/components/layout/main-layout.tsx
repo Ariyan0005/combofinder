@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Search, Plus, Package, Menu, X,
   Users, BookOpen, BarChart2, Unlock, Receipt,
   Settings, LogOut, CreditCard, Smartphone, ShoppingCart, FileText,
-  BookMarked, Heart, Boxes,
+  BookMarked, Heart, Boxes, Users2,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import Sidebar from "./sidebar";
@@ -19,7 +19,8 @@ const BOTTOM_NAV = [
 
 const MORE_ITEMS = [
   // ── Daily use ──
-  { label: "Customers",      icon: Users,        href: "/customers" },
+  { label: "Customers",         icon: Users,        href: "/customers" },
+  { label: "Staff & Technician",icon: Users2,       href: "/staff"     },
   { label: "Point of Sale",  icon: ShoppingCart, href: "/pos" },
   { label: "Invoices",       icon: FileText,     href: "/invoices" },
   { label: "Ledger / Credit",icon: BookMarked,   href: "/ledger" },

@@ -37,6 +37,7 @@ import IcModelPage from "@/pages/ic-model";
 import Privacy from "@/pages/privacy";
 import SalesReport from "@/pages/sales-report";
 import Terms from "@/pages/terms";
+import StaffPage from "@/pages/staff";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -110,6 +111,7 @@ function Router() {
             <Route path="/privacy" component={Privacy} />
             <Route path="/terms" component={Terms} />
             <Route path="/sales-report" component={SalesReport} />
+            <Route path="/staff" component={StaffPage} />
             <Route>
               <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
                 <p className="text-4xl font-bold">404</p>

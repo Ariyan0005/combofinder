@@ -322,6 +322,42 @@ export const localExpenses = {
   hasData(uid: number): boolean { return read<LocalExpense>(eKey(uid)).length > 0; },
 };
 
+// ── Staff & Technician ────────────────────────────────────────────────────────
+type LocalStaff = {
+  id: number;
+  name: string;
+  phone?: string;
+  staffId?: string;
+  role: 'Staff' | 'Technician' | 'Both';
+  isActive: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+const stKey = (uid: number) => `cf_staff_${uid}`;
+
+export const localStaff = {
+  getAll(uid: number): LocalStaff[] { return read<LocalStaff>(stKey(uid)); },
+  getActive(uid: number): LocalStaff[] { return read<LocalStaff>(stKey(uid)).filter(s => s.isActive); },
+  create(uid: number, data: Omit<LocalStaff, 'id' | 'createdAt' | 'updatedAt'>): LocalStaff {
+    const list = read<LocalStaff>(stKey(uid));
+    const id = -(Date.now());
+    const item: LocalStaff = { ...data, id, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    write(stKey(uid), [item, ...list]);
+    return item;
+  },
+  update(uid: number, id: number, data: Partial<Omit<LocalStaff, 'id' | 'createdAt'>>) {
+    write(stKey(uid), read<LocalStaff>(stKey(uid)).map(s => s.id === id ? { ...s, ...data, updatedAt: new Date().toISOString() } : s));
+  },
+  delete(uid: number, id: number) {
+    write(stKey(uid), read<LocalStaff>(stKey(uid)).filter(s => s.id !== id));
+  },
+  exportAll(uid: number): LocalStaff[] { return read<LocalStaff>(stKey(uid)); },
+  clear(uid: number) { localStorage.removeItem(stKey(uid)); },
+  hasData(uid: number): boolean { return read<LocalStaff>(stKey(uid)).length > 0; },
+};
+
 // ── Full Backup Export ────────────────────────────────────────────────────────
 
 /** Import a backup JSON (from server restore) into localStorage for this user */
