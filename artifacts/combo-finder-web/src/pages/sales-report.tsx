@@ -55,8 +55,8 @@ function SummaryCard({ label, value, color, bg, icon: Icon, prefix = "$" }: {
         <Icon className="w-4 h-4" style={{ color }} />
       </div>
       <div>
-        <p className="text-base font-extrabold leading-tight" style={{ color }}>
-          {value < 0 ? "-" : ""}{prefix}{fmt(value)}
+        <p className="text-base font-extrabold leading-tight" style={{ color }} dir="ltr">
+          {value < 0 ? "-" : ""}{prefix} {fmt(value)}
         </p>
         <p className="text-[10px] font-semibold mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>{label}</p>
       </div>
