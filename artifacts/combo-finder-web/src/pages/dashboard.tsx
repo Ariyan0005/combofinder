@@ -153,6 +153,7 @@ export default function Dashboard() {
   // ── Hero/KPI slider ───────────────────────────────────────────────────────
   const sliderRef    = useRef<HTMLDivElement>(null);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [selectedDayIdx, setSelectedDayIdx] = useState<number | null>(null);
   const handleSliderScroll = useCallback(() => {
     if (!sliderRef.current) return;
     const { scrollLeft, clientWidth } = sliderRef.current;
@@ -271,7 +272,7 @@ export default function Dashboard() {
             {/* Slide 1 — Revenue Hero */}
             <div style={{ flex: "0 0 100%", scrollSnapAlign: "start" }}>
               <div className="rounded-2xl p-4 space-y-3"
-                style={{ background: "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 80% 55%) 100%)" }}>
+                style={{ background: "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 80% 55%) 100%)", minHeight: 220 }}>
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-[11px] font-semibold text-white/70">Today's Revenue</p>
@@ -291,7 +292,7 @@ export default function Dashboard() {
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] text-white/60">This Month</p>
-                    <p className="text-lg font-extrabold text-white">{sym} {fmt(totalRevenue)}</p>
+                    <div className="flex items-baseline gap-0.5 justify-end"><span className="text-sm font-extrabold text-white flex-shrink-0">{sym}</span><span className="text-lg font-extrabold text-white">{fmt(totalRevenue)}</span></div>
                   </div>
                 </div>
                 {weeklyChart.length > 0 && (
@@ -300,9 +301,9 @@ export default function Dashboard() {
                       <BarChart data={weeklyChart} barSize={12} margin={{ top: 0, right: 0, left: 0, bottom: 18 }}>
                         <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 9 }} axisLine={false} tickLine={false} dy={4} />
                         <Tooltip content={(p: any) => <ChartTooltip {...p} sym={sym} />} cursor={{ fill: "rgba(255,255,255,0.08)" }} />
-                        <Bar dataKey="revenue" radius={[3, 3, 0, 0]}>
+                        <Bar dataKey="revenue" radius={[3, 3, 0, 0]} cursor="pointer" onClick={(_: any, index: number) => setSelectedDayIdx(prev => prev === index ? null : index)}>
                           {weeklyChart.map((_: any, i: number) => (
-                            <Cell key={i} fill={i === weeklyChart.length - 1 ? "#fff" : "rgba(255,255,255,0.35)"} />
+                            <Cell key={i} fill={i === selectedDayIdx ? "#ffffff" : i === weeklyChart.length - 1 ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.35)"} />
                           ))}
                         </Bar>
                       </BarChart>
@@ -315,7 +316,7 @@ export default function Dashboard() {
             {/* Slide 2 — KPI Cards (gradient, matches Slide 1) */}
             <div style={{ flex: "0 0 100%", scrollSnapAlign: "start" }}>
               <div className="rounded-2xl p-4 space-y-3"
-                style={{ background: "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 80% 55%) 100%)" }}>
+                style={{ background: "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 80% 55%) 100%)", minHeight: 220 }}>
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] font-semibold text-white/70">This Month Summary</p>
                   <p className="text-[10px] text-white/50">{new Date().toLocaleString("default", { month: "long", year: "numeric" })}</p>
