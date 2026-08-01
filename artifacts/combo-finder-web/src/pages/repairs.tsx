@@ -6,7 +6,7 @@ import { Link } from "wouter";
 import { ProtectedPage } from "@/components/protected-page";
 import { generateRepairPdf, generateRepairPdfBlob } from "@/lib/invoice-pdf";
 import { useAuth } from "@/context/auth-context";
-import { localRepairs, localInventory } from "@/lib/local-store";
+import { localRepairs, localInventory, localStaff } from "@/lib/local-store";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$", EUR: "€", GBP: "£", BDT: "৳", INR: "₹",
@@ -751,6 +751,24 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
   });
   const [showAddCust, setShowAddCust] = useState(false);
 
+  // ── Staff / technician list for the dropdown ─────────────────────────────
+  const { data: staffData = [] } = useQuery<any[]>({
+    queryKey: ["staff", isRepairFormFree, repairFormUser?.id],
+    queryFn: async () => {
+      if (isRepairFormFree && repairFormUser?.id) return localStaff.getActive(repairFormUser.id);
+      const res = await fetch("/api/staff", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!repairFormUser?.id,
+  });
+  // Show technicians + "Both" role (or all active if no role filter matches)
+  const techList = staffData.filter((s: any) =>
+    s.isActive && (s.role === "Technician" || s.role === "Both")
+  ).length > 0
+    ? staffData.filter((s: any) => s.isActive && (s.role === "Technician" || s.role === "Both"))
+    : staffData.filter((s: any) => s.isActive);
+
   // Parse existing partsUsed JSON
   const initialParts: PartEntry[] = (() => {
     try { return existing?.partsUsed ? JSON.parse(existing.partsUsed) : []; } catch { return []; }
@@ -967,10 +985,27 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
             {/* ── Technician ── */}
             <div>
               <SectionLabel>🛠 Technician</SectionLabel>
-              <input value={form.engineer} onChange={e => set("engineer", e.target.value)}
-                placeholder="Technician / engineer name (optional)"
-                className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none"
-                style={{ borderColor: BORDER, background: BG }} />
+              {techList.length > 0 ? (
+                <select
+                  value={form.engineer}
+                  onChange={e => set("engineer", e.target.value)}
+                  className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none appearance-none"
+                  style={{ borderColor: BORDER, background: BG }}>
+                  <option value="">— Select technician —</option>
+                  {techList.map((t: any) => (
+                    <option key={t.id} value={t.name}>
+                      {t.name}{t.staffId ? ` (${t.staffId})` : ""}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  value={form.engineer}
+                  onChange={e => set("engineer", e.target.value)}
+                  placeholder="Technician / engineer name (optional)"
+                  className="w-full px-3.5 py-3 rounded-xl border text-sm outline-none"
+                  style={{ borderColor: BORDER, background: BG }} />
+              )}
             </div>
 
             {/* ── Parts ── */}

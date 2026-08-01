@@ -28,3 +28,4 @@ export * from "./battery-compat";
 export * from "./ic-compat";
 export * from "./user-backups";
 export * from "./sales";
+export * from "./staff";

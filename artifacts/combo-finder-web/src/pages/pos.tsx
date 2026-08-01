@@ -8,7 +8,7 @@ import {
 import { ProtectedPage } from "@/components/protected-page";
 import { generateInvoicePdf, type InvoiceData } from "@/lib/invoice-pdf";
 import { useAuth } from "@/context/auth-context";
-import { localInventory, localCustomers, localSales } from "@/lib/local-store";
+import { localInventory, localCustomers, localSales, localStaff } from "@/lib/local-store";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$", EUR: "€", GBP: "£", BDT: "৳", INR: "₹",
@@ -301,7 +301,7 @@ function CartContents({
   paymentMethod, setPaymentMethod, advancePay, setAdvancePay,
   customerMode, setCustomerMode, customerName, setCustomerName,
   customerPhone, setCustomerPhone, customerId, setCustomerId,
-  customerList, notes, setNotes, error,
+  customerList, notes, setNotes, servedBy, setServedBy, staffList, error,
   checkoutMut, total, discountNum, advancePayNum, amountDue,
   changeQty, changePrice, removeLine,
 }: {
@@ -314,6 +314,7 @@ function CartContents({
   customerPhone: string; setCustomerPhone: (v: string) => void;
   customerId: number | null; setCustomerId: (id: number | null) => void;
   customerList: Customer[]; notes: string; setNotes: (v: string) => void;
+  servedBy: string; setServedBy: (v: string) => void; staffList: any[];
   error: string; checkoutMut: any;
   total: number; discountNum: number; advancePayNum: number; amountDue: number;
   changeQty: (id: number, delta: number) => void;
@@ -473,6 +474,25 @@ function CartContents({
             </div>
           )}
 
+          {/* ── Served By (staff) ── */}
+          {staffList.length > 0 && (
+            <div>
+              <label className="text-[10px] font-semibold block mb-1" style={{ color: MUTED }}>Served By</label>
+              <select
+                value={servedBy}
+                onChange={e => setServedBy(e.target.value)}
+                className="w-full px-2.5 py-2 rounded-lg border text-xs outline-none"
+                style={{ borderColor: BORDER, background: CARD }}>
+                <option value="">— Select staff —</option>
+                {staffList.map((s: any) => (
+                  <option key={s.id} value={s.name}>
+                    {s.name}{s.staffId ? ` (${s.staffId})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {error && <p className="text-xs pb-1" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
         </div>
 
@@ -515,6 +535,7 @@ export default function Pos() {
   const [customerPhone,    setCustomerPhone]    = useState("");
   const [customerId,       setCustomerId]       = useState<number | null>(null);
   const [notes,            setNotes]            = useState("");
+  const [servedBy,         setServedBy]         = useState("");
   const [error,            setError]            = useState("");
   const [completedInvoice, setCompletedInvoice] = useState<any | null>(null);
 
@@ -537,6 +558,22 @@ export default function Pos() {
     },
     enabled: !!user?.id,
   });
+
+  const { data: staffData = [] } = useQuery<any[]>({
+    queryKey: ["staff", isPro, user?.id],
+    queryFn: async () => {
+      if (!isPro && user?.id) return localStaff.getActive(user.id);
+      const res = await fetch("/api/staff", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
+  const staffList = (Array.isArray(staffData) ? staffData : []).filter((s: any) =>
+    s.isActive && (s.role === "Staff" || s.role === "Both")
+  ).length > 0
+    ? (Array.isArray(staffData) ? staffData : []).filter((s: any) => s.isActive && (s.role === "Staff" || s.role === "Both"))
+    : (Array.isArray(staffData) ? staffData : []).filter((s: any) => s.isActive);
 
   const list = Array.isArray(items) ? items : [];
   const customerList = Array.isArray(customers) ? customers : [];
@@ -634,7 +671,7 @@ export default function Pos() {
           customerId: effectiveCustomerId,
           customerName: effectiveCustomerName,
           customerPhone: effectiveCustomerPhone,
-          notes: notes || null,
+          notes: [servedBy ? `Served by: ${servedBy}` : "", notes].filter(Boolean).join("\n") || null,
         });
         return sale;
       }
@@ -650,7 +687,7 @@ export default function Pos() {
           customerId: effectiveCustomerId,
           customerName: effectiveCustomerName,
           customerPhone: effectiveCustomerPhone,
-          notes: notes || null,
+          notes: [servedBy ? `Served by: ${servedBy}` : "", notes].filter(Boolean).join("\n") || null,
         }),
       });
       const ct = res.headers.get("content-type") ?? "";
@@ -665,7 +702,7 @@ export default function Pos() {
       setCompletedInvoice(sale);
       setShowMobileCart(false);
       setCart([]); setDiscount("0"); setAdvancePay("0");
-      setCustomerMode("cash"); setCustomerName("Cash Customer"); setCustomerPhone(""); setCustomerId(null); setNotes("");
+      setCustomerMode("cash"); setCustomerName("Cash Customer"); setCustomerPhone(""); setCustomerId(null); setNotes(""); setServedBy("");
     },
     onError: (e: any) => setError(e.message),
   });
@@ -721,7 +758,7 @@ export default function Pos() {
     paymentMethod, setPaymentMethod, advancePay, setAdvancePay,
     customerMode, setCustomerMode, customerName, setCustomerName,
     customerPhone, setCustomerPhone, customerId, setCustomerId,
-    customerList, notes, setNotes, error, checkoutMut,
+    customerList, notes, setNotes, servedBy, setServedBy, staffList, error, checkoutMut,
     total, discountNum, advancePayNum, amountDue,
     changeQty, changePrice, removeLine,
   };

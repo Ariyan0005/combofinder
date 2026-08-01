@@ -35,6 +35,7 @@ import migrateRouter from "./migrate";
 import backupRouter from "./backup";
 import whatsappRouter from "./whatsapp";
 import salesSummaryRouter from "./sales-summary";
+import staffRouter from "./staff";
 
 const router: IRouter = Router();
 
@@ -116,5 +117,6 @@ router.use(requireUserAuth, migrateRouter);
 router.use("/backup", requireUserAuth, backupRouter);
 router.use("/whatsapp", requireUserAuth, whatsappRouter);
 router.use(requireUserAuth, salesSummaryRouter);
+router.use("/staff", requireUserAuth, staffRouter);
 
 export default router;
