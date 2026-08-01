@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { bootSessions } from "./lib/whatsapp.js";
 import { seedCategories } from "./lib/seed-categories";
+import { migrateStaff } from "./lib/migrate-staff";
 
 // NOTE: Background cleanup job removed — was incorrectly deleting users.
 // The 10-min OTP expiry is enforced at verify-email time instead.
@@ -30,4 +31,6 @@ app.listen(port, (err) => {
   bootSessions();
   // Ensure default categories (ic, battery, isp) exist in the database
   seedCategories();
+  // Ensure staff table exists (auto-migration)
+  migrateStaff();
 });
