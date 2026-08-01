@@ -6,7 +6,7 @@ import {
   Cpu, CreditCard, LayoutDashboard, MessageCircle, Zap, Megaphone, X,
   TrendingUp, TrendingDown, BarChart2, AlertCircle,
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell } from "recharts";
 import { Link } from "wouter";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedPage } from "@/components/protected-page";
@@ -77,17 +77,6 @@ function CfToolIcon({ type, color, size = 24 }: { type: "display" | "battery" | 
   return <Cpu style={{ width: size, height: size, color }} />;
 }
 
-// Custom tooltip for chart
-function ChartTooltip({ active, payload, label, sym }: any) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-xl px-3 py-2 shadow-lg border text-xs"
-      style={{ background: "hsl(var(--card))", borderColor: "hsl(var(--border))" }}>
-      <p className="font-semibold mb-0.5" style={{ color: "hsl(var(--foreground))" }}>{label}</p>
-      <p style={{ color: "hsl(var(--primary))" }}>{sym} {Number(payload[0].value).toLocaleString()}</p>
-    </div>
-  );
-}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -272,13 +261,14 @@ export default function Dashboard() {
             {/* Slide 1 — Revenue Hero */}
             <div style={{ flex: "0 0 100%", scrollSnapAlign: "start" }}>
               <div className="rounded-2xl p-4 space-y-3"
-                style={{ background: "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 80% 55%) 100%)", minHeight: 220 }}>
+                style={{ background: "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 80% 55%) 100%)", minHeight: 210 }}>
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-[11px] font-semibold text-white/70">Today's Revenue</p>
-                    <p className="text-3xl font-extrabold text-white leading-tight mt-0.5">
-                      {sym} {todayRevenue.toLocaleString()}
-                    </p>
+                    <div className="flex items-baseline gap-1 mt-0.5" style={{ direction: "ltr" }}>
+                      <span className="text-xl font-extrabold text-white flex-shrink-0">{sym}</span>
+                      <span className="text-3xl font-extrabold text-white leading-tight">{todayRevenue.toLocaleString()}</span>
+                    </div>
                     {pct !== null && (
                       <div className="flex items-center gap-1 mt-1">
                         {pct >= 0
@@ -292,16 +282,34 @@ export default function Dashboard() {
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] text-white/60">This Month</p>
-                    <div className="flex items-baseline gap-0.5 justify-end"><span className="text-sm font-extrabold text-white flex-shrink-0">{sym}</span><span className="text-lg font-extrabold text-white">{fmt(totalRevenue)}</span></div>
+                    <div className="flex items-baseline gap-0.5 justify-end" style={{ direction: "ltr" }}><span className="text-sm font-extrabold text-white flex-shrink-0">{sym}</span><span className="text-lg font-extrabold text-white">{fmt(totalRevenue)}</span></div>
                   </div>
                 </div>
                 {weeklyChart.length > 0 && (
                   <div className="mt-1" style={{ height: 76 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={weeklyChart} barSize={12} margin={{ top: 0, right: 0, left: 0, bottom: 18 }}>
-                        <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 9 }} axisLine={false} tickLine={false} dy={4} />
-                        <Tooltip content={(p: any) => <ChartTooltip {...p} sym={sym} />} cursor={{ fill: "rgba(255,255,255,0.08)" }} />
-                        <Bar dataKey="revenue" radius={[3, 3, 0, 0]} cursor="pointer" onClick={(_: any, index: number) => setSelectedDayIdx(prev => prev === index ? null : index)}>
+                        <XAxis
+                          dataKey="day"
+                          axisLine={false}
+                          tickLine={false}
+                          tick={(props: any) => {
+                            const { x, y, payload, index } = props;
+                            const sel = index === selectedDayIdx;
+                            return (
+                              <g transform={`translate(${x},${y})`} style={{ cursor: "pointer" }}
+                                onClick={() => setSelectedDayIdx((p: number | null) => p === index ? null : index)}>
+                                <rect x={-18} y={-2} width={36} height={22} fill="transparent" />
+                                <text x={0} y={14} textAnchor="middle"
+                                  fill={sel ? "#fff" : "rgba(255,255,255,0.7)"}
+                                  fontSize={9} fontWeight={sel ? "bold" : "normal"}>
+                                  {payload.value}
+                                </text>
+                              </g>
+                            );
+                          }}
+                        />
+                        <Bar dataKey="revenue" radius={[3, 3, 0, 0]} cursor="pointer" onClick={(_: any, index: number) => setSelectedDayIdx((prev: number | null) => prev === index ? null : index)}>
                           {weeklyChart.map((_: any, i: number) => (
                             <Cell key={i} fill={i === selectedDayIdx ? "#ffffff" : i === weeklyChart.length - 1 ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.35)"} />
                           ))}
@@ -316,7 +324,7 @@ export default function Dashboard() {
             {/* Slide 2 — KPI Cards (gradient, matches Slide 1) */}
             <div style={{ flex: "0 0 100%", scrollSnapAlign: "start" }}>
               <div className="rounded-2xl p-4 space-y-3"
-                style={{ background: "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 80% 55%) 100%)", minHeight: 220 }}>
+                style={{ background: "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 80% 55%) 100%)", minHeight: 210 }}>
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] font-semibold text-white/70">This Month Summary</p>
                   <p className="text-[10px] text-white/50">{new Date().toLocaleString("default", { month: "long", year: "numeric" })}</p>
@@ -327,9 +335,10 @@ export default function Dashboard() {
                       className="flex flex-col gap-1 p-3 rounded-xl"
                       style={{ background: "rgba(255,255,255,0.15)" }}>
                       <p className="text-[10px] font-semibold text-white/70 leading-tight">{label}</p>
-                      <p className="text-xl font-extrabold text-white leading-none">
-                        {prefix} {fmt(Math.abs(value))}
-                      </p>
+                      <div className="flex items-baseline gap-1" style={{ direction: "ltr" }}>
+                        <span className="text-sm font-extrabold text-white flex-shrink-0">{prefix}</span>
+                        <span className="text-xl font-extrabold text-white leading-none">{fmt(Math.abs(value))}</span>
+                      </div>
                       {value < 0 && (
                         <span className="text-[9px] font-bold text-red-300">↓ Loss</span>
                       )}
