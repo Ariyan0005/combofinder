@@ -295,10 +295,10 @@ export default function Dashboard() {
                   </div>
                 </div>
                 {weeklyChart.length > 0 && (
-                  <div className="h-12 mt-1">
+                  <div className="mt-1" style={{ height: 76 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={weeklyChart} barSize={12} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                        <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 8 }} axisLine={false} tickLine={false} />
+                      <BarChart data={weeklyChart} barSize={12} margin={{ top: 0, right: 0, left: 0, bottom: 18 }}>
+                        <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 9 }} axisLine={false} tickLine={false} dy={4} />
                         <Tooltip content={(p: any) => <ChartTooltip {...p} sym={sym} />} cursor={{ fill: "rgba(255,255,255,0.08)" }} />
                         <Bar dataKey="revenue" radius={[3, 3, 0, 0]}>
                           {weeklyChart.map((_: any, i: number) => (
@@ -312,23 +312,29 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Slide 2 — KPI Cards */}
+            {/* Slide 2 — KPI Cards (gradient, matches Slide 1) */}
             <div style={{ flex: "0 0 100%", scrollSnapAlign: "start" }}>
-              <div className="grid grid-cols-2 gap-2.5">
-                {KPI_CARDS.map(({ label, value, color, bg, prefix }) => (
-                  <div key={label} className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl border"
-                    style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-extrabold"
-                      style={{ background: bg, color }}>
-                      {prefix}
+              <div className="rounded-2xl p-4 space-y-3"
+                style={{ background: "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 80% 55%) 100%)" }}>
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-semibold text-white/70">This Month Summary</p>
+                  <p className="text-[10px] text-white/50">{new Date().toLocaleString("default", { month: "long", year: "numeric" })}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {KPI_CARDS.map(({ label, value, color, prefix }) => (
+                    <div key={label}
+                      className="flex flex-col gap-1 p-3 rounded-xl"
+                      style={{ background: "rgba(255,255,255,0.15)" }}>
+                      <p className="text-[10px] font-semibold text-white/70 leading-tight">{label}</p>
+                      <p className="text-xl font-extrabold text-white leading-none">
+                        {prefix} {fmt(Math.abs(value))}
+                      </p>
+                      {value < 0 && (
+                        <span className="text-[9px] font-bold text-red-300">↓ Loss</span>
+                      )}
                     </div>
-                    <p className="text-lg font-extrabold leading-none" style={{ color }}>
-                      {fmt(Math.abs(value))}
-                    </p>
-                    <p className="text-[10px] font-semibold text-center leading-tight"
-                      style={{ color: "hsl(var(--muted-foreground))" }}>{label}</p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>
