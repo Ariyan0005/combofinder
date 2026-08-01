@@ -11,7 +11,7 @@ import Sidebar from "./sidebar";
 
 const BOTTOM_NAV = [
   { label: "Home", icon: LayoutDashboard, href: "/" },
-  { label: "Search", icon: Search, href: "/compatibility" },
+  { label: "Database", icon: Search, href: "/compatibility" },
   { label: "fab", icon: Plus, href: "/repairs" },
   { label: "Inventory", icon: Package, href: "/inventory" },
   { label: "More", icon: Menu, href: "__more__" },
