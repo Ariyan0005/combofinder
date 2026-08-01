@@ -181,7 +181,7 @@ export default function MainLayout({ children }: { children: ReactNode }) {
               {MORE_ITEMS.map((item) => (
                 <Link key={item.href} href={item.href}>
                   <button onClick={() => setMoreOpen(false)}
-                    className="w-full h-14 flex items-center gap-3 px-3 rounded-xl border border-border text-left text-sm font-medium hover:border-primary transition-colors"
+                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-border text-left text-xs font-medium hover:border-primary transition-colors whitespace-nowrap"
                     style={{ background: "hsl(var(--background))" }}>
                     <item.icon className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
                     {item.label}
