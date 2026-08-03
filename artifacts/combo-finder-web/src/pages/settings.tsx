@@ -31,7 +31,7 @@ const CURRENCIES = [
   { code: "KRW", symbol: "₩",   name: "South Korean Won" },
   { code: "TWD", symbol: "NT$",  name: "New Taiwan Dollar" },
   // South Asia
-  { code: "BDT", symbol: "৳",   name: "Bangladeshi Taka" },
+  { code: "BDT", symbol: "Tk",   name: "Bangladeshi Taka" },
   { code: "INR", symbol: "₹",   name: "Indian Rupee" },
   { code: "PKR", symbol: "₨",   name: "Pakistani Rupee" },
   { code: "NPR", symbol: "रू",   name: "Nepalese Rupee" },

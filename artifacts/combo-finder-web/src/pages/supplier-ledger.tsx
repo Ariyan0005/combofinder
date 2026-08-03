@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useAuth } from "@/context/auth-context";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: "$", EUR: "€", GBP: "£", BDT: "৳", INR: "₹",
+  USD: "$", EUR: "€", GBP: "£", BDT: "Tk", INR: "₹",
   PKR: "₨", NPR: "रू", LKR: "Rs", AED: "د.إ", SAR: "﷼",
   OMR: "OMR", KWD: "KD", QAR: "QR", MYR: "RM", SGD: "S$",
   THB: "฿", IDR: "Rp", PHP: "₱", CNY: "¥", JPY: "¥",

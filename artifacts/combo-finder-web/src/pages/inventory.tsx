@@ -12,7 +12,7 @@ import { useAuth } from "@/context/auth-context";
 import { localInventory } from "@/lib/local-store";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD:"$",EUR:"€",GBP:"£",BDT:"৳",INR:"₹",PKR:"₨",NPR:"रू",LKR:"Rs",AED:"د.إ",
+  USD:"$",EUR:"€",GBP:"£",BDT:"Tk",INR:"₹",PKR:"₨",NPR:"रू",LKR:"Rs",AED:"د.إ",
   SAR:"﷼",MYR:"RM",SGD:"S$",THB:"฿",IDR:"Rp",PHP:"₱",NGN:"₦",KES:"KSh",GHS:"₵",
   ZAR:"R",TRY:"₺",CAD:"C$",AUD:"A$",JPY:"¥",CNY:"¥",KRW:"₩",HKD:"HK$",TWD:"NT$",
   CHF:"Fr",SEK:"kr",NOK:"kr",DKK:"kr",PLN:"zł",CZK:"Kč",HUF:"Ft",RON:"lei",
@@ -553,7 +553,7 @@ function StockInModal({ onClose, item: initialItem, suppliers, allItems }: {
 }) {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? "৳";
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? "Tk";
   const today = new Date().toISOString().split("T")[0];
 
   const [invoiceNo, setInvoiceNo] = useState("");
@@ -836,7 +836,7 @@ function StockInModal({ onClose, item: initialItem, suppliers, allItems }: {
 function SellModal({ onClose, item: initialItem, allItems }: { onClose: () => void; item?: Item; allItems: Item[] }) {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? "৳";
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? "Tk";
   const [item, setItem] = useState<Item | undefined>(initialItem);
   const [itemSearch, setItemSearch] = useState("");
   const [qty, setQty] = useState("1");
@@ -954,7 +954,7 @@ function ItemSheet({ item, suppliers, onClose, onEdit, onStockIn, onDelete }: {
   onDelete: () => void;
 }) {
   const { user } = useAuth();
-  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? "৳";
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? "Tk";
   const qty = item.quantity;
   const min = item.minStock;
   const isOut = qty === 0;
@@ -1129,7 +1129,7 @@ type CatModal = "category" | "subcategory" | "edit" | "manage" | null;
 export default function Inventory() {
   const { user, isGuest } = useAuth();
   const [, setLocation] = useLocation();
-  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? "৳";
+  const sym = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? "Tk";
   const [modal, setModal] = useState<Modal>(null);
   const [catModal, setCatModal] = useState<CatModal>(null);
   const [activeCategoryKey, setActiveCategoryKey] = useState("All");

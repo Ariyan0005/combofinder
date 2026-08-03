@@ -17,7 +17,7 @@ const WHATSAPP_URL     = "https://wa.me/96897043234?text=Hi%21+I+need+support.+I
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD:"$", EUR:"€", GBP:"£", JPY:"¥", CNY:"¥", AUD:"A$", CAD:"C$", CHF:"Fr",
-  HKD:"HK$", SGD:"S$", KRW:"₩", TWD:"NT$", BDT:"৳", INR:"₹", PKR:"₨",
+  HKD:"HK$", SGD:"S$", KRW:"₩", TWD:"NT$", BDT:"Tk", INR:"₹", PKR:"₨",
   NPR:"रू", LKR:"Rs", MVR:"Rf", BTN:"Nu", MYR:"RM", THB:"฿", IDR:"Rp",
   PHP:"₱", VND:"₫", MMK:"K", KHR:"៛", LAK:"₭", BND:"B$", MOP:"P",
   AED:"د.إ", SAR:"﷼", QAR:"﷼", KWD:"KD", BHD:"BD", OMR:"﷼",

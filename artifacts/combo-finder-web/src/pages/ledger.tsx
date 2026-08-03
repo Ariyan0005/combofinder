@@ -64,7 +64,7 @@ export default function Ledger() {
   const { user } = useAuth();
   const isPro = user?.plan === "Pro";
   const currency = user?.currency ?? "USD";
-  const currencySymbols: Record<string, string> = { USD: "$", EUR: "€", GBP: "£", BDT: "৳", INR: "₹", PKR: "₨", AED: "د.إ", SAR: "﷼", MYR: "RM", NGN: "₦", TRY: "₺", PHP: "₱", NPR: "रू" };
+  const currencySymbols: Record<string, string> = { USD: "$", EUR: "€", GBP: "£", BDT: "Tk", INR: "₹", PKR: "₨", AED: "د.إ", SAR: "﷼", MYR: "RM", NGN: "₦", TRY: "₺", PHP: "₱", NPR: "रू" };
   const sym = currencySymbols[currency] ?? currency;
 
   const [accounts, setAccounts] = useState<Account[]>([]);
