@@ -99,12 +99,21 @@ export const localInventory = {
   delete(uid: number, id: number) {
     write(iKey(uid), read<any>(iKey(uid)).filter((i: any) => i.id !== id));
   },
-  /** Deduct stock when parts are used in a repair */
+  /** Deduct stock when parts are used in a repair (called when status → Ready) */
   deductStock(uid: number, inventoryId: number, qty: number) {
     const items = read<any>(iKey(uid));
     const idx = items.findIndex((i: any) => i.id === inventoryId);
     if (idx !== -1) {
       items[idx].quantity = Math.max(0, (Number(items[idx].quantity) || 0) - qty);
+      write(iKey(uid), items);
+    }
+  },
+  /** Restore stock when a repair is cancelled (reverses a previous deduction) */
+  restoreStock(uid: number, inventoryId: number, qty: number) {
+    const items = read<any>(iKey(uid));
+    const idx = items.findIndex((i: any) => i.id === inventoryId);
+    if (idx !== -1) {
+      items[idx].quantity = (Number(items[idx].quantity) || 0) + qty;
       write(iKey(uid), items);
     }
   },

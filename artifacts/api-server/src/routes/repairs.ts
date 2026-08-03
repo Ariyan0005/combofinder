@@ -88,30 +88,12 @@ router.post("/", async (req, res) => {
       }
     }
 
-    // Parse parts so we can deduct stock atomically
-    interface PartEntry { inventoryId: number; qty: number; name: string; unitPrice: string; }
-    const newParts: PartEntry[] = (() => {
-      try { return req.body.partsUsed ? JSON.parse(req.body.partsUsed) : []; } catch { return []; }
-    })();
+    // Create repair — do NOT deduct inventory on creation.
+    // Inventory is only deducted when status transitions to "Ready".
+    const [row] = await db.insert(repairsTable)
+      .values({ ...req.body, userId, updatedAt: new Date() })
+      .returning();
 
-    const row = await db.transaction(async (tx) => {
-      const [r] = await tx.insert(repairsTable).values({ ...req.body, userId, updatedAt: new Date() }).returning();
-      // Deduct stock for each part used
-      for (const part of newParts) {
-        if (!part.inventoryId || !part.qty) continue;
-        await tx.update(inventoryTable)
-          .set({ quantity: sql`GREATEST(0, ${inventoryTable.quantity} - ${Number(part.qty)})`, updatedAt: new Date() })
-          .where(eq(inventoryTable.id, part.inventoryId));
-        await tx.insert(stockMovementsTable).values({
-          inventoryId: part.inventoryId,
-          type: "repair",
-          quantity: Number(part.qty),
-          userId,
-          reference: `Repair #${r.id} - parts used`,
-        });
-      }
-      return r;
-    });
     res.status(201).json(row);
 
     // ── WhatsApp alert: repair created (Pro users only, fire-and-forget) ──
@@ -156,7 +138,7 @@ router.put("/:id", async (req, res) => {
     let prevStatus = "";   // captured inside tx, used for alert after tx completes
 
     const result = await db.transaction(async (tx) => {
-      // Fetch existing repair to compute inventory delta + detect status change
+      // Fetch existing repair to detect status change and get old parts
       const [existing] = await tx.select({ partsUsed: repairsTable.partsUsed, status: repairsTable.status })
         .from(repairsTable)
         .where(and(eq(repairsTable.id, repairId), eq(repairsTable.userId, userId)));
@@ -169,40 +151,101 @@ router.put("/:id", async (req, res) => {
 
       const oldMap = new Map(oldParts.map(p => [p.inventoryId, Number(p.qty)]));
       const newMap = new Map(newParts.map(p => [p.inventoryId, Number(p.qty)]));
+      const newStatus: string = b.status ?? prevStatus;
 
-      // Parts removed or reduced → restore inventory
-      for (const [inventoryId, oldQty] of oldMap) {
-        const newQty = newMap.get(inventoryId) ?? 0;
-        const delta = oldQty - newQty;
-        if (delta > 0) {
-          await tx.update(inventoryTable)
-            .set({ quantity: sql`${inventoryTable.quantity} + ${delta}`, updatedAt: new Date() })
-            .where(eq(inventoryTable.id, inventoryId));
-          await tx.insert(stockMovementsTable).values({
-            inventoryId, type: "in", quantity: delta,
-            unitPrice: "0", totalPrice: "0",
-            reference: `Repair #${repairId} - parts returned to stock`,
-          });
-        }
-      }
+      // ── Inventory state machine ────────────────────────────────────────────────
+      // Rule: inventory is deducted only when status = "Ready".
+      //       "Delivered" repairs are never touched (do not affect delivered).
+      //       Cancellation restores inventory if it was previously deducted (was Ready).
 
-      // Parts added or increased → deduct inventory
-      for (const part of newParts) {
-        const oldQty = oldMap.get(part.inventoryId) ?? 0;
-        const delta = Number(part.qty) - oldQty;
-        if (delta > 0) {
-          // Use GREATEST(0, ...) so stock never goes negative (best-effort tracking)
-          await tx.update(inventoryTable)
-            .set({ quantity: sql`GREATEST(0, ${inventoryTable.quantity} - ${delta})`, updatedAt: new Date() })
-            .where(eq(inventoryTable.id, part.inventoryId));
-          const lineTotal = Math.round(Number(part.unitPrice) * delta * 100) / 100;
-          await tx.insert(stockMovementsTable).values({
-            inventoryId: part.inventoryId, type: "repair", quantity: delta,
-            unitPrice: String(part.unitPrice), totalPrice: String(lineTotal),
-            reference: `Repair #${repairId}`,
-          });
+      const prevIsDelivered = prevStatus === "Delivered";
+      const prevIsReady     = prevStatus === "Ready";
+      const newIsReady      = newStatus  === "Ready";
+      const newIsDelivered  = newStatus  === "Delivered";
+
+      if (!prevIsDelivered) {
+        if (!prevIsReady && newIsReady) {
+          // ── Transition → Ready: deduct ALL current parts ─────────────────────
+          for (const part of newParts) {
+            if (!part.inventoryId || !part.qty) continue;
+            await tx.update(inventoryTable)
+              .set({ quantity: sql`GREATEST(0, ${inventoryTable.quantity} - ${Number(part.qty)})`, updatedAt: new Date() })
+              .where(eq(inventoryTable.id, part.inventoryId));
+            const lineTotal = Math.round(Number(part.unitPrice) * Number(part.qty) * 100) / 100;
+            await tx.insert(stockMovementsTable).values({
+              inventoryId: part.inventoryId, type: "repair", quantity: Number(part.qty),
+              unitPrice: String(part.unitPrice), totalPrice: String(lineTotal),
+              userId,
+              reference: `Repair #${repairId} - status ready`,
+            });
+          }
+        } else if (prevIsReady && !newIsReady && !newIsDelivered) {
+          // ── Transition Ready → non-Ready (Cancelled, Repairing, etc.): restore ALL old parts ──
+          for (const [inventoryId, oldQty] of oldMap) {
+            await tx.update(inventoryTable)
+              .set({ quantity: sql`${inventoryTable.quantity} + ${oldQty}`, updatedAt: new Date() })
+              .where(eq(inventoryTable.id, inventoryId));
+            await tx.insert(stockMovementsTable).values({
+              inventoryId, type: "in", quantity: oldQty,
+              unitPrice: "0", totalPrice: "0",
+              userId,
+              reference: `Repair #${repairId} - parts restored (${newStatus})`,
+            });
+          }
+        } else if (prevIsReady && (newIsReady || newIsDelivered)) {
+          // ── Staying Ready or transitioning Ready → Delivered: handle parts delta ──
+          // Parts removed or reduced → restore inventory
+          for (const [inventoryId, oldQty] of oldMap) {
+            const newQty = newMap.get(inventoryId) ?? 0;
+            const delta = oldQty - newQty;
+            if (delta > 0) {
+              await tx.update(inventoryTable)
+                .set({ quantity: sql`${inventoryTable.quantity} + ${delta}`, updatedAt: new Date() })
+                .where(eq(inventoryTable.id, inventoryId));
+              await tx.insert(stockMovementsTable).values({
+                inventoryId, type: "in", quantity: delta,
+                unitPrice: "0", totalPrice: "0",
+                userId,
+                reference: `Repair #${repairId} - parts returned to stock`,
+              });
+            }
+          }
+          // Parts added or increased → deduct inventory
+          for (const part of newParts) {
+            const oldQty = oldMap.get(part.inventoryId) ?? 0;
+            const delta = Number(part.qty) - oldQty;
+            if (delta > 0) {
+              await tx.update(inventoryTable)
+                .set({ quantity: sql`GREATEST(0, ${inventoryTable.quantity} - ${delta})`, updatedAt: new Date() })
+                .where(eq(inventoryTable.id, part.inventoryId));
+              const lineTotal = Math.round(Number(part.unitPrice) * delta * 100) / 100;
+              await tx.insert(stockMovementsTable).values({
+                inventoryId: part.inventoryId, type: "repair", quantity: delta,
+                unitPrice: String(part.unitPrice), totalPrice: String(lineTotal),
+                userId,
+                reference: `Repair #${repairId}`,
+              });
+            }
+          }
+        } else if (!prevIsReady && newIsDelivered) {
+          // ── Transition directly to Delivered (skipped Ready): deduct all parts ──
+          for (const part of newParts) {
+            if (!part.inventoryId || !part.qty) continue;
+            await tx.update(inventoryTable)
+              .set({ quantity: sql`GREATEST(0, ${inventoryTable.quantity} - ${Number(part.qty)})`, updatedAt: new Date() })
+              .where(eq(inventoryTable.id, part.inventoryId));
+            const lineTotal = Math.round(Number(part.unitPrice) * Number(part.qty) * 100) / 100;
+            await tx.insert(stockMovementsTable).values({
+              inventoryId: part.inventoryId, type: "repair", quantity: Number(part.qty),
+              unitPrice: String(part.unitPrice), totalPrice: String(lineTotal),
+              userId,
+              reference: `Repair #${repairId} - delivered`,
+            });
+          }
         }
+        // else: neither prev nor new is Ready/Delivered — no inventory change
       }
+      // If prevIsDelivered: never touch inventory (do not affect delivered repairs)
 
       // Whitelist only schema columns to avoid Drizzle type errors from unknown/string-date fields
       const updateFields: Record<string, unknown> = {

@@ -212,12 +212,12 @@ function PartsSelector({ parts, onChange }: { parts: PartEntry[]; onChange: (p: 
               style={{ borderColor: BORDER, background: BG }}>
               <Package className="w-4 h-4 flex-shrink-0" style={{ color: MUTED }} />
               <span className="flex-1 text-xs font-semibold truncate">{part.name}</span>
-              <input type="number" min="1" value={part.qty}
+              <input type="number" inputMode="numeric" pattern="[0-9]*" min="1" value={part.qty}
                 onChange={e => updatePart(part.inventoryId, "qty", e.target.value)}
                 className="w-12 text-center text-xs px-1 py-1 rounded-lg border outline-none"
                 style={{ borderColor: BORDER, background: BG }}
                 placeholder="Qty" />
-              <input type="text" value={part.unitPrice}
+              <input type="text" inputMode="decimal" value={part.unitPrice}
                 onChange={e => updatePart(part.inventoryId, "unitPrice", e.target.value)}
                 className="w-20 text-right text-xs px-1 py-1 rounded-lg border outline-none"
                 style={{ borderColor: BORDER, background: BG }}
@@ -351,6 +351,28 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
       return res.json();
     },
     onSuccess: (saved: Repair, { newStatus }) => {
+      // ── Free plan: manage inventory based on status transition ────────────────
+      // • → Ready (from non-Ready/non-Delivered): deduct all parts
+      // • Ready → Cancelled: restore all parts
+      // • Delivered repairs: never touch inventory
+      const prevStatus = repair.status; // still old value before mutation below
+      if (isSummaryFree && summaryUser?.id) {
+        const uid = summaryUser.id;
+        const partsArr: PartEntry[] = (() => {
+          try { return repair.partsUsed ? JSON.parse(repair.partsUsed) : []; } catch { return []; }
+        })();
+        if (partsArr.length > 0 && prevStatus !== "Delivered") {
+          if (newStatus === "Ready" && prevStatus !== "Ready") {
+            // Deduct parts from local inventory when repair becomes Ready
+            partsArr.forEach(p => localInventory.deductStock(uid, p.inventoryId, Number(p.qty) || 1));
+            qc.invalidateQueries({ queryKey: ["inventory"] });
+          } else if (newStatus === "Cancelled" && prevStatus === "Ready") {
+            // Restore parts to local inventory when a Ready repair is cancelled
+            partsArr.forEach(p => localInventory.restoreStock(uid, p.inventoryId, Number(p.qty) || 1));
+            qc.invalidateQueries({ queryKey: ["inventory"] });
+          }
+        }
+      }
       setStatus(newStatus);
       repair.status = newStatus;
       repair.notes = saved.notes; // keep notes in sync so paymentMut doesn't overwrite them
@@ -817,15 +839,14 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
         const saved = existing
           ? localRepairs.update(uid, existing.id, body)
           : localRepairs.create(uid, body);
-        // Deduct parts from local inventory
-        if (!existing && parts.length > 0) {
-          parts.forEach(p => localInventory.deductStock(uid, p.inventoryId, Number(p.qty) || 1));
-          qc.invalidateQueries({ queryKey: ["inventory"] });
-        }
+        // NOTE: Inventory is only deducted when status → Ready (handled in statusMut).
+        // Do NOT deduct here on creation.
         return saved;
       }
 
       // ── Pro plan: server ─────────────────────────────────────────────────────
+      // The server handles all inventory transitions based on status changes.
+      // No extra stock-movement calls needed here.
       const url = existing ? `/api/repairs/${existing.id}` : `/api/repairs`;
       const res = await fetch(url, {
         method: existing ? "PUT" : "POST",
@@ -835,28 +856,6 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Failed"); }
       const saved = await res.json();
-
-      // Deduct parts from inventory (only on new repair creation)
-      if (!existing && parts.length > 0) {
-        const results = await Promise.allSettled(parts.map(p =>
-          fetch("/api/stock-movements", {
-            method: "POST", credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              inventoryId: p.inventoryId,
-              type: "out",
-              quantity: Number(p.qty) || 1,
-              unitPrice: p.unitPrice || null,
-              notes: `Used in repair #${saved.id}`,
-            }),
-          }).then(r => r.ok ? r.json() : r.json().then(d => { throw new Error(d.error ?? "Failed"); }))
-        ));
-        qc.invalidateQueries({ queryKey: ["inventory"] });
-        const failed = results.filter(r => r.status === "rejected");
-        if (failed.length > 0) {
-          console.warn(`${failed.length} part(s) could not be deducted from inventory (may be insufficient stock)`);
-        }
-      }
       return saved;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["repairs"] }); qc.invalidateQueries({ queryKey: ["stats"] }); onClose(); },

@@ -1,6 +1,11 @@
 /**
  * Client-side sales summary calculation for Free-plan users.
  * Mirrors the logic of /api/sales-summary but reads from localStorage.
+ *
+ * Repair profit rules (mirror server):
+ *  - Only "Ready" and "Delivered" repairs count towards revenue & profit.
+ *  - Parts cost = inventory.purchasePrice × qty (not the selling partsCost).
+ *  - Cancelled / in-progress repairs are excluded.
  */
 import { localSales, localExpenses, localRepairs, localInventory } from "./local-store";
 
@@ -82,7 +87,7 @@ export function computeSalesSummary(
     }
   }
 
-  // ── Repairs — collected revenue (paid + partial advances) ───────────────────
+  // ── Repairs — only Ready & Delivered count ──────────────────────────────────
   const allRepairs = localRepairs.getAll(uid);
 
   const repairDate = (r: any): string =>
@@ -94,14 +99,34 @@ export function computeSalesSummary(
     return Math.max(0, Number(r.advancePaid ?? 0));
   };
 
-  const repairsInRange   = allRepairs.filter((r: any) => inRange(repairDate(r)));
-  const repairToday      = allRepairs.filter((r: any) => repairDate(r) === today);
-  const repairYd         = allRepairs.filter((r: any) => repairDate(r) === yDay);
+  // Exclude Cancelled, Repairing, Waiting — only Ready + Delivered count
+  const completedRepairs = allRepairs.filter((r: any) =>
+    r.status === "Ready" || r.status === "Delivered"
+  );
+
+  const repairsInRange   = completedRepairs.filter((r: any) => inRange(repairDate(r)));
+  const repairToday      = completedRepairs.filter((r: any) => repairDate(r) === today);
+  const repairYd         = completedRepairs.filter((r: any) => repairDate(r) === yDay);
 
   const repairRevRange   = repairsInRange.reduce((s: number, r: any) => s + repairCollected(r), 0);
-  const repairPartsRange = repairsInRange.reduce((s: number, r: any) => s + Number(r.partsCost ?? 0), 0);
   const repairRevToday   = repairToday.reduce((s: number, r: any) => s + repairCollected(r), 0);
   const repairRevYd      = repairYd.reduce((s: number, r: any) => s + repairCollected(r), 0);
+
+  // ── Repair Actual Parts Cost (purchase price × qty) ─────────────────────────
+  // Use inventory.purchasePrice to get true cost, not the selling partsCost.
+  // Profit = repairRevenue - actualPartsCost (= labor + partsSelling - partsBuyPrice).
+  let repairPartsRange = 0;
+  for (const r of repairsInRange) {
+    try {
+      const parts = r.partsUsed ? JSON.parse(r.partsUsed) : [];
+      for (const p of parts) {
+        if (p.inventoryId && p.qty) {
+          const purchasePrice = invMap[p.inventoryId] ?? 0;
+          repairPartsRange += purchasePrice * Number(p.qty);
+        }
+      }
+    } catch { /* skip malformed */ }
+  }
 
   // ── Expenses ─────────────────────────────────────────────────────────────────
   const expenses = localExpenses.getAll(uid).filter((e: any) => {
@@ -116,8 +141,8 @@ export function computeSalesSummary(
     expByCategory[cat] = (expByCategory[cat] ?? 0) + Number(e.amount ?? 0);
   }
 
-  // ── Outstanding ───────────────────────────────────────────────────────────────
-  const outstanding = allRepairs
+  // ── Outstanding — only Ready + Delivered unpaid repairs ───────────────────
+  const outstanding = completedRepairs
     .filter((r: any) => !r.isPaid)
     .reduce((s: number, r: any) => {
       const due = Number(r.totalCost ?? 0) - Number(r.advancePaid ?? 0);
@@ -131,13 +156,14 @@ export function computeSalesSummary(
     const ds = toDateStr(d);
     const dl = d.toLocaleDateString("en-US", { weekday: "short" });
     const daySales   = allSales.filter((s: any)   => s.date === ds);
-    const dayRepairs = allRepairs.filter((r: any) => repairDate(r) === ds);
+    const dayRepairs = completedRepairs.filter((r: any) => repairDate(r) === ds);
     chart.push({ date: ds, day: dl, revenue: sumField(daySales, "total") + dayRepairs.reduce((s: number, r: any) => s + repairCollected(r), 0) });
   }
 
   const todayRevenue     = posToday   + repairRevToday;
   const yesterdayRevenue = posYesterday + repairRevYd;
   const totalRevenue     = posRange   + repairRevRange;
+  // Profit = POS Revenue - POS COGS + Repair Revenue - Repair Actual Parts Cost - Expenses
   const netProfit        = posRange - posCost + repairRevRange - repairPartsRange - totalExpenses;
 
   return {

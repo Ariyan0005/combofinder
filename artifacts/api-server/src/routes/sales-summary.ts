@@ -8,6 +8,12 @@ const router = Router();
  * GET /api/sales-summary
  * Returns dashboard + sales report data for the authenticated user.
  * query params: range=today|week|month|custom, from=YYYY-MM-DD, to=YYYY-MM-DD
+ *
+ * Repair profit rules:
+ *  - Only "Ready" and "Delivered" repairs count towards revenue & profit.
+ *  - Parts cost = inventory.purchasePrice × qty (not the selling partsCost on the repair).
+ *  - Profit = laborCost + partsSelling - partsActualCost = totalCost - partsActualCost.
+ *  - Cancelled repairs are excluded from revenue and profit.
  */
 router.get("/sales-summary", async (req: any, res): Promise<void> => {
   try {
@@ -62,8 +68,6 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
     const posYesterday = sumArr(salesYd.map(s => Number(s.total)));
 
     // ── POS Cost of Goods Sold (COGS) ─────────────────────────────────────────
-    // Join sale_items with inventory to get purchase price at time of sale.
-    // Items without an inventory record (custom items) are counted as 0 cost.
     let posCost = 0;
     const saleIds = sales.map(s => s.id);
     if (saleIds.length > 0) {
@@ -83,8 +87,9 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
       }, 0);
     }
 
-    // ── Repairs — collected revenue (paid + partial advances) ────────────────
-    const repairs = await db.select().from(repairsTable)
+    // ── Repairs — only Ready & Delivered count towards revenue and profit ─────
+    // Cancelled repairs are excluded; Repairing/Waiting repairs are excluded too.
+    const allRepairs = await db.select().from(repairsTable)
       .where(eq(repairsTable.userId, userId));
 
     const repairDateStr = (r: any): string => {
@@ -98,14 +103,61 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
       return Math.max(0, Number(r.advancePaid ?? 0));
     };
 
-    const repairsInRange   = repairs.filter(r => { const d = repairDateStr(r); return d >= fromDate && d <= toDate; });
-    const repairToday      = repairs.filter(r => repairDateStr(r) === today);
-    const repairYd         = repairs.filter(r => repairDateStr(r) === yDay);
+    // Only count Ready + Delivered repairs in revenue/profit
+    const completedRepairs = allRepairs.filter(r =>
+      r.status === "Ready" || r.status === "Delivered"
+    );
 
-    const repairRevRange   = repairsInRange.reduce((s, r) => s + repairCollected(r), 0);
-    const repairPartsRange = repairsInRange.reduce((s, r) => s + Number(r.partsCost ?? 0), 0);
-    const repairRevToday   = repairToday.reduce((s, r) => s + repairCollected(r), 0);
-    const repairRevYd      = repairYd.reduce((s, r) => s + repairCollected(r), 0);
+    const repairsInRange = completedRepairs.filter(r => {
+      const d = repairDateStr(r);
+      return d >= fromDate && d <= toDate;
+    });
+    const repairToday = completedRepairs.filter(r => repairDateStr(r) === today);
+    const repairYd    = completedRepairs.filter(r => repairDateStr(r) === yDay);
+
+    const repairRevRange = repairsInRange.reduce((s, r) => s + repairCollected(r), 0);
+    const repairRevToday = repairToday.reduce((s, r) => s + repairCollected(r), 0);
+    const repairRevYd    = repairYd.reduce((s, r) => s + repairCollected(r), 0);
+
+    // ── Repair Parts Actual Cost (purchase price from inventory) ─────────────
+    // Profit formula: totalCost - actualPartsCost (purchase price × qty)
+    // This gives: laborCost + partsSelling - partsActualCost = true profit
+    let repairActualPartsCost = 0;
+
+    // Collect all unique inventoryIds from partsUsed of in-range repairs
+    const allInvIds = new Set<number>();
+    for (const r of repairsInRange) {
+      try {
+        const parts = r.partsUsed ? JSON.parse(r.partsUsed) : [];
+        for (const p of parts) {
+          if (p.inventoryId) allInvIds.add(Number(p.inventoryId));
+        }
+      } catch { /* skip malformed JSON */ }
+    }
+
+    // Batch-fetch purchase prices
+    const purchasePriceMap: Record<number, number> = {};
+    if (allInvIds.size > 0) {
+      const invItems = await db
+        .select({ id: inventoryTable.id, purchasePrice: inventoryTable.purchasePrice })
+        .from(inventoryTable)
+        .where(inArray(inventoryTable.id, [...allInvIds]));
+      for (const item of invItems) {
+        purchasePriceMap[item.id] = Number(item.purchasePrice ?? 0);
+      }
+    }
+
+    // Sum actual parts cost
+    for (const r of repairsInRange) {
+      try {
+        const parts = r.partsUsed ? JSON.parse(r.partsUsed) : [];
+        for (const p of parts) {
+          if (p.inventoryId && p.qty) {
+            repairActualPartsCost += (purchasePriceMap[Number(p.inventoryId)] ?? 0) * Number(p.qty);
+          }
+        }
+      } catch { /* skip */ }
+    }
 
     // ── Expenses ──────────────────────────────────────────────────────────────
     const expenses = await db.select().from(expensesTable)
@@ -122,10 +174,14 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
       expByCategory[e.category] = (expByCategory[e.category] ?? 0) + Number(e.amount);
     }
 
-    // ── Outstanding (unpaid repairs — all time) ───────────────────────────────
+    // ── Outstanding (unpaid repairs — all time, Ready + Delivered only) ───────
     const unpaidRepairs = await db.select({ totalCost: repairsTable.totalCost, advancePaid: repairsTable.advancePaid })
       .from(repairsTable)
-      .where(and(eq(repairsTable.userId, userId), eq(repairsTable.isPaid, false)));
+      .where(and(
+        eq(repairsTable.userId, userId),
+        eq(repairsTable.isPaid, false),
+        sql`${repairsTable.status} IN ('Ready', 'Delivered')`,
+      ));
     const outstanding = unpaidRepairs.reduce((s, r) => {
       const due = Number(r.totalCost ?? 0) - Number(r.advancePaid ?? 0);
       return s + Math.max(0, due);
@@ -139,7 +195,7 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
       const ds  = toDateStr(d);
       const dayLabel = d.toLocaleDateString("en-US", { weekday: "short" });
       const daySales   = sales.filter(s => s.date === ds);
-      const dayRepairs = repairs.filter(r => repairDateStr(r) === ds);
+      const dayRepairs = completedRepairs.filter(r => repairDateStr(r) === ds);
       chart.push({
         date:    ds,
         day:     dayLabel,
@@ -151,8 +207,8 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
     const todayRevenue     = posToday + repairRevToday;
     const yesterdayRevenue = posYesterday + repairRevYd;
     const totalRevenue     = posRange + repairRevRange;
-    // Profit = POS Revenue - POS Cost of Goods + Repair Revenue - Parts invested in repairs - Operating Expenses
-    const netProfit        = posRange - posCost + repairRevRange - repairPartsRange - totalExpenses;
+    // Profit = POS Revenue - POS COGS + Repair Revenue - Repair Actual Parts Cost - Expenses
+    const netProfit        = posRange - posCost + repairRevRange - repairActualPartsCost - totalExpenses;
 
     res.json({
       todayRevenue,
@@ -160,7 +216,7 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
       posRevenue:      posRange,
       posCost,
       repairRevenue:   repairRevRange,
-      repairPartsCost: repairPartsRange,
+      repairPartsCost: repairActualPartsCost,
       totalRevenue,
       totalExpenses,
       netProfit,
