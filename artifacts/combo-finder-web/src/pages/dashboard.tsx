@@ -288,7 +288,7 @@ export default function Dashboard() {
                 {weeklyChart.length > 0 && (
                   <div className="mt-1" style={{ height: 76 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={weeklyChart} barSize={12} margin={{ top: 0, right: 0, left: 0, bottom: 18 }}>
+                      <BarChart data={weeklyChart} barSize={12} margin={{ top: 0, right: 0, left: 0, bottom: 28 }}>
                         <XAxis
                           dataKey="day"
                           axisLine={false}
@@ -299,8 +299,8 @@ export default function Dashboard() {
                             return (
                               <g transform={`translate(${x},${y})`} style={{ cursor: "pointer" }}
                                 onClick={() => setSelectedDayIdx((p: number | null) => p === index ? null : index)}>
-                                <rect x={-18} y={-2} width={36} height={22} fill="transparent" />
-                                <text x={0} y={14} textAnchor="middle"
+                                <rect x={-18} y={2} width={36} height={22} fill="transparent" />
+                                <text x={0} y={22} textAnchor="middle"
                                   fill={sel ? "#fff" : "rgba(255,255,255,0.7)"}
                                   fontSize={9} fontWeight={sel ? "bold" : "normal"}>
                                   {payload.value}

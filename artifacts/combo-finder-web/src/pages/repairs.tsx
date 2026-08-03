@@ -574,8 +574,8 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
             </div>
           )}
 
-          {/* Billing */}
-          {Number(repair.totalCost) > 0 && (
+          {/* Billing — hidden for Cancelled repairs */}
+          {Number(repair.totalCost) > 0 && status !== "Cancelled" && (
             <div className="rounded-2xl px-3.5 py-2.5 space-y-1.5" style={{ background: BG, border: `1px solid ${BORDER}` }}>
               <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: MUTED }}>💰 Billing</p>
               {Number(repair.partsCost) > 0 && (
