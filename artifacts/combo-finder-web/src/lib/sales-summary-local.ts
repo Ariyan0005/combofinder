@@ -82,21 +82,26 @@ export function computeSalesSummary(
     }
   }
 
-  // ── Repairs (delivered + paid) ──────────────────────────────────────────────
+  // ── Repairs — collected revenue (paid + partial advances) ───────────────────
   const allRepairs = localRepairs.getAll(uid);
-  const paidDelivered = allRepairs.filter((r: any) => r.isPaid && r.status === "Delivered");
 
   const repairDate = (r: any): string =>
     (r.deliveredAt ?? r.updatedAt ?? r.createdAt ?? "").slice(0, 10);
 
-  const repairsInRange   = paidDelivered.filter((r: any) => inRange(repairDate(r)));
-  const repairToday      = paidDelivered.filter((r: any) => repairDate(r) === today);
-  const repairYd         = paidDelivered.filter((r: any) => repairDate(r) === yDay);
+  // Collected = totalCost for isPaid repairs, advancePaid for partial repairs
+  const repairCollected = (r: any): number => {
+    if (r.isPaid) return Number(r.totalCost ?? 0);
+    return Math.max(0, Number(r.advancePaid ?? 0));
+  };
 
-  const repairRevRange   = sumField(repairsInRange, "totalCost");
-  const repairPartsRange = sumField(repairsInRange, "partsCost");
-  const repairRevToday   = sumField(repairToday,    "totalCost");
-  const repairRevYd      = sumField(repairYd,       "totalCost");
+  const repairsInRange   = allRepairs.filter((r: any) => inRange(repairDate(r)));
+  const repairToday      = allRepairs.filter((r: any) => repairDate(r) === today);
+  const repairYd         = allRepairs.filter((r: any) => repairDate(r) === yDay);
+
+  const repairRevRange   = repairsInRange.reduce((s: number, r: any) => s + repairCollected(r), 0);
+  const repairPartsRange = repairsInRange.reduce((s: number, r: any) => s + Number(r.partsCost ?? 0), 0);
+  const repairRevToday   = repairToday.reduce((s: number, r: any) => s + repairCollected(r), 0);
+  const repairRevYd      = repairYd.reduce((s: number, r: any) => s + repairCollected(r), 0);
 
   // ── Expenses ─────────────────────────────────────────────────────────────────
   const expenses = localExpenses.getAll(uid).filter((e: any) => {
@@ -126,8 +131,8 @@ export function computeSalesSummary(
     const ds = toDateStr(d);
     const dl = d.toLocaleDateString("en-US", { weekday: "short" });
     const daySales   = allSales.filter((s: any)   => s.date === ds);
-    const dayRepairs = paidDelivered.filter((r: any) => repairDate(r) === ds);
-    chart.push({ date: ds, day: dl, revenue: sumField(daySales, "total") + sumField(dayRepairs, "totalCost") });
+    const dayRepairs = allRepairs.filter((r: any) => repairDate(r) === ds);
+    chart.push({ date: ds, day: dl, revenue: sumField(daySales, "total") + dayRepairs.reduce((s: number, r: any) => s + repairCollected(r), 0) });
   }
 
   const todayRevenue     = posToday   + repairRevToday;

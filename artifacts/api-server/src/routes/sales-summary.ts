@@ -83,25 +83,29 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
       }, 0);
     }
 
-    // ── Repairs (delivered + paid) ────────────────────────────────────────────
+    // ── Repairs — collected revenue (paid + partial advances) ────────────────
     const repairs = await db.select().from(repairsTable)
-      .where(and(
-        eq(repairsTable.userId, userId),
-        eq(repairsTable.isPaid, true),
-        eq(repairsTable.status, "Delivered"),
-      ));
+      .where(eq(repairsTable.userId, userId));
 
-    const repairsInRange   = repairs.filter(r => {
-      const d = toDateStr(new Date(r.deliveredAt ?? r.updatedAt ?? r.createdAt));
-      return d >= fromDate && d <= toDate;
-    });
-    const repairToday      = repairs.filter(r => toDateStr(new Date(r.deliveredAt ?? r.updatedAt ?? r.createdAt)) === today);
-    const repairYd         = repairs.filter(r => toDateStr(new Date(r.deliveredAt ?? r.updatedAt ?? r.createdAt)) === yDay);
+    const repairDateStr = (r: any): string => {
+      const d = r.deliveredAt ?? r.updatedAt ?? r.createdAt;
+      return d ? toDateStr(new Date(d)) : "";
+    };
 
-    const repairRevRange   = sumField(repairsInRange, "totalCost");
-    const repairPartsRange = sumField(repairsInRange, "partsCost");
-    const repairRevToday   = sumField(repairToday,    "totalCost");
-    const repairRevYd      = sumField(repairYd,       "totalCost");
+    // Collected = totalCost for isPaid repairs, advancePaid for partial
+    const repairCollected = (r: any): number => {
+      if (r.isPaid) return Number(r.totalCost ?? 0);
+      return Math.max(0, Number(r.advancePaid ?? 0));
+    };
+
+    const repairsInRange   = repairs.filter(r => { const d = repairDateStr(r); return d >= fromDate && d <= toDate; });
+    const repairToday      = repairs.filter(r => repairDateStr(r) === today);
+    const repairYd         = repairs.filter(r => repairDateStr(r) === yDay);
+
+    const repairRevRange   = repairsInRange.reduce((s, r) => s + repairCollected(r), 0);
+    const repairPartsRange = repairsInRange.reduce((s, r) => s + Number(r.partsCost ?? 0), 0);
+    const repairRevToday   = repairToday.reduce((s, r) => s + repairCollected(r), 0);
+    const repairRevYd      = repairYd.reduce((s, r) => s + repairCollected(r), 0);
 
     // ── Expenses ──────────────────────────────────────────────────────────────
     const expenses = await db.select().from(expensesTable)
@@ -135,11 +139,11 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
       const ds  = toDateStr(d);
       const dayLabel = d.toLocaleDateString("en-US", { weekday: "short" });
       const daySales   = sales.filter(s => s.date === ds);
-      const dayRepairs = repairs.filter(r => toDateStr(new Date(r.deliveredAt ?? r.updatedAt ?? r.createdAt)) === ds);
+      const dayRepairs = repairs.filter(r => repairDateStr(r) === ds);
       chart.push({
         date:    ds,
         day:     dayLabel,
-        revenue: sumField(daySales, "total") + sumField(dayRepairs, "totalCost"),
+        revenue: sumField(daySales, "total") + dayRepairs.reduce((s, r) => s + repairCollected(r), 0),
       });
     }
 

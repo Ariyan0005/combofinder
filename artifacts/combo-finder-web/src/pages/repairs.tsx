@@ -600,12 +600,27 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
                   <span className="font-semibold" style={{ color: "#059669" }}>{Number(localAdvancePaid).toFixed(2)}</span>
                 </div>
               )}
-              <div className="rounded-xl px-3 py-2"
-                style={{ background: localIsPaid ? "#ECFDF5" : "#FEF2F2", border: `1px solid ${localIsPaid ? "#6EE7B7" : "#FCA5A5"}` }}>
-                <span className="text-xs font-bold" style={{ color: localIsPaid ? "#059669" : "#DC2626" }}>
-                  {localIsPaid ? "✓ Fully Paid" : `Amount Due: ${Math.max(0, Number(repair.totalCost) - Number(localAdvancePaid ?? 0)).toFixed(2)}`}
-                </span>
-              </div>
+              {(() => {
+                const adv = Number(localAdvancePaid ?? 0);
+                const tot = Number(repair.totalCost ?? 0);
+                const due = Math.max(0, tot - adv);
+                const st  = (tot > 0 && adv >= tot) ? "paid" : adv > 0 ? "partial" : "due";
+                const cfg = {
+                  paid:    { bg: "#ECFDF5", border: "#6EE7B7", color: "#059669", label: "✓ Fully Paid" },
+                  partial: { bg: "#FFFBEB", border: "#FCD34D", color: "#D97706", label: `Partial · Due: ${sym}${due.toFixed(2)}` },
+                  due:     { bg: "#FEF2F2", border: "#FCA5A5", color: "#DC2626", label: `Amount Due: ${sym}${due.toFixed(2)}` },
+                }[st];
+                return (
+                  <div className="rounded-xl px-3 py-2 flex items-center justify-between"
+                    style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
+                    <span className="text-xs font-bold" style={{ color: cfg.color }}>{cfg.label}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                      style={{ background: cfg.border, color: cfg.color }}>
+                      {st.toUpperCase()}
+                    </span>
+                  </div>
+                );
+              })()}
 
               {!showPayment && (
                 <button type="button" onClick={() => { setAdvancePaid(String(localAdvancePaid ?? "")); setIsPaid(localIsPaid); setPaymentError(""); setShowPayment(true); }}
@@ -626,21 +641,23 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
                       className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none font-semibold"
                       style={{ borderColor: BORDER, background: BG }} />
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {([
-                      { val: false, label: "Unpaid / Due", color: "#EF4444" },
-                      { val: true,  label: "Fully Paid",   color: "#10B981" },
-                    ] as const).map(({ val, label, color }) => (
-                      <button key={String(val)} type="button"
-                        onClick={() => setIsPaid(val)}
-                        className="py-2 rounded-xl text-xs font-bold border transition-all"
-                        style={isPaid === val
-                          ? { background: color, color: "#fff", borderColor: color }
-                          : { background: "transparent", color: MUTED, borderColor: BORDER }}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
+                  {/* Auto-computed status preview */}
+                  {(() => {
+                    const adv = Number(advancePaid || 0);
+                    const tot = Number(repair.totalCost ?? 0);
+                    const due = Math.max(0, tot - adv);
+                    const st  = (tot > 0 && adv >= tot) ? "paid" : adv > 0 ? "partial" : "due";
+                    const cfg = {
+                      paid:    { bg: "#ECFDF5", color: "#059669", label: `✓ Fully Paid` },
+                      partial: { bg: "#FFFBEB", color: "#D97706", label: `Partial · Remaining: ${sym}${due.toFixed(2)}` },
+                      due:     { bg: "#FEF2F2", color: "#DC2626", label: `Unpaid · Due: ${sym}${tot.toFixed(2)}` },
+                    }[st];
+                    return (
+                      <div className="rounded-xl px-3 py-2 text-center" style={{ background: cfg.bg }}>
+                        <span className="text-xs font-bold" style={{ color: cfg.color }}>{cfg.label}</span>
+                      </div>
+                    );
+                  })()}
                   {paymentError && (
                     <p className="text-[11px] font-semibold" style={{ color: "#DC2626" }}>{paymentError}</p>
                   )}
@@ -657,7 +674,8 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
                           setPaymentError("Enter a valid non-negative amount");
                           return;
                         }
-                        paymentMut.mutate({ newAdvance: trimmed, newIsPaid: isPaid });
+                        const autoIsPaid = Number(trimmed || 0) >= Number(repair.totalCost ?? 0) && Number(repair.totalCost ?? 0) > 0;
+                        paymentMut.mutate({ newAdvance: trimmed, newIsPaid: autoIsPaid });
                       }}
                       className="py-2.5 rounded-xl text-xs font-extrabold text-white disabled:opacity-60"
                       style={{ background: PRIMARY }}>
@@ -790,7 +808,7 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
         partsCost: String(partsCost),
         totalCost: String(totalCost),
         advancePaid: form.advancePaid || null,
-        isPaid: form.isPaid,
+        isPaid: Number(form.advancePaid || 0) >= totalCost && totalCost > 0,
       };
 
       // ── Free plan: local storage ─────────────────────────────────────────────
@@ -1067,38 +1085,24 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
                     style={{ borderColor: BORDER, background: CARD }} />
                 </div>
 
-                {/* Due */}
-                {totalCost > 0 && (
-                  <div className="flex items-center justify-between rounded-xl px-3 py-2.5"
-                    style={{ background: dueAmount > 0 ? "#FEF2F2" : "#ECFDF5", border: `1px solid ${dueAmount > 0 ? "#FCA5A5" : "#6EE7B7"}` }}>
-                    <span className="text-xs font-bold" style={{ color: dueAmount > 0 ? "#DC2626" : "#059669" }}>
-                      {dueAmount > 0 ? "Amount Due" : "Fully Paid ✓"}
-                    </span>
-                    {dueAmount > 0 && (
-                      <span className="text-base font-extrabold" style={{ color: "#DC2626" }}>{dueAmount.toFixed(2)}</span>
-                    )}
-                  </div>
-                )}
-
-                {/* Payment status */}
-                <div>
-                  <p className="text-xs font-semibold mb-1.5" style={{ color: MUTED }}>Payment Status</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {([
-                      { val: false, label: "Unpaid / Due",  color: "#EF4444" },
-                      { val: true,  label: "Fully Paid",    color: "#10B981" },
-                    ] as const).map(({ val, label, color }) => (
-                      <button key={String(val)} type="button"
-                        onClick={() => setForm(p => ({ ...p, isPaid: val }))}
-                        className="py-2 rounded-xl text-xs font-bold border transition-all"
-                        style={form.isPaid === val
-                          ? { background: color, color: "#fff", borderColor: color }
-                          : { background: "transparent", color: MUTED, borderColor: BORDER }}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                {/* Payment status — auto-calculated from advance vs total */}
+                {totalCost > 0 && (() => {
+                  const adv = Number(form.advancePaid || 0);
+                  const due = Math.max(0, totalCost - adv);
+                  const st  = adv >= totalCost ? "paid" : adv > 0 ? "partial" : "due";
+                  const cfg = {
+                    paid:    { bg: "#ECFDF5", border: "#6EE7B7", color: "#059669", label: "✓ Fully Paid",           sub: "" },
+                    partial: { bg: "#FFFBEB", border: "#FCD34D", color: "#D97706", label: "Partial Payment",         sub: `Due: ${due.toFixed(2)}` },
+                    due:     { bg: "#FEF2F2", border: "#FCA5A5", color: "#DC2626", label: "Unpaid",                  sub: `Due: ${due.toFixed(2)}` },
+                  }[st];
+                  return (
+                    <div className="flex items-center justify-between rounded-xl px-3 py-2.5"
+                      style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
+                      <span className="text-xs font-bold" style={{ color: cfg.color }}>{cfg.label}</span>
+                      {cfg.sub && <span className="text-sm font-extrabold" style={{ color: cfg.color }}>{cfg.sub}</span>}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -1288,14 +1292,22 @@ export default function Repairs() {
                       {new Date(r.createdAt).toLocaleDateString()}
                       {partsCount > 0 && <span className="flex items-center gap-0.5"><Package className="w-2.5 h-2.5" /> {partsCount} part{partsCount > 1 ? "s" : ""}</span>}
                       {r.totalCost && Number(r.totalCost) > 0 && <span>· Bill: {Number(r.totalCost).toFixed(2)}</span>}
-                      {r.totalCost && Number(r.totalCost) > 0 && r.status !== "Cancelled" && (
-                        <span className="px-1.5 py-0.5 rounded-full font-bold text-[9px]"
-                          style={r.isPaid
-                            ? { background: "#ECFDF5", color: "#059669" }
-                            : { background: "#FEF3C7", color: "#D97706" }}>
-                          {r.isPaid ? "Paid" : "Due"}
-                        </span>
-                      )}
+                      {r.totalCost && Number(r.totalCost) > 0 && r.status !== "Cancelled" && (() => {
+                        const adv = Number(r.advancePaid ?? 0);
+                        const tot = Number(r.totalCost ?? 0);
+                        const st  = (r.isPaid || (tot > 0 && adv >= tot)) ? "paid" : adv > 0 ? "partial" : "due";
+                        const cfg = {
+                          paid:    { bg: "#ECFDF5", color: "#059669", label: "Paid" },
+                          partial: { bg: "#FFFBEB", color: "#D97706", label: "Partial" },
+                          due:     { bg: "#FEF2F2", color: "#DC2626", label: "Due" },
+                        }[st];
+                        return (
+                          <span className="px-1.5 py-0.5 rounded-full font-bold text-[9px]"
+                            style={{ background: cfg.bg, color: cfg.color }}>
+                            {cfg.label}
+                          </span>
+                        );
+                      })()}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1.5 flex-shrink-0">

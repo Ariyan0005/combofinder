@@ -88,7 +88,30 @@ router.post("/", async (req, res) => {
       }
     }
 
-    const [row] = await db.insert(repairsTable).values({ ...req.body, userId, updatedAt: new Date() }).returning();
+    // Parse parts so we can deduct stock atomically
+    interface PartEntry { inventoryId: number; qty: number; name: string; unitPrice: string; }
+    const newParts: PartEntry[] = (() => {
+      try { return req.body.partsUsed ? JSON.parse(req.body.partsUsed) : []; } catch { return []; }
+    })();
+
+    const row = await db.transaction(async (tx) => {
+      const [r] = await tx.insert(repairsTable).values({ ...req.body, userId, updatedAt: new Date() }).returning();
+      // Deduct stock for each part used
+      for (const part of newParts) {
+        if (!part.inventoryId || !part.qty) continue;
+        await tx.update(inventoryTable)
+          .set({ quantity: sql`GREATEST(0, ${inventoryTable.quantity} - ${Number(part.qty)})`, updatedAt: new Date() })
+          .where(eq(inventoryTable.id, part.inventoryId));
+        await tx.insert(stockMovementsTable).values({
+          inventoryId: part.inventoryId,
+          type: "repair",
+          quantity: Number(part.qty),
+          userId,
+          reference: `Repair #${r.id} - parts used`,
+        });
+      }
+      return r;
+    });
     res.status(201).json(row);
 
     // ── WhatsApp alert: repair created (Pro users only, fire-and-forget) ──
