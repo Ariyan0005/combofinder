@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Search, Package, Menu, X,
   Users, BookOpen, Unlock, Receipt,
   Settings, LogOut, CreditCard, Smartphone, ShoppingCart, FileText,
-  BookMarked, Heart, Boxes, Users2, Wrench,
+  BookMarked, Heart, Users2, Wrench,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import Sidebar from "./sidebar";
@@ -25,7 +25,7 @@ const MORE_ITEMS = [
   { label: "Ledger / Credit",      icon: BookMarked,   href: "/ledger"         },
   { label: "Expenses",             icon: Receipt,      href: "/expenses"       },
   // ── Tools / Reference ──
-  { label: "Compatibility Database", icon: Search,     href: "/compatibility"  },
+  { label: "Database",             icon: Search,       href: "/compatibility"  },
   { label: "Knowledge Base",       icon: BookOpen,     href: "/knowledge-base" },
   { label: "Unlock Services",      icon: Unlock,       href: "/unlock-services"},
   // ── Account ──
@@ -64,50 +64,32 @@ export default function MainLayout({ children }: { children: ReactNode }) {
             </div>
             <span className="font-bold text-base">ComboFinder</span>
           </div>
-          {(location === "/inventory" || location === "/pos") ? (
-            /* Inventory / POS pages: show toggle instead of Donate + Avatar */
-            <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: "hsl(var(--muted))" }}>
-              <Link href="/inventory">
-                <button className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 ${location === "/inventory" ? "text-white" : ""}`}
-                  style={location === "/inventory" ? { background: "hsl(var(--primary))" } : { color: "hsl(var(--muted-foreground))" }}>
-                  <Boxes className="w-3.5 h-3.5" /> Inventory
+          {/* Donate + Avatar / Login — always shown */}
+          <div className="flex items-center gap-3">
+            <Link href="/donate">
+              <button className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border mr-2"
+                style={{ borderColor: "hsl(var(--primary))", color: "hsl(var(--primary))" }}>
+                <Heart className="w-3 h-3" />
+                Donate
+              </button>
+            </Link>
+            {user && (
+              <Link href="/settings">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white cursor-pointer"
+                  style={{ background: "hsl(var(--primary))" }}>
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              </Link>
+            )}
+            {isGuest && (
+              <Link href="/login">
+                <button className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                  style={{ background: "hsl(var(--primary))", color: "#fff" }}>
+                  Login
                 </button>
               </Link>
-              <Link href="/pos">
-                <button className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 ${location === "/pos" ? "text-white" : ""}`}
-                  style={location === "/pos" ? { background: "hsl(var(--primary))" } : { color: "hsl(var(--muted-foreground))" }}>
-                  <ShoppingCart className="w-3.5 h-3.5" /> POS
-                </button>
-              </Link>
-            </div>
-          ) : (
-            /* All other pages: Donate + Avatar / Login */
-            <div className="flex items-center gap-3">
-              <Link href="/donate">
-                <button className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border mr-2"
-                  style={{ borderColor: "hsl(var(--primary))", color: "hsl(var(--primary))" }}>
-                  <Heart className="w-3 h-3" />
-                  Donate
-                </button>
-              </Link>
-              {user && (
-                <Link href="/settings">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white cursor-pointer"
-                    style={{ background: "hsl(var(--primary))" }}>
-                    {user.name.charAt(0).toUpperCase()}
-                  </div>
-                </Link>
-              )}
-              {isGuest && (
-                <Link href="/login">
-                  <button className="text-xs font-semibold px-3 py-1.5 rounded-lg"
-                    style={{ background: "hsl(var(--primary))", color: "#fff" }}>
-                    Login
-                  </button>
-                </Link>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </header>
 
         {/* Page content */}
@@ -119,7 +101,7 @@ export default function MainLayout({ children }: { children: ReactNode }) {
 
         {/* Mobile bottom nav */}
         <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-card border-t border-border">
-          <div className="flex items-end">
+          <div className="flex items-center">
             {BOTTOM_NAV.map((item) => {
               if (item.href === "__more__") {
                 return (
@@ -132,6 +114,31 @@ export default function MainLayout({ children }: { children: ReactNode }) {
                   </button>
                 );
               }
+
+              /* ── POS: special elevated pill button ── */
+              if (item.href === "/pos") {
+                const active = isActive(item.href);
+                return (
+                  <Link key={item.href} href={item.href} className="flex-1 flex justify-center">
+                    <div className="flex flex-col items-center justify-center py-1 gap-1 -mt-3">
+                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-transform active:scale-95"
+                        style={{
+                          background: active
+                            ? "hsl(var(--primary))"
+                            : "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.75))",
+                          boxShadow: "0 4px 14px hsl(var(--primary) / 0.45)",
+                        }}>
+                        <ShoppingCart className="w-5 h-5 text-white" />
+                      </div>
+                      <span className="text-[9px] font-bold"
+                        style={{ color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
+                        POS
+                      </span>
+                    </div>
+                  </Link>
+                );
+              }
+
               const active = isActive(item.href);
               return (
                 <Link key={item.href} href={item.href} className="flex-1">
