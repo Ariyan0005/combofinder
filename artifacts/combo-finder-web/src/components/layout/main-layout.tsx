@@ -1,36 +1,36 @@
 import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import {
-  LayoutDashboard, Search, Plus, Package, Menu, X,
-  Users, BookOpen, BarChart2, Unlock, Receipt,
+  LayoutDashboard, Search, Package, Menu, X,
+  Users, BookOpen, Unlock, Receipt,
   Settings, LogOut, CreditCard, Smartphone, ShoppingCart, FileText,
-  BookMarked, Heart, Boxes, Users2,
+  BookMarked, Heart, Boxes, Users2, Wrench,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import Sidebar from "./sidebar";
 
 const BOTTOM_NAV = [
-  { label: "Home", icon: LayoutDashboard, href: "/" },
-  { label: "Database", icon: Search, href: "/compatibility" },
-  { label: "fab", icon: Plus, href: "/repairs" },
-  { label: "Inventory", icon: Package, href: "/inventory" },
-  { label: "More", icon: Menu, href: "__more__" },
+  { label: "Home",      icon: LayoutDashboard, href: "/"          },
+  { label: "Repairs",   icon: Wrench,          href: "/repairs"   },
+  { label: "POS",       icon: ShoppingCart,    href: "/pos"       },
+  { label: "Inventory", icon: Package,         href: "/inventory" },
+  { label: "More",      icon: Menu,            href: "__more__"   },
 ];
 
 const MORE_ITEMS = [
   // ── Daily use ──
-  { label: "Customers",         icon: Users,        href: "/customers" },
-  { label: "Staff & Technician",icon: Users2,       href: "/staff"     },
-  { label: "Point of Sale",  icon: ShoppingCart, href: "/pos" },
-  { label: "Invoices",       icon: FileText,     href: "/invoices" },
-  { label: "Ledger / Credit",icon: BookMarked,   href: "/ledger" },
-  { label: "Expenses",       icon: Receipt,      href: "/expenses" },
+  { label: "Customers",            icon: Users,        href: "/customers"      },
+  { label: "Staff & Technician",   icon: Users2,       href: "/staff"          },
+  { label: "Invoices",             icon: FileText,     href: "/invoices"       },
+  { label: "Ledger / Credit",      icon: BookMarked,   href: "/ledger"         },
+  { label: "Expenses",             icon: Receipt,      href: "/expenses"       },
   // ── Tools / Reference ──
-  { label: "Knowledge Base", icon: BookOpen,     href: "/knowledge-base" },
-  { label: "Unlock Services",icon: Unlock,       href: "/unlock-services" },
+  { label: "Compatibility Database", icon: Search,     href: "/compatibility"  },
+  { label: "Knowledge Base",       icon: BookOpen,     href: "/knowledge-base" },
+  { label: "Unlock Services",      icon: Unlock,       href: "/unlock-services"},
   // ── Account ──
-  { label: "Subscription",   icon: CreditCard,   href: "/subscription" },
-  { label: "Settings",       icon: Settings,     href: "/settings" },
+  { label: "Subscription",         icon: CreditCard,   href: "/subscription"   },
+  { label: "Settings",             icon: Settings,     href: "/settings"       },
 ];
 
 export default function MainLayout({ children }: { children: ReactNode }) {
@@ -132,22 +132,10 @@ export default function MainLayout({ children }: { children: ReactNode }) {
                   </button>
                 );
               }
-              if (item.label === "fab") {
-                return (
-                  <button key="fab"
-                    onClick={() => navigate("/repairs")}
-                    className="flex-1 flex flex-col items-center justify-center -mt-4">
-                    <div className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg"
-                      style={{ background: "hsl(var(--primary))" }}>
-                      <Plus className="w-6 h-6 text-white" />
-                    </div>
-                  </button>
-                );
-              }
               const active = isActive(item.href);
               return (
                 <Link key={item.href} href={item.href} className="flex-1">
-                  <div className="flex flex-col items-center justify-center py-2 gap-1 transition-colors"
+                  <div className="flex flex-col items-center justify-center py-2 gap-1 transition-colors relative"
                     style={{ color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
                     {active && (
                       <div className="absolute top-0 w-6 h-0.5 rounded-full"
