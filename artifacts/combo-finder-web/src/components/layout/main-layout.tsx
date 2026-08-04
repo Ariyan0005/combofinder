@@ -115,25 +115,27 @@ export default function MainLayout({ children }: { children: ReactNode }) {
                 );
               }
 
-              /* ── POS: special elevated pill button ── */
+              /* ── POS: same height as others, but icon has a colored square bg ── */
               if (item.href === "/pos") {
                 const active = isActive(item.href);
                 return (
-                  <Link key={item.href} href={item.href} className="flex-1 flex justify-center">
-                    <div className="flex flex-col items-center justify-center py-1 gap-1 -mt-3">
-                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-transform active:scale-95"
+                  <Link key={item.href} href={item.href} className="flex-1">
+                    <div className="flex flex-col items-center justify-center py-2 gap-1 relative transition-colors"
+                      style={{ color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
+                      {active && (
+                        <div className="absolute top-0 w-6 h-0.5 rounded-full"
+                          style={{ background: "hsl(var(--primary))" }} />
+                      )}
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center transition-transform active:scale-90"
                         style={{
                           background: active
                             ? "hsl(var(--primary))"
-                            : "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.75))",
-                          boxShadow: "0 4px 14px hsl(var(--primary) / 0.45)",
+                            : "hsl(var(--primary) / 0.12)",
                         }}>
-                        <ShoppingCart className="w-5 h-5 text-white" />
+                        <ShoppingCart className={`w-4 h-4 ${active ? "text-white" : ""}`}
+                          style={active ? {} : { color: "hsl(var(--primary))" }} />
                       </div>
-                      <span className="text-[9px] font-bold"
-                        style={{ color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
-                        POS
-                      </span>
+                      <span className="text-[9px] font-bold">POS</span>
                     </div>
                   </Link>
                 );
