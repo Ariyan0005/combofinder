@@ -17,20 +17,19 @@ const BOTTOM_NAV = [
   { label: "More",      icon: Menu,            href: "__more__"   },
 ];
 
+// Grid is 2 columns (left | right), items fill left-to-right row by row.
+// Left col  = tools & settings   Right col = daily operations (people & money)
 const MORE_ITEMS = [
-  // ── Daily use ──
-  { label: "Customers",            icon: Users,        href: "/customers"      },
-  { label: "Staff & Technician",   icon: Users2,       href: "/staff"          },
-  { label: "Invoices",             icon: FileText,     href: "/invoices"       },
-  { label: "Ledger / Credit",      icon: BookMarked,   href: "/ledger"         },
-  { label: "Expenses",             icon: Receipt,      href: "/expenses"       },
-  // ── Tools / Reference ──
-  { label: "Database",             icon: Search,       href: "/compatibility"  },
-  { label: "Knowledge Base",       icon: BookOpen,     href: "/knowledge-base" },
-  { label: "Unlock Services",      icon: Unlock,       href: "/unlock-services"},
-  // ── Account ──
-  { label: "Subscription",         icon: CreditCard,   href: "/subscription"   },
-  { label: "Settings",             icon: Settings,     href: "/settings"       },
+  { label: "Unlock Services",   icon: Unlock,      href: "/unlock-services" }, // L1
+  { label: "Staff & Technician",icon: Users2,      href: "/staff"           }, // R1
+  { label: "Database",          icon: Search,      href: "/compatibility"   }, // L2
+  { label: "Customers",         icon: Users,       href: "/customers"       }, // R2
+  { label: "Subscriptions",     icon: CreditCard,  href: "/subscription"    }, // L3
+  { label: "Invoices",          icon: FileText,    href: "/invoices"        }, // R3
+  { label: "Knowledge Base",    icon: BookOpen,    href: "/knowledge-base"  }, // L4
+  { label: "Ledgers",           icon: BookMarked,  href: "/ledger"          }, // R4
+  { label: "Settings",          icon: Settings,    href: "/settings"        }, // L5
+  { label: "Expense",           icon: Receipt,     href: "/expenses"        }, // R5
 ];
 
 export default function MainLayout({ children }: { children: ReactNode }) {
