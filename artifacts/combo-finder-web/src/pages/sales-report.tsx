@@ -98,9 +98,9 @@ export default function SalesReport() {
   const [range, setRange]       = useState<Range>("month");
   const [customFrom, setFrom]   = useState(() => {
     const d = new Date(); d.setDate(1);
-    return d.toISOString().slice(0, 10);
+    return d.toLocaleDateString("en-CA"); // YYYY-MM-DD in local timezone
   });
-  const [customTo, setTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [customTo, setTo] = useState(() => new Date().toLocaleDateString("en-CA"));
 
   // ── Free plan: compute from localStorage ──────────────────────────────────
   const localSummary = useMemo(() => {
@@ -109,9 +109,10 @@ export default function SalesReport() {
   }, [isFreePlan, user?.id, range, customFrom, customTo]);
 
   // ── Pro plan: fetch from API ───────────────────────────────────────────────
+  const userTZ = encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const apiParams = range === "custom"
-    ? `range=custom&from=${customFrom}&to=${customTo}`
-    : `range=${range}`;
+    ? `range=custom&from=${customFrom}&to=${customTo}&tz=${userTZ}`
+    : `range=${range}&tz=${userTZ}`;
 
   const { data: apiSummary, isLoading } = useQuery<any>({
     queryKey:    ["sales-summary", range, customFrom, customTo],

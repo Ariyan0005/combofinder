@@ -124,7 +124,7 @@ export default function Dashboard() {
 
   const { data: apiSummary } = useQuery<any>({
     queryKey: ["sales-summary", "month"],
-    queryFn:  () => fetch(`/api/sales-summary?range=month`, { credentials: "include" }).then(r => r.json()),
+    queryFn:  () => fetch(`/api/sales-summary?range=month&tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`, { credentials: "include" }).then(r => r.json()),
     enabled:  !isFreePlan,
   });
 

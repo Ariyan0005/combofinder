@@ -24,8 +24,12 @@ export interface SalesSummary {
   weeklyChart: { date: string; day: string; revenue: number }[];
 }
 
+/**
+ * YYYY-MM-DD in the browser's local timezone.
+ * en-CA locale always produces this format, so it works in every browser.
+ */
 function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return d.toLocaleDateString("en-CA");
 }
 function sumField(arr: any[], field: string): number {
   return arr.reduce((s: number, r: any) => s + Number(r[field] ?? 0), 0);

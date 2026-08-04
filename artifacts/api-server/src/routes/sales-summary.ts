@@ -19,8 +19,11 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
   try {
     const userId: number = req.userId;
     const range  = (req.query.range as string) || "month";
+    // User's IANA timezone sent from frontend (e.g. "Asia/Dhaka").
+    // Falls back to UTC so the helper stays safe on old clients.
+    const tz = (req.query.tz as string) || "UTC";
     const now    = new Date();
-    const today  = toDateStr(now);
+    const today  = toDateStrTZ(now, tz);
 
     // ── Date range ────────────────────────────────────────────────────────────
     let fromDate: string;
@@ -31,18 +34,19 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
     } else if (range === "week") {
       const d = new Date(now);
       d.setDate(d.getDate() - 6);
-      fromDate = toDateStr(d);
+      fromDate = toDateStrTZ(d, tz);
     } else if (range === "custom") {
       fromDate = (req.query.from as string) || today;
       toDate   = (req.query.to   as string) || today;
     } else {
-      // month
-      fromDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      // month — first day of current month in user's timezone
+      const parts = today.split("-"); // ["YYYY","MM","DD"]
+      fromDate = `${parts[0]}-${parts[1]}-01`;
     }
 
     // ── Yesterday & today bounds (for hero % change) ──────────────────────────
     const yd   = new Date(now); yd.setDate(yd.getDate() - 1);
-    const yDay = toDateStr(yd);
+    const yDay = toDateStrTZ(yd, tz);
 
     // ── POS Sales ────────────────────────────────────────────────────────────
     const sales = await db.select().from(salesTable)
@@ -192,8 +196,8 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
     for (let i = 6; i >= 0; i--) {
       const d   = new Date(now);
       d.setDate(d.getDate() - i);
-      const ds  = toDateStr(d);
-      const dayLabel = d.toLocaleDateString("en-US", { weekday: "short" });
+      const ds  = toDateStrTZ(d, tz);
+      const dayLabel = d.toLocaleDateString("en-US", { weekday: "short", timeZone: tz });
       const daySales   = sales.filter(s => s.date === ds);
       const dayRepairs = completedRepairs.filter(r => repairDateStr(r) === ds);
       chart.push({
@@ -231,8 +235,22 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
+/**
+ * Format a Date as YYYY-MM-DD in the given IANA timezone.
+ * Falls back to UTC if the timezone string is invalid.
+ */
+function toDateStrTZ(d: Date, tz: string): string {
+  try {
+    // en-CA locale always produces YYYY-MM-DD format
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year:     "numeric",
+      month:    "2-digit",
+      day:      "2-digit",
+    }).format(d);
+  } catch {
+    return d.toISOString().slice(0, 10);
+  }
 }
 function sumField(arr: any[], field: string): number {
   return arr.reduce((s, r) => s + Number(r[field] ?? 0), 0);
