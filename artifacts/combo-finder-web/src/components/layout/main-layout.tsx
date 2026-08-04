@@ -114,19 +114,19 @@ export default function MainLayout({ children }: { children: ReactNode }) {
                 );
               }
 
-              /* ── POS: round circle elevated above nav bar (like old FAB) ── */
+              /* ── POS: pill/capsule — icon + label inside the circle, stays in nav ── */
               if (item.href === "/pos") {
                 return (
                   <Link key={item.href} href={item.href} className="flex-1 flex justify-center">
-                    <div className="flex flex-col items-center gap-1 -mt-5">
-                      <div className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+                    <div className="flex flex-col items-center justify-center py-2">
+                      <div className="rounded-full flex items-center gap-1.5 px-4 py-2 active:scale-95 transition-transform"
                         style={{
                           background: "hsl(var(--primary))",
-                          boxShadow: "0 4px 16px hsl(var(--primary) / 0.5)",
+                          boxShadow: "0 2px 10px hsl(var(--primary) / 0.45)",
                         }}>
-                        <ShoppingCart className="w-6 h-6 text-white" />
+                        <ShoppingCart className="w-4 h-4 text-white" />
+                        <span className="text-[11px] font-bold text-white tracking-wide">POS</span>
                       </div>
-                      <span className="text-[9px] font-bold" style={{ color: "hsl(var(--primary))" }}>POS</span>
                     </div>
                   </Link>
                 );
