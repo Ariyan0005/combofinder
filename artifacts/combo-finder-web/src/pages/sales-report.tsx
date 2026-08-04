@@ -210,7 +210,7 @@ export default function SalesReport() {
               style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
               <h3 className="text-sm font-bold">Revenue Sources</h3>
               <BreakdownBar label="POS Sales"     value={posRevenue}    total={totalRevenue} color="#10B981" sym={sym} />
-              <BreakdownBar label="Repair Income" value={repairRevenue} total={totalRevenue} color={PRIMARY}  sym={sym} />
+              <BreakdownBar label="Repair Revenue" value={repairRevenue} total={totalRevenue} color={PRIMARY}  sym={sym} />
 
               {/* Repair profit breakdown */}
               {repairRevenue > 0 && (
@@ -230,7 +230,7 @@ export default function SalesReport() {
                       <p className="text-xs font-extrabold" style={{ color: "#EF4444" }}>
                         {sym} {fmt(repairPartsCost)}
                       </p>
-                      <p className="text-[9px] mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Parts Invested</p>
+                      <p className="text-[9px] mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Parts Used</p>
                     </div>
                     <div className="flex-1 rounded-xl p-2.5 text-center" style={{ background: "#ECFDF5" }}>
                       <p className="text-xs font-extrabold" style={{ color: "#10B981" }}>
@@ -246,12 +246,12 @@ export default function SalesReport() {
             {/* ── Profit / Loss Summary ── */}
             <div className="rounded-2xl border p-4 space-y-2.5"
               style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}>
-              <h3 className="text-sm font-bold">Profit & Loss</h3>
+              <h3 className="text-sm font-bold">Profit Summary</h3>
               {[
-                { label: "POS Revenue",      value: posRevenue,      sign: "+"  },
-                { label: "POS Cost (COGS)",  value: posCost,         sign: "−"  },
-                { label: "Repair Income",    value: repairRevenue,   sign: "+"  },
-                { label: "Parts Invested",   value: repairPartsCost, sign: "−"  },
+                { label: "POS Sales",        value: posRevenue,      sign: "+"  },
+                { label: "COGS",             value: posCost,         sign: "−"  },
+                { label: "Repair Revenue",   value: repairRevenue,   sign: "+"  },
+                { label: "Parts Used",       value: repairPartsCost, sign: "−"  },
                 { label: "Expenses",         value: totalExpenses,   sign: "−"  },
               ].map(({ label, value, sign }) => (
                 <div key={label} className="flex items-center justify-between">

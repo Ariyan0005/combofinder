@@ -286,36 +286,52 @@ export default function Dashboard() {
                   </div>
                 </div>
                 {weeklyChart.length > 0 && (
-                  <div className="mt-1" style={{ height: 76 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={weeklyChart} barSize={12} margin={{ top: 0, right: 0, left: 0, bottom: 28 }}>
-                        <XAxis
-                          dataKey="day"
-                          axisLine={false}
-                          tickLine={false}
-                          tick={(props: any) => {
-                            const { x, y, payload, index } = props;
-                            const sel = index === selectedDayIdx;
-                            return (
-                              <g transform={`translate(${x},${y})`} style={{ cursor: "pointer" }}
-                                onClick={() => setSelectedDayIdx((p: number | null) => p === index ? null : index)}>
-                                <rect x={-18} y={2} width={36} height={22} fill="transparent" />
-                                <text x={0} y={22} textAnchor="middle"
-                                  fill={sel ? "#fff" : "rgba(255,255,255,0.7)"}
-                                  fontSize={9} fontWeight={sel ? "bold" : "normal"}>
-                                  {payload.value}
-                                </text>
-                              </g>
-                            );
-                          }}
-                        />
-                        <Bar dataKey="revenue" radius={[3, 3, 0, 0]} cursor="pointer" onClick={(_: any, index: number) => setSelectedDayIdx((prev: number | null) => prev === index ? null : index)}>
-                          {weeklyChart.map((_: any, i: number) => (
-                            <Cell key={i} fill={i === selectedDayIdx ? "#ffffff" : i === weeklyChart.length - 1 ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.35)"} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                  <div className="mt-1">
+                    {/* Selected day revenue pill */}
+                    {selectedDayIdx !== null && weeklyChart[selectedDayIdx] && (
+                      <div className="flex items-center justify-center mb-1">
+                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full"
+                          style={{ background: "rgba(255,255,255,0.22)" }}>
+                          <span className="text-[10px] font-semibold text-white/80">
+                            {weeklyChart[selectedDayIdx].date}
+                          </span>
+                          <span className="text-[10px] font-extrabold text-white">
+                            {sym} {fmt(weeklyChart[selectedDayIdx].revenue)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ height: 76 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={weeklyChart} barSize={12} margin={{ top: 0, right: 0, left: 0, bottom: 32 }}>
+                          <XAxis
+                            dataKey="day"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={(props: any) => {
+                              const { x, y, payload, index } = props;
+                              const sel = index === selectedDayIdx;
+                              return (
+                                <g transform={`translate(${x},${y})`} style={{ cursor: "pointer" }}
+                                  onClick={() => setSelectedDayIdx((p: number | null) => p === index ? null : index)}>
+                                  <rect x={-18} y={4} width={36} height={24} fill="transparent" />
+                                  <text x={0} y={26} textAnchor="middle"
+                                    fill={sel ? "#fff" : "rgba(255,255,255,0.65)"}
+                                    fontSize={9} fontWeight={sel ? "bold" : "normal"}>
+                                    {payload.value}
+                                  </text>
+                                </g>
+                              );
+                            }}
+                          />
+                          <Bar dataKey="revenue" radius={[3, 3, 0, 0]} cursor="pointer" onClick={(_: any, index: number) => setSelectedDayIdx((prev: number | null) => prev === index ? null : index)}>
+                            {weeklyChart.map((_: any, i: number) => (
+                              <Cell key={i} fill={i === selectedDayIdx ? "#ffffff" : i === weeklyChart.length - 1 ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.35)"} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 )}
               </div>
