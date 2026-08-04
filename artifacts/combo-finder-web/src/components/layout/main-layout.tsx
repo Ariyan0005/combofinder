@@ -114,24 +114,19 @@ export default function MainLayout({ children }: { children: ReactNode }) {
                 );
               }
 
-              /* ── POS: solid purple square with white icon ── */
+              /* ── POS: round circle elevated above nav bar (like old FAB) ── */
               if (item.href === "/pos") {
-                const active = isActive(item.href);
                 return (
-                  <Link key={item.href} href={item.href} className="flex-1">
-                    <div className="flex flex-col items-center justify-center py-1.5 gap-1">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                  <Link key={item.href} href={item.href} className="flex-1 flex justify-center">
+                    <div className="flex flex-col items-center gap-1 -mt-5">
+                      <div className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform"
                         style={{
                           background: "hsl(var(--primary))",
-                          boxShadow: "0 2px 8px hsl(var(--primary) / 0.4)",
-                          opacity: active ? 1 : 0.82,
+                          boxShadow: "0 4px 16px hsl(var(--primary) / 0.5)",
                         }}>
-                        <ShoppingCart className="w-[18px] h-[18px] text-white" />
+                        <ShoppingCart className="w-6 h-6 text-white" />
                       </div>
-                      <span className="text-[9px] font-bold"
-                        style={{ color: active ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
-                        POS
-                      </span>
+                      <span className="text-[9px] font-bold" style={{ color: "hsl(var(--primary))" }}>POS</span>
                     </div>
                   </Link>
                 );
