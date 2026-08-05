@@ -17,6 +17,12 @@ const BOTTOM_NAV = [
   { label: "More",      icon: Menu,            href: "__more__"   },
 ];
 
+const GUEST_NAV = [
+  { label: "Home",            icon: LayoutDashboard, href: "/"                },
+  { label: "Unlock Services", icon: Unlock,          href: "/unlock-services" },
+  { label: "Find Parts",      icon: Search,          href: "/find-parts"      },
+];
+
 // Grid is 2 columns (left | right), items fill left-to-right row by row.
 // Left col  = tools & settings   Right col = daily operations (people & money)
 const MORE_ITEMS = [
@@ -101,7 +107,7 @@ export default function MainLayout({ children }: { children: ReactNode }) {
         {/* Mobile bottom nav */}
         <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-card border-t border-border">
           <div className="flex items-center">
-            {BOTTOM_NAV.map((item) => {
+            {(isGuest ? GUEST_NAV : BOTTOM_NAV).map((item) => {
               if (item.href === "__more__") {
                 return (
                   <button key="more"
