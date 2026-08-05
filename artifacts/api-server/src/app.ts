@@ -79,7 +79,14 @@ app.use(
     store: new PgSession({
       // Use the same DB URL the rest of the app uses: SUPABASE_DATABASE_URL takes
       // priority (VPS production), falling back to DATABASE_URL (Replit/local dev).
-      conString: process.env["SUPABASE_DATABASE_URL"] ?? process.env["DATABASE_URL"],
+      // conObject is used instead of conString so we can pass SSL options.
+      // Supabase (and many managed Postgres providers) require SSL; rejectUnauthorized
+      // is set to false to accept self-signed or chain-unverifiable certificates —
+      // consistent with how migrate.cjs connects.
+      conObject: {
+        connectionString: process.env["SUPABASE_DATABASE_URL"] ?? process.env["DATABASE_URL"],
+        ssl: { rejectUnauthorized: false },
+      },
       tableName: "user_sessions",
       createTableIfMissing: false,  // table created by migrate.cjs — no runtime file read needed
       ttl: 7 * 24 * 60 * 60,       // 7 days in seconds
