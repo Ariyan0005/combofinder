@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Invoice PDF Generator"
+version = "1.0.0"
+id = "artifacts/invoice-pdf"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24349
+
+[services.development]
+run = "pnpm --filter @workspace/invoice-pdf run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/invoice-pdf", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/invoice-pdf/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24349"
+BASE_PATH = "/"
