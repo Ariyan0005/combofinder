@@ -36,6 +36,7 @@ import backupRouter from "./backup";
 import whatsappRouter from "./whatsapp";
 import salesSummaryRouter from "./sales-summary";
 import staffRouter from "./staff";
+import partsSuppliersRouter from "./parts-suppliers";
 
 const router: IRouter = Router();
 
@@ -118,5 +119,7 @@ router.use("/backup", requireUserAuth, backupRouter);
 router.use("/whatsapp", requireUserAuth, whatsappRouter);
 router.use(requireUserAuth, salesSummaryRouter);
 router.use("/staff", requireUserAuth, staffRouter);
+// Parts Suppliers directory — public GET, admin auth enforced inside the router
+router.use("/parts-suppliers", partsSuppliersRouter);
 
 export default router;

@@ -38,6 +38,7 @@ import Privacy from "@/pages/privacy";
 import SalesReport from "@/pages/sales-report";
 import Terms from "@/pages/terms";
 import StaffPage from "@/pages/staff";
+import FindParts from "@/pages/find-parts";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -112,6 +113,7 @@ function Router() {
             <Route path="/terms" component={Terms} />
             <Route path="/sales-report" component={SalesReport} />
             <Route path="/staff" component={StaffPage} />
+            <Route path="/find-parts" component={FindParts} />
             <Route>
               <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
                 <p className="text-4xl font-bold">404</p>

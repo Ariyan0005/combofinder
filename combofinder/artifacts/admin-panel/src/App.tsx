@@ -51,6 +51,7 @@ import Settings from "@/pages/settings";
 import BackupRestore from "@/pages/backup-restore";
 import ActivityLogs from "@/pages/activity-logs";
 
+import PartsSuppliersPage from "@/pages/parts-suppliers";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 
@@ -110,6 +111,7 @@ function Router() {
         <Route path="/inventory-categories" component={InventoryCategories} />
         <Route path="/suppliers" component={Suppliers} />
         <Route path="/unlock-services" component={UnlockServices} />
+        <Route path="/parts-suppliers" component={PartsSuppliersPage} />
         
         {/* Finance */}
         <Route path="/transactions" component={Transactions} />

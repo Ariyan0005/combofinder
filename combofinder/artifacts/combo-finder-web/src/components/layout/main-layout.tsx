@@ -2,9 +2,9 @@ import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, Search, Package, Menu, X,
-  Users, BookOpen, Unlock, Receipt,
+  Users, Unlock, Receipt,
   Settings, LogOut, CreditCard, Smartphone, ShoppingCart, FileText,
-  BookMarked, Heart, Users2, Wrench,
+  BookMarked, Heart, Users2, Wrench, Store,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import Sidebar from "./sidebar";
@@ -26,7 +26,7 @@ const MORE_ITEMS = [
   { label: "Customers",         icon: Users,       href: "/customers"       }, // R2
   { label: "Subscriptions",     icon: CreditCard,  href: "/subscription"    }, // L3
   { label: "Invoices",          icon: FileText,    href: "/invoices"        }, // R3
-  { label: "Knowledge Base",    icon: BookOpen,    href: "/knowledge-base"  }, // L4
+  { label: "Find Parts",        icon: Store,       href: "/find-parts"      }, // L4
   { label: "Ledgers",           icon: BookMarked,  href: "/ledger"          }, // R4
   { label: "Settings",          icon: Settings,    href: "/settings"        }, // L5
   { label: "Expense",           icon: Receipt,     href: "/expenses"        }, // R5
