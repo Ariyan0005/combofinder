@@ -5,6 +5,19 @@
  * No limits — data lives on the user's device, so they own it all.
  */
 
+// ── Local date helper ─────────────────────────────────────────────────────────
+/**
+ * Returns YYYY-MM-DD in the user's LOCAL timezone.
+ * Uses getFullYear/getMonth/getDate — always local, always zero-padded,
+ * no locale dependency. Works on every browser / Android version.
+ */
+function localDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${mo}-${day}`;
+}
+
 // ── ID generator ──────────────────────────────────────────────────────────────
 function genLocalId(): number {
   const KEY = "__cf_lid__";
@@ -223,7 +236,7 @@ export const localLedger = {
       ...data,
       id: genLocalId(),
       userId: uid,
-      date: data.date ?? new Date().toISOString().slice(0, 10),
+      date: data.date ?? localDateStr(new Date()),
       createdAt: new Date().toISOString(),
     };
     items.push(item);
@@ -274,7 +287,7 @@ export const localSales = {
       id,
       userId: uid,
       invoiceNumber: `INV-L${String(seq).padStart(4, "0")}`,
-      date: data.date ?? now.toISOString().slice(0, 10),
+      date: data.date ?? localDateStr(now),
       status: data.status ?? "Completed",
       returns: data.returns ?? [],
       createdAt: now.toISOString(),

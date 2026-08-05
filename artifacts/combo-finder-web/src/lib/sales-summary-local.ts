@@ -25,13 +25,17 @@ export interface SalesSummary {
 }
 
 /**
- * YYYY-MM-DD as UTC date string.
- * Must match the format used when saving sales in local-store.ts
- * (which uses toISOString().slice(0, 10) — always UTC).
- * Using UTC here ensures date comparisons are consistent with stored data.
+ * YYYY-MM-DD in the user's local timezone.
+ * Uses getFullYear/getMonth/getDate which are always local-timezone,
+ * and always produce a zero-padded YYYY-MM-DD — no locale dependency,
+ * works reliably on every browser and Android version.
+ * Must match the format used in local-store.ts when saving dates.
  */
 function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 function sumField(arr: any[], field: string): number {
   return arr.reduce((s: number, r: any) => s + Number(r[field] ?? 0), 0);
