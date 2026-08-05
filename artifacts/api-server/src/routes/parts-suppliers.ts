@@ -51,9 +51,10 @@ router.get("/countries", async (_req, res) => {
 });
 
 // ── GET /parts-suppliers/:id  — public single supplier + recent reviews ───────
-router.get("/:id(\\d+)", async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "Invalid id" });
     const [row] = await db
       .select()
       .from(partsSuppliersTable)
@@ -74,12 +75,13 @@ router.get("/:id(\\d+)", async (req, res) => {
 });
 
 // ── POST /parts-suppliers/:id/reviews — logged-in users ──────────────────────
-router.post("/:id(\\d+)/reviews", async (req: any, res) => {
+router.post("/:id/reviews", async (req: any, res) => {
   try {
     if (!req.session?.authenticated) {
       return res.status(401).json({ error: "Login required to post a review" });
     }
     const supplierId = Number(req.params.id);
+    if (!Number.isInteger(supplierId) || supplierId <= 0) return res.status(400).json({ error: "Invalid id" });
     const userId: number | undefined = req.session?.userId;
     const { rating, comment } = req.body;
     const r = Number(rating);
