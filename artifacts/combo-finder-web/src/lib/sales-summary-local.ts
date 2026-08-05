@@ -25,11 +25,13 @@ export interface SalesSummary {
 }
 
 /**
- * YYYY-MM-DD in the browser's local timezone.
- * en-CA locale always produces this format, so it works in every browser.
+ * YYYY-MM-DD as UTC date string.
+ * Must match the format used when saving sales in local-store.ts
+ * (which uses toISOString().slice(0, 10) — always UTC).
+ * Using UTC here ensures date comparisons are consistent with stored data.
  */
 function toDateStr(d: Date): string {
-  return d.toLocaleDateString("en-CA");
+  return d.toISOString().slice(0, 10);
 }
 function sumField(arr: any[], field: string): number {
   return arr.reduce((s: number, r: any) => s + Number(r[field] ?? 0), 0);
