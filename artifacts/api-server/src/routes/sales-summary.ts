@@ -98,7 +98,7 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
 
     const repairDateStr = (r: any): string => {
       const d = r.deliveredAt ?? r.updatedAt ?? r.createdAt;
-      return d ? toDateStr(new Date(d)) : "";
+      return d ? toDateStrTZ(new Date(d), tz) : "";
     };
 
     // Collected = totalCost for isPaid repairs, advancePaid for partial

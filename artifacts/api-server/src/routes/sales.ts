@@ -219,7 +219,9 @@ router.post("/", async (req, res) => {
       }
 
       const total = round2(Math.max(0, subtotal - discount));
-      const date = todayStr();
+      // Use the client-supplied local date if it looks valid (YYYY-MM-DD), otherwise fall back to server UTC date.
+      const rawDate = typeof req.body.date === "string" ? req.body.date : "";
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : todayStr();
 
       // Insert with a temporary unique placeholder, then derive the invoice
       // number from the DB-assigned serial id so concurrent checkouts can

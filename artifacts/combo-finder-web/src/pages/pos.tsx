@@ -677,6 +677,10 @@ export default function Pos() {
       }
 
       // ── Server checkout ────────────────────────────────────────────────────
+      // Build local YYYY-MM-DD so the sale is stored in the user's timezone,
+      // not the server's UTC date (which can be a day behind for UTC+ users).
+      const _now = new Date();
+      const localDate = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-${String(_now.getDate()).padStart(2, "0")}`;
       const res = await fetch("/api/sales", {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -688,6 +692,7 @@ export default function Pos() {
           customerName: effectiveCustomerName,
           customerPhone: effectiveCustomerPhone,
           notes: [servedBy ? `Served by: ${servedBy}` : "", notes].filter(Boolean).join("\n") || null,
+          date: localDate,
         }),
       });
       const ct = res.headers.get("content-type") ?? "";
