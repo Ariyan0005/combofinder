@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, Search, Package, Menu, X,
-  Users, BookOpen, Unlock, Receipt,
+  Users, Unlock, Receipt,
   Settings, LogOut, CreditCard, Smartphone, ShoppingCart, FileText,
   BookMarked, Heart, Users2, Wrench, Store,
 } from "lucide-react";
