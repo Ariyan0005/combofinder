@@ -51,6 +51,7 @@ import Settings from "@/pages/settings";
 import BackupRestore from "@/pages/backup-restore";
 import ActivityLogs from "@/pages/activity-logs";
 
+import PartsSuppliersPage from "@/pages/parts-suppliers";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 
@@ -129,6 +130,7 @@ function Router() {
         <Route path="/customers" component={Customers} />
         <Route path="/inventory" component={Inventory} />
         
+        <Route path="/parts-suppliers" component={PartsSuppliersPage} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

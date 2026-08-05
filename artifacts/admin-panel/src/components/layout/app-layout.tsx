@@ -7,7 +7,7 @@ import {
   Video, FolderOpen, CreditCard, DollarSign, Activity, FileKey, 
   ClipboardList, CheckSquare, Wrench as WrenchIcon, Factory,
   PieChart, Megaphone, Inbox, HardDrive, ScrollText, BatteryFull, MemoryStick,
-  ArrowLeft,
+  ArrowLeft, Store,
 } from "lucide-react";
 
 const SITE_URL = "/";
@@ -52,7 +52,8 @@ const navigationGroups = [
       { name: "Repair Categories", href: "/repair-categories", icon: ClipboardList },
       { name: "Inventory Categories", href: "/inventory-categories", icon: Package },
       { name: "Suppliers", href: "/suppliers", icon: Factory },
-      { name: "Unlock Services", href: "/unlock-services", icon: FileKey, badge: "New" },
+      { name: "Parts Directory", href: "/parts-suppliers", icon: Store, badge: "New" },
+      { name: "Unlock Services", href: "/unlock-services", icon: FileKey },
     ]
   },
   {

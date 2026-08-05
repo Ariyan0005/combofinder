@@ -29,3 +29,4 @@ export * from "./ic-compat";
 export * from "./user-backups";
 export * from "./sales";
 export * from "./staff";
+export * from "./parts-suppliers";

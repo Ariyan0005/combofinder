@@ -37,6 +37,7 @@ import IcModelPage from "@/pages/ic-model";
 import Privacy from "@/pages/privacy";
 import SalesReport from "@/pages/sales-report";
 import Terms from "@/pages/terms";
+import FindParts from "@/pages/find-parts";
 import StaffPage from "@/pages/staff";
 
 const queryClient = new QueryClient({
