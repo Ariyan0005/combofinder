@@ -81,7 +81,7 @@ app.use(
       // priority (VPS production), falling back to DATABASE_URL (Replit/local dev).
       conString: process.env["SUPABASE_DATABASE_URL"] ?? process.env["DATABASE_URL"],
       tableName: "user_sessions",
-      createTableIfMissing: true,   // auto-creates the table on first run
+      createTableIfMissing: false,  // table created by migrate.cjs — no runtime file read needed
       ttl: 7 * 24 * 60 * 60,       // 7 days in seconds
     }),
     cookie: {
