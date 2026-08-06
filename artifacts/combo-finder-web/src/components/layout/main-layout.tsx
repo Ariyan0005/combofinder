@@ -20,7 +20,7 @@ const BOTTOM_NAV = [
 const GUEST_NAV = [
   { label: "Home",            icon: LayoutDashboard, href: "/"                },
   { label: "Unlock Services", icon: Unlock,          href: "/unlock-services" },
-  { label: "Find Parts",      icon: Search,          href: "/find-parts"      },
+  { label: "Find Spare Parts", icon: Search,          href: "/find-parts"      },
 ];
 
 // Grid is 2 columns (left | right), items fill left-to-right row by row.
@@ -32,7 +32,7 @@ const MORE_ITEMS = [
   { label: "Customers",         icon: Users,       href: "/customers"       }, // R2
   { label: "Subscriptions",     icon: CreditCard,  href: "/subscription"    }, // L3
   { label: "Invoices",          icon: FileText,    href: "/invoices"        }, // R3
-  { label: "Find Parts",        icon: Store,       href: "/find-parts"      }, // L4
+  { label: "Find Spare Parts",  icon: Store,       href: "/find-parts"      }, // L4
   { label: "Ledgers",           icon: BookMarked,  href: "/ledger"          }, // R4
   { label: "Settings",          icon: Settings,    href: "/settings"        }, // L5
   { label: "Expense",           icon: Receipt,     href: "/expenses"        }, // R5
