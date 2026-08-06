@@ -229,6 +229,12 @@ export default function FindParts() {
   const [cityQuery, setCityQuery] = useState<string>("");
   const [reviewTarget, setReviewTarget] = useState<PartsSupplier | null>(null);
 
+  // Set SEO page title
+  useEffect(() => {
+    document.title = "Buy Mobile Spare Parts Near You | ComboFinder";
+    return () => { document.title = "ComboFinder"; };
+  }, []);
+
   // IP-based country detection
   useEffect(() => {
     fetch("https://ipapi.co/json/")
@@ -271,7 +277,12 @@ export default function FindParts() {
     <div className="space-y-4 pb-8">
       {/* Header */}
       <div className="flex items-center gap-3 pt-1">
-        <h1 className="text-xl font-extrabold">Find Spare Parts Locally</h1>
+        <div>
+          <h1 className="text-xl font-extrabold">Find Spare Parts</h1>
+          <p className="text-xs mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+            Discover local mobile parts suppliers near you
+          </p>
+        </div>
       </div>
 
       {/* Promo Banner */}
