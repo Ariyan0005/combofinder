@@ -27,12 +27,12 @@ const GUEST_NAV = [
 // Left col  = tools & settings   Right col = daily operations (people & money)
 const MORE_ITEMS = [
   { label: "Unlock Services",   icon: Unlock,      href: "/unlock-services" }, // L1
-  { label: "Staff & Technician",icon: Users2,      href: "/staff"           }, // R1
-  { label: "Database",          icon: Search,      href: "/compatibility"   }, // L2
-  { label: "Customers",         icon: Users,       href: "/customers"       }, // R2
-  { label: "Subscriptions",     icon: CreditCard,  href: "/subscription"    }, // L3
-  { label: "Invoices",          icon: FileText,    href: "/invoices"        }, // R3
-  { label: "Find Spare Parts",  icon: Store,       href: "/find-parts"      }, // L4
+  { label: "Find Spare Parts",  icon: Store,       href: "/find-parts"      }, // R1
+  { label: "Staff & Technician",icon: Users2,      href: "/staff"           }, // L2
+  { label: "Database",          icon: Search,      href: "/compatibility"   }, // R2
+  { label: "Customers",         icon: Users,       href: "/customers"       }, // L3
+  { label: "Subscriptions",     icon: CreditCard,  href: "/subscription"    }, // R3
+  { label: "Invoices",          icon: FileText,    href: "/invoices"        }, // L4
   { label: "Ledgers",           icon: BookMarked,  href: "/ledger"          }, // R4
   { label: "Settings",          icon: Settings,    href: "/settings"        }, // L5
   { label: "Expense",           icon: Receipt,     href: "/expenses"        }, // R5
