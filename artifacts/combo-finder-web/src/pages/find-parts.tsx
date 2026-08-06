@@ -288,7 +288,7 @@ export default function FindParts() {
             LCD screens, batteries, charging ports, ICs, flex cables, cameras — any mobile spare parts welcome.
           </p>
           <a
-            href="https://wa.me/8801XXXXXXXXX"
+            href="https://wa.me/96897043234"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 mt-2 bg-white text-xs font-bold px-3 py-1.5 rounded-full"
