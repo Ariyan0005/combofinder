@@ -245,7 +245,10 @@ export default function FindParts() {
   // Fetch available countries
   const { data: countries = [] } = useQuery<string[]>({
     queryKey: ["parts-suppliers-countries"],
-    queryFn: () => fetch("/api/parts-suppliers/countries").then(r => r.json()),
+    queryFn: () => fetch("/api/parts-suppliers/countries").then(r => {
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    }),
   });
 
   // Fetch suppliers
@@ -253,10 +256,14 @@ export default function FindParts() {
   if (selectedCountry) params.set("country", selectedCountry);
   if (cityQuery.trim()) params.set("city", cityQuery.trim());
 
-  const { data: suppliers = [], isLoading } = useQuery<PartsSupplier[]>({
+  const { data: rawSuppliers, isLoading } = useQuery<PartsSupplier[]>({
     queryKey: ["parts-suppliers", selectedCountry, cityQuery],
-    queryFn: () => fetch(`/api/parts-suppliers?${params}`).then(r => r.json()),
+    queryFn: () => fetch(`/api/parts-suppliers?${params}`).then(r => {
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    }),
   });
+  const suppliers = Array.isArray(rawSuppliers) ? rawSuppliers : [];
 
   const PRIMARY = "hsl(var(--primary))";
 
