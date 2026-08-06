@@ -271,7 +271,7 @@ export default function FindParts() {
     <div className="space-y-4 pb-8">
       {/* Header */}
       <div className="flex items-center gap-3 pt-1">
-        <h1 className="text-xl font-extrabold">Find Spare Parts</h1>
+        <h1 className="text-xl font-extrabold">Find Spare Parts Locally</h1>
       </div>
 
       {/* Promo Banner */}
