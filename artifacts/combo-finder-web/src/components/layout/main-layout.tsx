@@ -153,6 +153,16 @@ export default function MainLayout({ children }: { children: ReactNode }) {
                 </Link>
               );
             })}
+            {/* Exit Guest Mode button — only shown for guests */}
+            {isGuest && (
+              <button
+                onClick={handleLogout}
+                className="flex-1 flex flex-col items-center justify-center py-2 gap-1 transition-colors"
+                style={{ color: "hsl(var(--destructive))" }}>
+                <LogOut className="w-5 h-5" />
+                <span className="text-[9px] font-semibold">Exit</span>
+              </button>
+            )}
           </div>
         </nav>
       </div>
