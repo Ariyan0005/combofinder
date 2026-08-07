@@ -7,6 +7,7 @@ export const usersTable = pgTable("users", {
   phone: text("phone"),
   passwordHash: text("password_hash"),
   accountType: text("account_type").notNull().default("Free Technician"),
+  businessType: text("business_type").notNull().default("mobile_repair"),
   subscriptionPlan: text("subscription_plan").default("Free"),
   subscriptionStatus: text("subscription_status").default("active"),
   subscriptionExpiresAt: timestamp("subscription_expires_at"),

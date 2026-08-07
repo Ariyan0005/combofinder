@@ -354,22 +354,24 @@ router.post("/auth/register", registerLimiter, async (req, res) => {
       }
     } catch { /* email column may not exist yet — skip duplicate check */ }
 
-    const { shopName, currency: countryCurrency } = req.body as { shopName?: string; currency?: string };
+    const { shopName, currency: countryCurrency, businessType } = req.body as { shopName?: string; currency?: string; businessType?: string };
     const passwordHash = hashPassword(password);
 
     // Build insert values — only include optional columns if they are safe to use
     // isActive / isApproved may not exist on older VPS schemas; catch & retry without them
-    let user: { id: number; name: string; email: string | null; accountType: string; subscriptionPlan: string | null; currency: string | null };
+    let user: { id: number; name: string; email: string | null; accountType: string; subscriptionPlan: string | null; currency: string | null; businessType: string };
     try {
       [user] = await db.insert(usersTable).values({
         name: name.trim(), email: normalizedEmail, phone: phone?.trim() ?? null,
         passwordHash, accountType: "Free Technician", subscriptionPlan: "Free",
+        businessType: businessType === "general_store" ? "general_store" : "mobile_repair",
         isActive: false, isApproved: false,
         currency: countryCurrency ?? "USD",
         shopName: shopName?.trim() ?? null,
       }).returning({
         id: usersTable.id, name: usersTable.name, email: usersTable.email,
         accountType: usersTable.accountType, subscriptionPlan: usersTable.subscriptionPlan, currency: usersTable.currency,
+        businessType: usersTable.businessType,
       });
     } catch (insertErr: any) {
       // If column missing, retry without optional columns
@@ -378,9 +380,11 @@ router.post("/auth/register", registerLimiter, async (req, res) => {
           name: name.trim(), email: normalizedEmail, phone: phone?.trim() ?? null,
           passwordHash, currency: countryCurrency ?? "USD",
           shopName: shopName?.trim() ?? null,
+          businessType: businessType === "general_store" ? "general_store" : "mobile_repair",
         } as any).returning({
           id: usersTable.id, name: usersTable.name, email: usersTable.email,
           accountType: usersTable.accountType, subscriptionPlan: usersTable.subscriptionPlan, currency: usersTable.currency,
+          businessType: usersTable.businessType,
         });
       } else { throw insertErr; }
     }
@@ -407,7 +411,7 @@ router.post("/auth/register", registerLimiter, async (req, res) => {
       (req.session as any).userName = user.name;
       (req.session as any).userRole = user.accountType;
       (req.session as any).userCurrency = user.currency ?? "USD";
-      res.json({ success: true, requiresVerification: false, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan, currency: user.currency ?? "USD" } });
+      res.json({ success: true, requiresVerification: false, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan, currency: user.currency ?? "USD", businessType: user.businessType ?? "mobile_repair" } });
       return;
     }
 
@@ -420,7 +424,7 @@ router.post("/auth/register", registerLimiter, async (req, res) => {
       (req.session as any).userName = user.name;
       (req.session as any).userRole = user.accountType;
       (req.session as any).userCurrency = user.currency ?? "USD";
-      res.json({ success: true, requiresVerification: false, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan, currency: user.currency ?? "USD" } });
+      res.json({ success: true, requiresVerification: false, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan, currency: user.currency ?? "USD", businessType: user.businessType ?? "mobile_repair" } });
       return;
     }
     res.json({ success: true, requiresVerification: true, email: user.email });
@@ -595,7 +599,8 @@ router.post("/auth/login", loginLimiter, async (req, res) => {
     (req.session as any).userRole = user.accountType;
     (req.session as any).userPlan = user.subscriptionPlan ?? "Free";
     (req.session as any).userCurrency = user.currency ?? "USD";
-    res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan ?? "Free", currency: user.currency ?? "USD", shopName: user.shopName ?? "", shopAddress: user.shopAddress ?? "", shopLogo: user.shopLogo ?? null } });
+    (req.session as any).userBusinessType = user.businessType ?? "mobile_repair";
+    res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan ?? "Free", currency: user.currency ?? "USD", shopName: user.shopName ?? "", shopAddress: user.shopAddress ?? "", shopLogo: user.shopLogo ?? null, businessType: user.businessType ?? "mobile_repair" } });
   } catch (err) {
     req.log.error({ err }, "Login error");
     res.status(500).json({ error: "Login failed. Please try again." });
@@ -617,6 +622,7 @@ router.get("/auth/me", async (req, res) => {
     // Read plan fresh from DB so admin plan updates are reflected immediately
     // without requiring the user to log out and back in.
     let plan: string = (req.session as any).userPlan ?? "Free";
+    let businessTypeFromDb: string = (req.session as any).userBusinessType ?? "mobile_repair";
     if (userId) {
       try {
         const [u] = await db.select({
@@ -626,6 +632,7 @@ router.get("/auth/me", async (req, res) => {
           shopLogo: usersTable.shopLogo,
           email: usersTable.email,
           subscriptionPlan: usersTable.subscriptionPlan,
+          businessType: usersTable.businessType,
         }).from(usersTable).where(eq(usersTable.id, userId));
         currency = u?.currency ?? "USD";
         shopName = u?.shopName ?? "";
@@ -633,6 +640,7 @@ router.get("/auth/me", async (req, res) => {
         shopLogo = u?.shopLogo ?? null;
         email = u?.email ?? "";
         plan = u?.subscriptionPlan ?? "Free";
+        businessTypeFromDb = u?.businessType ?? "mobile_repair";
       } catch {}
     }
     res.json({
@@ -647,6 +655,7 @@ router.get("/auth/me", async (req, res) => {
         shopName,
         shopAddress,
         shopLogo,
+        businessType: businessTypeFromDb,
       },
     });
   } else {

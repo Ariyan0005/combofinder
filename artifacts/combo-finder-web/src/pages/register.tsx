@@ -252,6 +252,7 @@ export default function Register() {
     password: "",
     country: "",
     shopName: "",
+    businessType: "mobile_repair",
   });
   const [showPass, setShowPass] = useState(false);
   const [agreed, setAgreed] = useState(false);
@@ -332,6 +333,7 @@ export default function Register() {
     if (form.password.length < 6) { setError("Password must be at least 6 characters"); return; }
     if (!form.country) { setError("Please select your country"); return; }
     if (!form.shopName.trim()) { setError("Business name is required"); return; }
+    if (!form.businessType) { setError("Please select your business type"); return; }
     if (!agreed) { setError("Please agree to the Terms and Privacy Policy"); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError("Enter a valid email address"); return; }
     if (emailStatus === "taken") { setDupEmail(true); return; }
@@ -342,7 +344,7 @@ export default function Register() {
       const res = await fetch("/api/auth/register", {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: form.name.trim(), email: form.email, password: form.password, shopName: form.shopName.trim(), currency }),
+        body: JSON.stringify({ name: form.name.trim(), email: form.email, password: form.password, shopName: form.shopName.trim(), currency, businessType: form.businessType }),
       });
       const data = await res.json() as { success?: boolean; requiresVerification?: boolean; email?: string; user?: any; error?: string };
       if (!res.ok) {
@@ -598,6 +600,34 @@ export default function Register() {
               <input type="text" placeholder="Enter your business name" value={form.shopName}
                 onChange={set("shopName")} className={inputCls} style={iStyle}
                 onFocus={focIn} onBlur={focOut} />
+            </div>
+
+            {/* Business Type */}
+            <div>
+              <label className="text-sm font-semibold block mb-1">
+                Business Type <span style={{ color: "hsl(var(--destructive))" }}>*</span>
+              </label>
+              <div className="flex gap-3">
+                {[
+                  { value: "mobile_repair", label: "Mobile & Repair Shop", icon: "🔧" },
+                  { value: "general_store", label: "General Store", icon: "🏪" },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setForm(p => ({ ...p, businessType: opt.value }))}
+                    className="flex-1 flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl border text-sm font-semibold transition-all"
+                    style={{
+                      borderColor: form.businessType === opt.value ? "hsl(var(--primary))" : "hsl(var(--border))",
+                      background: form.businessType === opt.value ? "hsl(var(--primary) / 0.08)" : "hsl(var(--card))",
+                      color: form.businessType === opt.value ? "hsl(var(--primary))" : "hsl(var(--foreground))",
+                    }}
+                  >
+                    <span className="text-xl">{opt.icon}</span>
+                    <span className="text-xs text-center leading-tight">{opt.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Terms */}

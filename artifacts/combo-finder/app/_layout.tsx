@@ -17,6 +17,7 @@ import { setBaseUrl } from "@workspace/api-client-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdateModal } from "@/components/UpdateModal";
 import { useUpdateChecker } from "@/hooks/useUpdateChecker";
+import { UserProvider } from "@/context/UserContext";
 
 setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
 
@@ -72,14 +73,16 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <KeyboardProvider>
-              <RootLayoutNav />
-              {updateInfo && (
-                <UpdateModal info={updateInfo} onDismiss={dismiss} />
-              )}
-            </KeyboardProvider>
-          </GestureHandlerRootView>
+          <UserProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <KeyboardProvider>
+                <RootLayoutNav />
+                {updateInfo && (
+                  <UpdateModal info={updateInfo} onDismiss={dismiss} />
+                )}
+              </KeyboardProvider>
+            </GestureHandlerRootView>
+          </UserProvider>
         </QueryClientProvider>
       </ErrorBoundary>
     </SafeAreaProvider>

@@ -5,14 +5,23 @@ import React from "react";
 import { Platform, StyleSheet, View, useColorScheme, Pressable } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
+import { useUser } from "@/context/UserContext";
 
 export default function TabLayout() {
   const colors = useColors();
   const colorScheme = useColorScheme();
   const router = useRouter();
+  const { user } = useUser();
   const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
+
+  const isGeneralStore = user.businessType === "general_store";
+
+  // Center tab: Repairs (mobile_repair) or Stock In (general_store)
+  const centerLabel = isGeneralStore ? "Stock In" : "Repairs";
+  const centerIcon = isGeneralStore ? "package" : "tool";
+  const centerRoute = isGeneralStore ? "/inventory" : "/new-repair";
 
   return (
     <Tabs
@@ -47,6 +56,7 @@ export default function TabLayout() {
         },
       }}
     >
+      {/* Home */}
       <Tabs.Screen
         name="index"
         options={{
@@ -56,24 +66,28 @@ export default function TabLayout() {
           ),
         }}
       />
+
+      {/* POS — shown for both types */}
       <Tabs.Screen
-        name="search"
+        name="pos"
         options={{
-          title: "Search",
+          title: "POS",
           tabBarIcon: ({ color }) => (
-            <Feather name="search" size={22} color={color} />
+            <Feather name="credit-card" size={22} color={color} />
           ),
         }}
       />
+
+      {/* Center action tab: Repairs or Stock In */}
       <Tabs.Screen
         name="new"
         options={{
-          title: "",
+          title: centerLabel,
           tabBarIcon: () => null,
           tabBarButton: (props) => (
             <Pressable
               {...props}
-              onPress={() => router.push("/new-repair")}
+              onPress={() => router.push(centerRoute as any)}
               style={{
                 top: -15,
                 justifyContent: "center",
@@ -96,12 +110,14 @@ export default function TabLayout() {
                   elevation: 5,
                 }}
               >
-                <Feather name="plus" size={28} color="#fff" />
+                <Feather name={centerIcon as any} size={26} color="#fff" />
               </View>
             </Pressable>
           ),
         }}
       />
+
+      {/* Inventory */}
       <Tabs.Screen
         name="inventory"
         options={{
@@ -111,22 +127,22 @@ export default function TabLayout() {
           ),
         }}
       />
+
+      {/* More (was Profile) */}
       <Tabs.Screen
-        name="profile"
+        name="more"
         options={{
-          title: "Profile",
+          title: "More",
           tabBarIcon: ({ color }) => (
-            <Feather name="user" size={22} color={color} />
+            <Feather name="menu" size={22} color={color} />
           ),
         }}
       />
-      {/* Hide brands tab if it exists, or remove it */}
-      <Tabs.Screen
-        name="brands"
-        options={{
-          href: null,
-        }}
-      />
+
+      {/* Hidden screens */}
+      <Tabs.Screen name="brands" options={{ href: null }} />
+      <Tabs.Screen name="search" options={{ href: null }} />
+      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
 }
