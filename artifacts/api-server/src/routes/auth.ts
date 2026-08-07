@@ -555,12 +555,31 @@ router.post("/auth/login", loginLimiter, async (req, res) => {
     const lowerIdentifier = identifier.toLowerCase();
     let users: typeof usersTable.$inferSelect[] = [];
 
-    // 1. Try email column (may not exist on older VPS schemas)
+    // Safe column subset: excludes newly-added columns (e.g. business_type)
+    // that may not yet exist on the live DB. Used as a fallback when the full
+    // SELECT fails so a pending migration never blocks user login.
+    const safeUserCols = {
+      id: usersTable.id, name: usersTable.name, email: usersTable.email,
+      phone: usersTable.phone, passwordHash: usersTable.passwordHash,
+      accountType: usersTable.accountType, subscriptionPlan: usersTable.subscriptionPlan,
+      isActive: usersTable.isActive, isApproved: usersTable.isApproved,
+      currency: usersTable.currency, shopName: usersTable.shopName,
+      shopAddress: usersTable.shopAddress, shopLogo: usersTable.shopLogo,
+    };
+
+    // 1. Try email column — full select first, fallback to safe cols if new column missing
     if (users.length === 0) {
       try {
         users = await db.select().from(usersTable)
           .where(eq(usersTable.email, lowerIdentifier)).limit(1);
-      } catch { /* email column missing — fall through */ }
+      } catch {
+        // New column (business_type etc.) missing on live DB — retry with safe cols
+        try {
+          const rows = await db.select(safeUserCols).from(usersTable)
+            .where(eq(usersTable.email, lowerIdentifier)).limit(1);
+          users = rows.map(r => ({ ...r, businessType: "mobile_repair" })) as any;
+        } catch { /* email column itself missing — fall through */ }
+      }
     }
 
     // 2. Try phone column
@@ -568,7 +587,13 @@ router.post("/auth/login", loginLimiter, async (req, res) => {
       try {
         users = await db.select().from(usersTable)
           .where(eq(usersTable.phone, identifier)).limit(1);
-      } catch { /* phone column missing — fall through */ }
+      } catch {
+        try {
+          const rows = await db.select(safeUserCols).from(usersTable)
+            .where(eq(usersTable.phone, identifier)).limit(1);
+          users = rows.map(r => ({ ...r, businessType: "mobile_repair" })) as any;
+        } catch { /* phone column missing — fall through */ }
+      }
     }
 
     // 3. Try name (case-insensitive full scan)
@@ -577,7 +602,13 @@ router.post("/auth/login", loginLimiter, async (req, res) => {
         const all = await db.select().from(usersTable);
         const match = all.find(u => u.name?.toLowerCase() === lowerIdentifier);
         if (match) users = [match];
-      } catch { /* ignore */ }
+      } catch {
+        try {
+          const all = await db.select(safeUserCols).from(usersTable);
+          const match = all.find(u => u.name?.toLowerCase() === lowerIdentifier);
+          if (match) users = [{ ...match, businessType: "mobile_repair" }] as any;
+        } catch { /* ignore */ }
+      }
     }
 
     if (users.length === 0 || !users[0].passwordHash) {
