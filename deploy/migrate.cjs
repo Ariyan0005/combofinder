@@ -31,6 +31,7 @@ const MIGRATIONS = [
   )`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS shop_name TEXT`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS business_type TEXT NOT NULL DEFAULT 'mobile_repair'`,
 
   // ── Repairs ───────────────────────────────────────────────────────────
   `CREATE TABLE IF NOT EXISTS repairs (
