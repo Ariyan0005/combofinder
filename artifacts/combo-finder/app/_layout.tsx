@@ -18,6 +18,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdateModal } from "@/components/UpdateModal";
 import { useUpdateChecker } from "@/hooks/useUpdateChecker";
 import { UserProvider } from "@/context/UserContext";
+import { useColors } from "@/hooks/useColors";
 
 setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
 
@@ -26,6 +27,8 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
+  const colors = useColors();
+
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -33,7 +36,7 @@ function RootLayoutNav() {
         name="model/[id]"
         options={{
           headerTitle: "Model Details",
-          headerStyle: { backgroundColor: "#0080DB" },
+           headerStyle: { backgroundColor: colors.primary },
           headerTintColor: "#fff",
           headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
         }}
@@ -42,7 +45,7 @@ function RootLayoutNav() {
         name="brand/[id]"
         options={{
           headerTitle: "Models",
-          headerStyle: { backgroundColor: "#0080DB" },
+           headerStyle: { backgroundColor: colors.primary },
           headerTintColor: "#fff",
           headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
         }}

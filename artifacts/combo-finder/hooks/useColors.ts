@@ -1,6 +1,7 @@
 import { useColorScheme } from "react-native";
 
 import colors from "@/constants/colors";
+import { useUser } from "@/context/UserContext";
 
 /**
  * Returns the design tokens for the current color scheme.
@@ -16,9 +17,15 @@ import colors from "@/constants/colors";
  */
 export function useColors() {
   const scheme = useColorScheme();
+  const { user } = useUser();
+  const isGeneralStore = user.businessType === "general_store";
   const palette =
-    scheme === "dark" && "dark" in colors
-      ? (colors as Record<string, typeof colors.light>).dark
-      : colors.light;
+    isGeneralStore
+      ? scheme === "dark"
+        ? colors.generalStoreDark
+        : colors.generalStore
+      : scheme === "dark" && "dark" in colors
+        ? colors.dark
+        : colors.light;
   return { ...palette, radius: colors.radius };
 }

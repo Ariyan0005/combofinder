@@ -185,12 +185,11 @@ export async function silentDriveBackup(
   userId: number,
   exportData: () => object,
 ): Promise<boolean> {
-  // Try to get a valid token — refresh silently if expired
-  let token = getStoredToken();
-  if (!token && hadGDriveConnected()) {
-    const refreshed = await silentRefreshToken();
-    if (refreshed) token = getStoredToken();
-  }
+  // Automatic backups may run during app startup/refresh, outside a user
+  // gesture. Never request a new Google token here: GIS can show an
+  // authorization popup when the old token has expired. Reconnecting is
+  // intentionally handled by an explicit Settings action instead.
+  const token = getStoredToken();
   if (!token) return false; // not connected — skip
 
   const key  = `cf_last_backup_${userId}`;

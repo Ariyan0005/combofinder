@@ -8,6 +8,7 @@ export type UserInfo = {
   email?: string;
   role: string;
   plan?: string;
+  businessType?: "mobile_repair" | "general_store";
   currency?: string;
   shopName?: string;
   shopAddress?: string;
@@ -28,6 +29,15 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function applyBusinessTheme(user: UserInfo | null) {
+  if (typeof document === "undefined") return;
+  if (user?.businessType === "general_store") {
+    document.documentElement.dataset.businessType = "general_store";
+  } else {
+    delete document.documentElement.dataset.businessType;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isGuest, setIsGuest] = useState(false);
@@ -39,12 +49,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await r.json() as { authenticated: boolean; user?: UserInfo };
     if (data.authenticated && data.user) {
       setUser(data.user);
+      applyBusinessTheme(data.user);
       // Free users: auto-backup to Google Drive (silent — only if already connected)
       if (data.user.id && data.user.plan !== "Pro") {
         const uid = data.user.id;
         silentDriveBackup(uid, () => exportAllLocalData(uid)).catch(() => {});
       }
-    } else setUser(null);
+    } else {
+      setUser(null);
+      applyBusinessTheme(null);
+    }
   }
 
   useEffect(() => {
@@ -66,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json() as { success?: boolean; error?: string; user?: UserInfo };
     if (!res.ok) throw new Error(data.error ?? "Invalid credentials");
     setUser(data.user!);
+    applyBusinessTheme(data.user!);
     setIsGuest(false);
     sessionStorage.removeItem("cf_guest");
     if (data.user?.id && data.user?.plan !== "Pro") {
@@ -83,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json() as { success?: boolean; error?: string; user?: UserInfo };
     if (!res.ok) throw new Error(data.error ?? "Registration failed");
     setUser(data.user!);
+    applyBusinessTheme(data.user!);
     setIsGuest(false);
     sessionStorage.removeItem("cf_guest");
   }
@@ -90,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function logout() {
     await fetch(`/api/auth/logout`, { method: "POST", credentials: "include" });
     setUser(null); setIsGuest(false);
+    applyBusinessTheme(null);
     sessionStorage.removeItem("cf_guest");
   }
 

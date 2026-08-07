@@ -6,8 +6,6 @@ import { ProtectedPage } from "@/components/protected-page";
 import { exportAllLocalData, importLocalBackup } from "@/lib/local-store";
 import {
   isGDriveConnected,
-  hadGDriveConnected,
-  silentRefreshToken,
   requestGDriveToken,
   uploadToDrive,
   downloadFromDrive,
@@ -285,7 +283,6 @@ export default function Settings() {
 
   // Google Drive backup state
   const [gDriveConnected, setGDriveConnected] = useState(() => isGDriveConnected());
-  const [gDriveRefreshing, setGDriveRefreshing] = useState(false);
   const [backupSending, setBackupSending] = useState(false);
   const [backupStatus, setBackupStatus] = useState<"idle"|"success"|"error">("idle");
   const [backupErr, setBackupErr] = useState("");
@@ -314,18 +311,12 @@ export default function Settings() {
     return `${days} day${days > 1 ? "s" : ""} ago`;
   }
 
-  // On mount: if token expired but user previously connected, silently refresh
-  // Skip for Pro users — they use server storage, not Google Drive backup
+  // Do not request a Google token while opening/refreshing Settings. Token
+  // acquisition must only happen after the user explicitly clicks Connect or
+  // a backup/restore action, otherwise GIS may show a popup unexpectedly.
   useEffect(() => {
-    if (user?.plan === "Pro") return;
-    if (!isGDriveConnected() && hadGDriveConnected()) {
-      setGDriveRefreshing(true);
-      silentRefreshToken()
-        .then(ok => { if (ok) setGDriveConnected(true); })
-        .catch(() => {})
-        .finally(() => setGDriveRefreshing(false));
-    }
-  }, [user?.plan]);
+    setGDriveConnected(isGDriveConnected());
+  }, [user?.id, user?.plan]);
 
   async function handleConnectDrive() {
     setConnecting(true);
