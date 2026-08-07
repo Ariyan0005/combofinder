@@ -355,6 +355,7 @@ router.post("/auth/register", registerLimiter, async (req, res) => {
     } catch { /* email column may not exist yet — skip duplicate check */ }
 
     const { shopName, currency: countryCurrency, businessType } = req.body as { shopName?: string; currency?: string; businessType?: string };
+    const requestedBusinessType = businessType === "general_store" ? "general_store" : "mobile_repair";
     const passwordHash = hashPassword(password);
 
     // Build insert values — only include optional columns if they are safe to use
@@ -364,7 +365,7 @@ router.post("/auth/register", registerLimiter, async (req, res) => {
       [user] = await db.insert(usersTable).values({
         name: name.trim(), email: normalizedEmail, phone: phone?.trim() ?? null,
         passwordHash, accountType: "Free Technician", subscriptionPlan: "Free",
-        businessType: businessType === "general_store" ? "general_store" : "mobile_repair",
+        businessType: requestedBusinessType,
         isActive: false, isApproved: false,
         currency: countryCurrency ?? "USD",
         shopName: shopName?.trim() ?? null,
@@ -374,18 +375,27 @@ router.post("/auth/register", registerLimiter, async (req, res) => {
         businessType: usersTable.businessType,
       });
     } catch (insertErr: any) {
-      // If column missing, retry without optional columns
+      // If an older deployment is missing an optional column, retry with a
+      // legacy-safe subset. Never send business_type when that column is
+      // the one missing, otherwise the fallback fails for the same reason.
       if (insertErr?.message?.includes("column") || insertErr?.message?.includes("does not exist")) {
-        [user] = await db.insert(usersTable).values({
+        const businessTypeColumnMissing = insertErr?.message?.includes("business_type");
+        if (businessTypeColumnMissing && requestedBusinessType === "general_store") {
+          res.status(503).json({ error: "Registration is temporarily unavailable while your account setup is being updated. Please try again shortly." });
+          return;
+        }
+        const legacyValues = {
           name: name.trim(), email: normalizedEmail, phone: phone?.trim() ?? null,
           passwordHash, currency: countryCurrency ?? "USD",
           shopName: shopName?.trim() ?? null,
-          businessType: businessType === "general_store" ? "general_store" : "mobile_repair",
-        } as any).returning({
+          ...(!businessTypeColumnMissing ? { businessType: requestedBusinessType } : {}),
+        } as any;
+        [user] = await db.insert(usersTable).values(legacyValues).returning({
           id: usersTable.id, name: usersTable.name, email: usersTable.email,
           accountType: usersTable.accountType, subscriptionPlan: usersTable.subscriptionPlan, currency: usersTable.currency,
-          businessType: usersTable.businessType,
-        });
+          ...(businessTypeColumnMissing ? {} : { businessType: usersTable.businessType }),
+        }) as any;
+        user = { ...user, businessType: requestedBusinessType };
       } else { throw insertErr; }
     }
 
@@ -415,7 +425,7 @@ router.post("/auth/register", registerLimiter, async (req, res) => {
       return;
     }
 
-    const emailSent = await sendVerificationEmail(user.name, user.email, verifyCode);
+    const emailSent = await sendVerificationEmail(user.name, user.email ?? normalizedEmail, verifyCode);
     if (!emailSent) {
       // SMTP not configured — activate immediately as fallback
       await db.update(usersTable).set({ isActive: true, isApproved: true }).where(eq(usersTable.id, user.id));
@@ -615,7 +625,8 @@ router.post("/auth/login", loginLimiter, async (req, res) => {
       res.status(401).json({ error: "Invalid email/username or password" }); return;
     }
     const user = users[0];
-    if (!verifyPassword(password, user.passwordHash)) {
+    const storedPasswordHash = user.passwordHash;
+    if (!storedPasswordHash || !verifyPassword(password, storedPasswordHash)) {
       res.status(401).json({ error: "Invalid email or password" }); return;
     }
     if (!user.isApproved) {
@@ -733,7 +744,7 @@ router.post("/auth/forgot-password", forgotLimiter, async (req, res) => {
       expiresAt,
     });
 
-    await sendPasswordResetEmail(user.name, user.email, code);
+    await sendPasswordResetEmail(user.name, user.email ?? normalizedEmail, code);
     res.json({ success: true, message: "Reset code sent to your email." });
   } catch (err: any) {
     req.log.error({ err }, "Forgot password error");

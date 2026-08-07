@@ -30,6 +30,8 @@ const MIGRATIONS = [
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
   )`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT`,
+  `ALTER TABLE users ALTER COLUMN phone DROP NOT NULL`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS shop_name TEXT`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS business_type TEXT NOT NULL DEFAULT 'mobile_repair'`,
 
@@ -209,6 +211,31 @@ async function run() {
         console.warn("  WARN:", preview);
         console.warn("       ", err.message);
       }
+    }
+
+    // Legacy statements remain individually tolerant, but never report
+    // success if the schema required by registration is still incomplete.
+    const requiredSchema = await client.query(`
+      SELECT 'users.phone' AS item
+      WHERE NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'phone'
+      )
+      UNION ALL
+      SELECT 'users.business_type'
+      WHERE NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'business_type'
+      )
+      UNION ALL
+      SELECT 'password_reset_tokens'
+      WHERE NOT EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'password_reset_tokens'
+      )
+    `);
+    if (requiredSchema.rows.length > 0) {
+      throw new Error(`Required schema is missing after migration: ${requiredSchema.rows.map((row) => row.item).join(", ")}`);
     }
 
     console.log("\nDB migration complete ✓");
