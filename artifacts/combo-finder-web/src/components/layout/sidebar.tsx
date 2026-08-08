@@ -23,9 +23,22 @@ const NAV_ITEMS = [
   { label: "Settings", icon: Settings, href: "/settings" },
 ];
 
+const GENERAL_STORE_NAV_ITEMS = [
+  { label: "Dashboard", icon: LayoutDashboard, href: "/" },
+  { label: "Point of Sale", icon: ShoppingCart, href: "/pos" },
+  { label: "Stock In", icon: Package, href: "/inventory?action=stock-in" },
+  { label: "Inventory", icon: Package, href: "/inventory" },
+  { label: "Customers", icon: Users, href: "/customers" },
+  { label: "Invoices", icon: FileText, href: "/invoices" },
+  { label: "Reports", icon: BarChart2, href: "/reports" },
+  { label: "Expenses", icon: Receipt, href: "/expenses" },
+  { label: "Settings", icon: Settings, href: "/settings" },
+];
+
 export default function Sidebar({ onClose }: { onClose: () => void }) {
   const [location] = useLocation();
   const { user, isGuest, logout } = useAuth();
+  const navItems = user?.businessType === "general_store" ? GENERAL_STORE_NAV_ITEMS : NAV_ITEMS;
 
   const isActive = (href: string) =>
     href === "/" ? location === "/" : location.startsWith(href);
@@ -55,7 +68,7 @@ export default function Sidebar({ onClose }: { onClose: () => void }) {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const active = isActive(item.href);
           return (
             <Link key={item.href} href={item.href}>
@@ -80,17 +93,18 @@ export default function Sidebar({ onClose }: { onClose: () => void }) {
           );
         })}
 
-        {/* Subscription link */}
-        <Link href="/subscription">
-          <div onClick={onClose}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium transition-all mt-1"
-            style={{ color: "rgba(255,255,255,0.55)" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.07)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = ""; }}>
-            <CreditCard className="w-4 h-4 flex-shrink-0" />
-            Subscription
-          </div>
-        </Link>
+        {user?.businessType !== "general_store" && (
+          <Link href="/subscription">
+            <div onClick={onClose}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium transition-all mt-1"
+              style={{ color: "rgba(255,255,255,0.55)" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.07)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = ""; }}>
+              <CreditCard className="w-4 h-4 flex-shrink-0" />
+              Subscription
+            </div>
+          </Link>
+        )}
       </nav>
 
       {/* User footer */}

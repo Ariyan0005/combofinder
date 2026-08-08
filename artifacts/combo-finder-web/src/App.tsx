@@ -1,4 +1,5 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Redirect, Router as WouterRouter } from "wouter";
+import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/context/auth-context";
 import { MigrationProvider } from "@/context/migration-context";
@@ -53,6 +54,11 @@ function Spinner() {
   );
 }
 
+function MobileRepairOnly({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  return user?.businessType === "general_store" ? <Redirect to="/" /> : <>{children}</>;
+}
+
 function Router() {
   const { user, isGuest, isLoading } = useAuth();
 
@@ -87,33 +93,33 @@ function Router() {
             <Route path="/compatibility" component={Compatibility} />
             <Route path="/brands/:id" component={BrandDetail} />
             <Route path="/models/:id" component={ModelDetail} />
-            <Route path="/repairs" component={Repairs} />
+            <Route path="/repairs"><MobileRepairOnly><Repairs /></MobileRepairOnly></Route>
             <Route path="/inventory" component={Inventory} />
             <Route path="/pos" component={Pos} />
             <Route path="/invoices" component={Invoices} />
             <Route path="/customers" component={Customers} />
             <Route path="/customers/:id" component={CustomerProfile} />
-            <Route path="/knowledge-base" component={KnowledgeBase} />
+            <Route path="/knowledge-base"><MobileRepairOnly><KnowledgeBase /></MobileRepairOnly></Route>
             <Route path="/reports" component={Reports} />
-            <Route path="/unlock-services" component={UnlockServices} />
+            <Route path="/unlock-services"><MobileRepairOnly><UnlockServices /></MobileRepairOnly></Route>
             <Route path="/expenses" component={Expenses} />
             <Route path="/settings" component={Settings} />
             <Route path="/subscription" component={Subscription} />
             <Route path="/ledger" component={Ledger} />
-            <Route path="/isp-pinout" component={IspPinout} />
+            <Route path="/isp-pinout"><MobileRepairOnly><IspPinout /></MobileRepairOnly></Route>
             <Route path="/manage-categories" component={ManageCategories} />
             <Route path="/manage-suppliers" component={ManageSuppliers} />
             <Route path="/supplier-ledger/:id" component={SupplierLedger} />
-            <Route path="/battery-brand/:id" component={BatteryBrandPage} />
-            <Route path="/battery-model/:id" component={BatteryModelPage} />
-            <Route path="/ic-brand/:id" component={IcBrandPage} />
-            <Route path="/ic-model/:id" component={IcModelPage} />
+            <Route path="/battery-brand/:id"><MobileRepairOnly><BatteryBrandPage /></MobileRepairOnly></Route>
+            <Route path="/battery-model/:id"><MobileRepairOnly><BatteryModelPage /></MobileRepairOnly></Route>
+            <Route path="/ic-brand/:id"><MobileRepairOnly><IcBrandPage /></MobileRepairOnly></Route>
+            <Route path="/ic-model/:id"><MobileRepairOnly><IcModelPage /></MobileRepairOnly></Route>
             <Route path="/donate" component={Donate} />
             <Route path="/privacy" component={Privacy} />
             <Route path="/terms" component={Terms} />
             <Route path="/sales-report" component={SalesReport} />
             <Route path="/staff" component={StaffPage} />
-            <Route path="/find-parts" component={FindParts} />
+            <Route path="/find-parts"><MobileRepairOnly><FindParts /></MobileRepairOnly></Route>
             <Route>
               <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
                 <p className="text-4xl font-bold">404</p>

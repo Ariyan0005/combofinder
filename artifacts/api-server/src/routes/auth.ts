@@ -491,9 +491,18 @@ router.post("/auth/verify-email", verifyLimiter, async (req, res) => {
     (req.session as any).userRole = user.accountType;
     (req.session as any).userPlan = user.subscriptionPlan ?? "Free";
     (req.session as any).userCurrency = user.currency ?? "USD";
+    (req.session as any).userBusinessType = user.businessType ?? "mobile_repair";
 
     sendWelcomeEmail(user.name, user.email);
-    res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.accountType, plan: user.subscriptionPlan ?? "Free", currency: user.currency ?? "USD" } });
+    res.json({ success: true, user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.accountType,
+      plan: user.subscriptionPlan ?? "Free",
+      currency: user.currency ?? "USD",
+      businessType: user.businessType ?? "mobile_repair",
+    } });
   } catch (err) {
     req.log.error({ err }, "Verify email error");
     res.status(500).json({ error: "Verification failed. Please try again." });

@@ -17,6 +17,14 @@ const BOTTOM_NAV = [
   { label: "More",      icon: Menu,            href: "__more__"   },
 ];
 
+const GENERAL_STORE_BOTTOM_NAV = [
+  { label: "Home",      icon: LayoutDashboard, href: "/"          },
+  { label: "POS",       icon: ShoppingCart,    href: "/pos"       },
+  { label: "Stock In",  icon: Package,         href: "/inventory?action=stock-in"  },
+  { label: "Inventory", icon: Package,         href: "/inventory"  },
+  { label: "More",      icon: Menu,            href: "__more__"   },
+];
+
 const GUEST_NAV = [
   { label: "Home",            icon: LayoutDashboard, href: "/"                },
   { label: "Unlock Services", icon: Unlock,          href: "/unlock-services" },
@@ -38,10 +46,22 @@ const MORE_ITEMS = [
   { label: "Expense",           icon: Receipt,     href: "/expenses"        }, // R5
 ];
 
+const GENERAL_STORE_MORE_ITEMS = [
+  { label: "Customers",         icon: Users,       href: "/customers"       },
+  { label: "Expenses",          icon: Receipt,     href: "/expenses"        },
+  { label: "Suppliers",         icon: Users2,      href: "/manage-suppliers" },
+  { label: "Staff",             icon: Users2,      href: "/staff"           },
+  { label: "Sales Summary",     icon: FileText,    href: "/sales-report"    },
+  { label: "Settings",          icon: Settings,    href: "/settings"        },
+];
+
 export default function MainLayout({ children }: { children: ReactNode }) {
   const [location, navigate] = useLocation();
   const { user, isGuest, logout } = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
+  const isGeneralStore = user?.businessType === "general_store";
+  const bottomNav = isGeneralStore ? GENERAL_STORE_BOTTOM_NAV : BOTTOM_NAV;
+  const moreItems = isGeneralStore ? GENERAL_STORE_MORE_ITEMS : MORE_ITEMS;
 
   const isActive = (href: string) =>
     href === "/" ? location === "/" : location.startsWith(href);
@@ -107,7 +127,7 @@ export default function MainLayout({ children }: { children: ReactNode }) {
         {/* Mobile bottom nav */}
         <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-card border-t border-border">
           <div className="flex items-center">
-            {(isGuest ? GUEST_NAV : BOTTOM_NAV).map((item) => {
+            {(isGuest ? GUEST_NAV : bottomNav).map((item) => {
               if (item.href === "__more__") {
                 return (
                   <button key="more"
@@ -182,7 +202,7 @@ export default function MainLayout({ children }: { children: ReactNode }) {
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2 mb-4">
-              {MORE_ITEMS.map((item) => (
+              {moreItems.map((item) => (
                 <Link key={item.href} href={item.href}>
                   <button onClick={() => setMoreOpen(false)}
                     className="w-full flex items-center gap-3 p-3 rounded-xl border border-border text-left text-xs font-medium hover:border-primary transition-colors whitespace-nowrap"

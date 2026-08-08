@@ -23,7 +23,13 @@ type AuthContextType = {
   logout: () => Promise<void>;
   enterAsGuest: () => void;
   exitGuest: () => void;
-  register: (data: { name: string; email: string; phone?: string; password: string }) => Promise<void>;
+  register: (data: {
+    name: string;
+    email: string;
+    phone?: string;
+    password: string;
+    businessType?: "mobile_repair" | "general_store";
+  }) => Promise<void>;
   refreshUser: () => Promise<void>;
 };
 
@@ -89,7 +95,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function register(form: { name: string; email: string; phone?: string; password: string }) {
+  async function register(form: {
+    name: string;
+    email: string;
+    phone?: string;
+    password: string;
+    businessType?: "mobile_repair" | "general_store";
+  }) {
     const res = await fetch(`/api/auth/register`, {
       method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" },

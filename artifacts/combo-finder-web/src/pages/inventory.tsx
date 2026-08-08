@@ -1144,6 +1144,12 @@ export default function Inventory() {
   });
   const qc = useQueryClient();
 
+  useEffect(() => {
+    if (new URLSearchParams(search).get("action") === "stock-in") {
+      setModal("stock-in");
+    }
+  }, [search]);
+
   const isInvFreePlan = user?.plan === "Free" || !user?.plan;
 
   const { data: items = [], isLoading } = useQuery<Item[]>({

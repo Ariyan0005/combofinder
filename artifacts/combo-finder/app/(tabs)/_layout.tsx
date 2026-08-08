@@ -18,7 +18,7 @@ export default function TabLayout() {
 
   const isGeneralStore = user.businessType === "general_store";
 
-  // Center tab: Repairs (mobile_repair) or Stock In (general_store)
+  // Center action: Repairs (mobile_repair) or Stock In (general_store)
   const centerLabel = isGeneralStore ? "Stock In" : "Repairs";
   const centerIcon = isGeneralStore ? "package" : "tool";
   const centerRoute = isGeneralStore ? "/inventory" : "/new-repair";

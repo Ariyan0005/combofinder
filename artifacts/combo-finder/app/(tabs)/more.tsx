@@ -32,7 +32,7 @@ const MOBILE_REPAIR_MENU: MenuItem[] = [
 ];
 
 const GENERAL_STORE_MENU: MenuItem[] = [
-  { icon: "users", label: "Customers", route: null, color: "#0080DB" },
+  { icon: "users", label: "Customers", route: null },
   { icon: "dollar-sign", label: "Expenses", route: null },
   { icon: "truck", label: "Suppliers", route: null },
   { icon: "user-check", label: "Staff", route: null },
