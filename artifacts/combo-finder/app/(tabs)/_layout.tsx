@@ -2,7 +2,7 @@ import { BlurView } from "expo-blur";
 import { Tabs, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Platform, StyleSheet, View, useColorScheme, Pressable } from "react-native";
+import { Platform, StyleSheet, Text, View, useColorScheme, Pressable } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
 import { useUser } from "@/context/UserContext";
@@ -18,10 +18,10 @@ export default function TabLayout() {
 
   const isGeneralStore = user.businessType === "general_store";
 
-  // Center action: Repairs (mobile_repair) or Stock In (general_store)
-  const centerLabel = isGeneralStore ? "Stock In" : "Repairs";
-  const centerIcon = isGeneralStore ? "package" : "tool";
-  const centerRoute = isGeneralStore ? "/inventory" : "/new-repair";
+  // Center action: Repairs (mobile_repair) or POS (general_store)
+  const centerLabel = isGeneralStore ? "POS" : "Repairs";
+  const centerIcon = isGeneralStore ? "shopping-cart" : "tool";
+  const centerRoute = isGeneralStore ? "/pos" : "/new-repair";
 
   return (
     <Tabs
@@ -67,18 +67,34 @@ export default function TabLayout() {
         }}
       />
 
-      {/* POS — shown for both types */}
+      {/* Stock In for general stores; POS for mobile repair shops */}
       <Tabs.Screen
         name="pos"
         options={{
-          title: "POS",
+          title: isGeneralStore ? "Stock In" : "POS",
+          tabBarButton: isGeneralStore
+            ? (props) => (
+                <Pressable
+                  {...props}
+                  onPress={() => router.push("/inventory" as any)}
+                  style={props.style}
+                >
+                  <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                    <Feather name="package" size={22} color={colors.mutedForeground} />
+                    <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_500Medium", fontSize: 11, marginTop: isIOS ? 0 : 4 }}>
+                      Stock In
+                    </Text>
+                  </View>
+                </Pressable>
+              )
+            : undefined,
           tabBarIcon: ({ color }) => (
             <Feather name="credit-card" size={22} color={color} />
           ),
         }}
       />
 
-      {/* Center action tab: Repairs or Stock In */}
+      {/* Center action tab: Repairs or POS */}
       <Tabs.Screen
         name="new"
         options={{

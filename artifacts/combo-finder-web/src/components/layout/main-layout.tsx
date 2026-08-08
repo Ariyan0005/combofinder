@@ -19,8 +19,8 @@ const BOTTOM_NAV = [
 
 const GENERAL_STORE_BOTTOM_NAV = [
   { label: "Home",      icon: LayoutDashboard, href: "/"          },
-  { label: "POS",       icon: ShoppingCart,    href: "/pos"       },
   { label: "Stock In",  icon: Package,         href: "/inventory?action=stock-in"  },
+  { label: "POS",       icon: ShoppingCart,    href: "/pos"       },
   { label: "Inventory", icon: Package,         href: "/inventory"  },
   { label: "More",      icon: Menu,            href: "__more__"   },
 ];
@@ -52,6 +52,8 @@ const GENERAL_STORE_MORE_ITEMS = [
   { label: "Suppliers",         icon: Users2,      href: "/manage-suppliers" },
   { label: "Staff",             icon: Users2,      href: "/staff"           },
   { label: "Sales Summary",     icon: FileText,    href: "/sales-report"    },
+  { label: "Categories",        icon: Package,     href: "/manage-categories" },
+  { label: "Ledger",            icon: BookMarked,  href: "/ledger"          },
   { label: "Settings",          icon: Settings,    href: "/settings"        },
 ];
 

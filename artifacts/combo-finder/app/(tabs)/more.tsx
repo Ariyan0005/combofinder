@@ -37,6 +37,8 @@ const GENERAL_STORE_MENU: MenuItem[] = [
   { icon: "truck", label: "Suppliers", route: null },
   { icon: "user-check", label: "Staff", route: null },
   { icon: "bar-chart-2", label: "Sales Summary", route: null },
+  { icon: "layers", label: "Categories", route: "/manage-categories" },
+  { icon: "book-open", label: "Ledger", route: "/ledger" },
   { icon: "settings", label: "Settings", route: null },
 ];
 

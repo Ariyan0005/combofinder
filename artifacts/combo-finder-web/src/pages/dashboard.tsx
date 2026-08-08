@@ -400,8 +400,8 @@ export default function Dashboard() {
           </Link>
         )}
 
-        {/* ── ComboFinder Tools ── */}
-        <div>
+        {/* ── ComboFinder Tools — mobile-repair users only ── */}
+        {user?.businessType !== "general_store" && <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-sm">ComboFinder Tools</h2>
             <Link href="/compatibility">
@@ -428,7 +428,7 @@ export default function Dashboard() {
               </Link>
             ))}
           </div>
-        </div>
+        </div>}
 
         {/* ── Quick Actions ── */}
         <div>
