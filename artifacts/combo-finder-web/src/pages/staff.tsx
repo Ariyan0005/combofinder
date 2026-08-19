@@ -296,14 +296,16 @@ export default function StaffPage() {
         </div>
 
         {/* Summary cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {[
             { label: "Staff",       value: totalStaff,  color: "#6366F1", bg: "#EEF2FF",  icon: Users2     },
             ...(!isGeneralStore ? [
-              { label: "Technicians", value: totalTech, color: "#10B981", bg: "#ECFDF5", icon: Wrench },
+              { label: "Technician", value: totalTech, color: "#10B981", bg: "#ECFDF5", icon: Wrench },
             ] : []),
             { label: "Active",      value: activeCount, color: PRIMARY,   bg: `${PRIMARY}15`, icon: BadgeCheck },
-            { label: "Inactive",    value: inactiveCount, color: "#6B7280", bg: "#F3F4F6", icon: ToggleLeft },
+            ...(isGeneralStore ? [
+              { label: "Inactive", value: inactiveCount, color: "#6B7280", bg: "#F3F4F6", icon: ToggleLeft },
+            ] : []),
           ].map(({ label, value, color, bg, icon: Icon }) => (
             <div key={label} className="flex flex-col items-center gap-1.5 p-3 rounded-2xl border"
               style={{ borderColor: BORDER, background: CARD }}>
