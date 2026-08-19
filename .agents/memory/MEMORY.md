@@ -1,0 +1,4 @@
+- [Importing an existing repo into an artifact-based repl](artifact-import-recipe.md) — move-aside/createArtifact/restore trick to replace a stub artifact with real cloned repo content.
+- [Adding a new "part-type" module (Display/Battery/etc.) to ComboFinder](combofinder-category-pattern.md) — generic categories/brands/models schema, what must be category-scoped vs. reused as-is.
+- [pnpm workspace: `tsc --noEmit` vs `tsc --build`](monorepo-typecheck-tsc-build.md) — plain `tsc -p ... --noEmit` on a project-references package can report spurious cross-package errors that `tsc --build` does not.
+- [ComboFinder branch integration](combofinder-branch-integration.md) — normalize nested update snapshots and selectively port auth/schema fixes instead of merging wholesale.

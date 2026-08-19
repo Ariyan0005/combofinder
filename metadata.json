@@ -1,0 +1,6 @@
+{
+  "name": "ComboFinder",
+  "description": "Every Business. One Powerful Platform. Phone compatible parts database, mobile repair tools, POS & retail shop management system",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

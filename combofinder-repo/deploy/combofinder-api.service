@@ -1,0 +1,21 @@
+[Unit]
+Description=ComboFinder API Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/combofinder
+
+EnvironmentFile=-/var/www/combofinder/.env
+Environment=PORT=3001
+Environment=NODE_ENV=production
+
+ExecStart=/usr/bin/node --dns-result-order=ipv4first /var/www/combofinder/artifacts/api-server/dist/index.mjs
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="cfPurpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9333ea" />
+      <stop offset="100%" stop-color="#6b21a8" />
+    </linearGradient>
+    <linearGradient id="cfWhiteGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#cbd5e1" />
+    </linearGradient>
+    <linearGradient id="cfCubeTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c084fc" />
+      <stop offset="100%" stop-color="#a855f7" />
+    </linearGradient>
+    <linearGradient id="cfCubeLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7e22ce" />
+      <stop offset="100%" stop-color="#581c87" />
+    </linearGradient>
+    <linearGradient id="cfCubeRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9333ea" />
+      <stop offset="100%" stop-color="#6b21a8" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded base -->
+  <rect width="64" height="64" rx="16" fill="#130924" />
+  
+  <!-- Outer Hexagon Top-Left Arch (Purple) -->
+  <path d="M 32 10 L 48 19.5 L 43.5 27.5 L 32 20.8 L 20.5 27.5 L 20.5 40.5 L 15 43.5 L 15 24.5 Z" fill="url(#cfPurpleGrad)" />
+  
+  <!-- Outer Hexagon Bottom-Right Arch (White/Silver) -->
+  <path d="M 48 24.5 L 48 43.5 L 32 53 L 16 43.5 L 20.5 35.5 L 32 42.2 L 42.5 35.5 L 42.5 22.5 Z" fill="url(#cfWhiteGrad)" />
+
+  <!-- Center Isometric Cube -->
+  <!-- Top Face -->
+  <polygon points="32,26 38,29.5 32,33 26,29.5" fill="url(#cfCubeTop)" />
+  <!-- Left Face -->
+  <polygon points="26,29.5 32,33 32,39.5 26,36" fill="url(#cfCubeLeft)" />
+  <!-- Right Face -->
+  <polygon points="32,33 38,29.5 38,36 32,39.5" fill="url(#cfCubeRight)" />
+</svg>
