@@ -10,6 +10,52 @@ function getUid(req: any, res: any): number | null {
   return uid;
 }
 
+const STOCK_OUT_STATUSES = new Set(["Ready", "Delivered"]);
+
+async function deductPartsOnCreation(tx: any, userId: number, repairId: number, status: string, partsUsed: unknown) {
+  let parts: any[] = [];
+  try {
+    parts = partsUsed ? (typeof partsUsed === "string" ? JSON.parse(partsUsed) : partsUsed) : [];
+  } catch {
+    throw Object.assign(new Error("Invalid repair parts data"), { status: 400 });
+  }
+  if (!Array.isArray(parts)) return;
+
+  for (const part of parts) {
+    const inventoryId = Number(part.inventoryId);
+    const quantity = Number(part.qty);
+    if (!Number.isInteger(inventoryId) || inventoryId < 1 || !Number.isInteger(quantity) || quantity < 1) {
+      throw Object.assign(new Error("Each repair part must have a valid inventory item and quantity"), { status: 400 });
+    }
+
+    const [updated] = await tx.update(inventoryTable)
+      .set({
+        quantity: sql`${inventoryTable.quantity} - ${quantity}`,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(inventoryTable.id, inventoryId),
+        eq(inventoryTable.userId, userId),
+        sql`${inventoryTable.quantity} >= ${quantity}`,
+      ))
+      .returning();
+
+    if (!updated) {
+      throw Object.assign(new Error("Not enough stock for one or more repair parts"), { status: 400 });
+    }
+
+    await tx.insert(stockMovementsTable).values({
+      inventoryId,
+      type: "repair",
+      quantity,
+      unitPrice: part.unitPrice != null ? String(part.unitPrice) : "0",
+      totalPrice: String(Number(part.unitPrice || 0) * quantity),
+      userId,
+      reference: `Repair #${repairId} - status ${status.toLowerCase()}`,
+    });
+  }
+}
+
 router.get("/", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
@@ -91,11 +137,15 @@ router.post("/", async (req, res) => {
       }
     }
 
-    // Create repair — do NOT deduct inventory on creation.
-    // Inventory is only deducted when status transitions to "Ready".
-    const [row] = await db.insert(repairsTable)
-      .values({ ...req.body, userId, updatedAt: new Date() })
-      .returning();
+    const row = await db.transaction(async (tx) => {
+      const [created] = await tx.insert(repairsTable)
+        .values({ ...req.body, userId, updatedAt: new Date() })
+        .returning();
+      if (STOCK_OUT_STATUSES.has(created.status)) {
+        await deductPartsOnCreation(tx, userId, created.id, created.status, created.partsUsed);
+      }
+      return created;
+    });
 
     res.status(201).json(row);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to create repair" }); }
