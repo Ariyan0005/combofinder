@@ -44,6 +44,7 @@ type Repair = {
   isPaid?: boolean;
   notes?: string;
   engineer?: string;
+  stockDeducted?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -129,10 +130,15 @@ function PartsSelector({ parts, onChange }: { parts: PartEntry[]; onChange: (p: 
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const { user: partsUser } = useAuth();
+  const isPartsFree = partsUser?.plan === "Free" || !partsUser?.plan;
 
   const { data: items = [] } = useQuery<InventoryItem[]>({
-    queryKey: ["inventory"],
-    queryFn: () => fetch("/api/inventory", { credentials: "include" }).then(r => r.json()),
+    queryKey: ["inventory", isPartsFree ? "local" : "server"],
+    queryFn: () => {
+      if (isPartsFree && partsUser?.id) return Promise.resolve(localInventory.getAll(partsUser.id));
+      return fetch("/api/inventory", { credentials: "include" }).then(r => r.json());
+    },
   });
 
   useEffect(() => {
@@ -332,6 +338,7 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
   // Local reactive state so billing display updates immediately after save
   const [localIsPaid, setLocalIsPaid] = useState(!!repair.isPaid);
   const [localAdvancePaid, setLocalAdvancePaid] = useState(repair.advancePaid);
+  const partsArr: PartEntry[] = (() => { try { return repair.partsUsed ? JSON.parse(repair.partsUsed) : []; } catch { return []; } })();
 
   const { user: summaryUser } = useAuth();
   const isSummaryFree = summaryUser?.plan === "Free" || !summaryUser?.plan;
@@ -340,7 +347,14 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
     mutationFn: async ({ newStatus, reason }) => {
       const updated = { ...repair, status: newStatus, notes: newStatus === "Cancelled" && reason ? reason : repair.notes };
       if (isSummaryFree && summaryUser?.id) {
-        return localRepairs.update(summaryUser.id, repair.id, updated) as Repair;
+          const saved = localRepairs.update(summaryUser.id, repair.id, updated) as Repair;
+          if (["Ready", "Delivered"].includes(newStatus) && !repair.stockDeducted) {
+            partsArr.forEach(p => localInventory.deductStock(summaryUser.id, p.inventoryId, Number(p.qty) || 1));
+            saved.stockDeducted = true;
+            localRepairs.update(summaryUser.id, repair.id, saved);
+            qc.invalidateQueries({ queryKey: ["inventory"] });
+          }
+          return saved;
       }
       const res = await fetch(`/api/repairs/${repair.id}`, {
         method: "PUT", credentials: "include",
@@ -354,6 +368,7 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
       setStatus(newStatus);
       repair.status = newStatus;
       repair.notes = saved.notes; // keep notes in sync so paymentMut doesn't overwrite them
+      repair.stockDeducted = saved.stockDeducted;
       qc.invalidateQueries({ queryKey: ["repairs"] });
     },
   });
@@ -391,8 +406,6 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
     },
     onError: (err: any) => setPaymentError(err.message ?? "Failed to update payment"),
   });
-
-  const partsArr: PartEntry[] = (() => { try { return repair.partsUsed ? JSON.parse(repair.partsUsed) : []; } catch { return []; } })();
 
   const { user } = useAuth();
   const sym      = CURRENCY_SYMBOLS[user?.currency ?? "USD"] ?? user?.currency ?? "$";
@@ -781,9 +794,11 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
         const saved = existing
           ? localRepairs.update(uid, existing.id, body)
           : localRepairs.create(uid, body);
-        // Deduct parts from local inventory
-        if (!existing && parts.length > 0) {
+        // Keep parts on hold while repairing; stock out only when created as Ready/Delivered.
+        if (["Ready", "Delivered"].includes(form.status) && (!existing || !existing.stockDeducted) && parts.length > 0) {
           parts.forEach(p => localInventory.deductStock(uid, p.inventoryId, Number(p.qty) || 1));
+          saved.stockDeducted = true;
+          localRepairs.update(uid, saved.id, saved);
           qc.invalidateQueries({ queryKey: ["inventory"] });
         }
         return saved;
@@ -800,27 +815,6 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Failed"); }
       const saved = await res.json();
 
-      // Deduct parts from inventory (only on new repair creation)
-      if (!existing && parts.length > 0) {
-        const results = await Promise.allSettled(parts.map(p =>
-          fetch("/api/stock-movements", {
-            method: "POST", credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              inventoryId: p.inventoryId,
-              type: "out",
-              quantity: Number(p.qty) || 1,
-              unitPrice: p.unitPrice || null,
-              notes: `Used in repair #${saved.id}`,
-            }),
-          }).then(r => r.ok ? r.json() : r.json().then(d => { throw new Error(d.error ?? "Failed"); }))
-        ));
-        qc.invalidateQueries({ queryKey: ["inventory"] });
-        const failed = results.filter(r => r.status === "rejected");
-        if (failed.length > 0) {
-          console.warn(`${failed.length} part(s) could not be deducted from inventory (may be insufficient stock)`);
-        }
-      }
       return saved;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["repairs"] }); qc.invalidateQueries({ queryKey: ["stats"] }); onClose(); },

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, repairsTable, usersTable } from "@workspace/db";
+import { db, repairsTable, usersTable, inventoryTable, stockMovementsTable } from "@workspace/db";
 import { eq, ilike, or, desc, sql, and, gte } from "drizzle-orm";
 
 const router = Router();
@@ -8,6 +8,64 @@ function getUid(req: any, res: any): number | null {
   const uid: number | undefined = req.userId;
   if (!uid) { res.status(403).json({ error: "User session invalid" }); return null; }
   return uid;
+}
+
+const STOCK_OUT_STATUSES = new Set(["Ready", "Delivered"]);
+
+type RepairPart = { inventoryId?: number; qty?: number; unitPrice?: string | number };
+
+function parseRepairParts(partsUsed: unknown): RepairPart[] {
+  if (!partsUsed) return [];
+  try {
+    const parts = typeof partsUsed === "string" ? JSON.parse(partsUsed) : partsUsed;
+    return Array.isArray(parts) ? parts : [];
+  } catch {
+    throw Object.assign(new Error("Invalid repair parts data"), { status: 400 });
+  }
+}
+
+async function deductRepairParts(tx: any, userId: number, repairId: number, partsUsed: unknown) {
+  for (const part of parseRepairParts(partsUsed)) {
+    const inventoryId = Number(part.inventoryId);
+    const quantity = Number(part.qty);
+    if (!Number.isInteger(inventoryId) || inventoryId < 1 || !Number.isInteger(quantity) || quantity < 1) {
+      throw Object.assign(new Error("Each repair part must have a valid inventory item and quantity"), { status: 400 });
+    }
+
+    const [updated] = await tx.update(inventoryTable)
+      .set({
+        quantity: sql`GREATEST(0, ${inventoryTable.quantity} - ${quantity})`,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(inventoryTable.id, inventoryId),
+        eq(inventoryTable.userId, userId),
+        sql`${inventoryTable.quantity} >= ${quantity}`,
+      ))
+      .returning();
+
+    if (!updated) {
+      const [current] = await tx.select({ quantity: inventoryTable.quantity, userId: inventoryTable.userId })
+        .from(inventoryTable).where(eq(inventoryTable.id, inventoryId));
+      if (!current || current.userId !== userId) {
+        throw Object.assign(new Error("Inventory item not found"), { status: 404 });
+      }
+      throw Object.assign(
+        new Error(`Not enough stock for repair part (available: ${current.quantity}, requested: ${quantity})`),
+        { status: 400 },
+      );
+    }
+
+    await tx.insert(stockMovementsTable).values({
+      userId,
+      inventoryId,
+      type: "out",
+      quantity,
+      unitPrice: part.unitPrice !== undefined && part.unitPrice !== "" ? String(part.unitPrice) : null,
+      notes: `Used in repair #${repairId}`,
+      reference: `Repair #${repairId}`,
+    });
+  }
 }
 
 router.get("/", async (req, res) => {
@@ -87,9 +145,21 @@ router.post("/", async (req, res) => {
       }
     }
 
-    const [row] = await db.insert(repairsTable).values({ ...req.body, userId, updatedAt: new Date() }).returning();
+    const row = await db.transaction(async (tx) => {
+      const [created] = await tx.insert(repairsTable)
+        .values({ ...req.body, userId, updatedAt: new Date() })
+        .returning();
+      if (STOCK_OUT_STATUSES.has(created.status)) {
+        await deductRepairParts(tx, userId, created.id, created.partsUsed);
+      }
+      return created;
+    });
     res.status(201).json(row);
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to create repair" }); }
+  } catch (err: any) {
+    const status = err.status ?? 500;
+    if (status < 500) return res.status(status).json({ error: err.message });
+    req.log.error(err); res.status(500).json({ error: "Failed to create repair" });
+  }
 });
 
 router.put("/:id", async (req, res) => {
@@ -125,12 +195,40 @@ router.put("/:id", async (req, res) => {
       updateFields.deliveredAt = new Date(b.deliveredAt);
     }
 
-    const [row] = await db.update(repairsTable).set(updateFields)
-      .where(and(eq(repairsTable.id, Number(req.params.id)), eq(repairsTable.userId, userId)))
-      .returning();
-    if (!row) return res.status(404).json({ error: "Not found" });
-    res.json(row);
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to update repair" }); }
+    const result = await db.transaction(async (tx) => {
+      const [current] = await tx.select().from(repairsTable)
+        .where(and(eq(repairsTable.id, Number(req.params.id)), eq(repairsTable.userId, userId)));
+      if (!current) return null;
+
+      const shouldStockOut =
+        STOCK_OUT_STATUSES.has(String(b.status)) &&
+        !STOCK_OUT_STATUSES.has(String(current.status));
+      const [existingMovement] = shouldStockOut
+        ? await tx.select({ id: stockMovementsTable.id })
+            .from(stockMovementsTable)
+            .where(and(
+              eq(stockMovementsTable.userId, userId),
+              eq(stockMovementsTable.type, "out"),
+              eq(stockMovementsTable.reference, `Repair #${current.id}`),
+            ))
+            .limit(1)
+        : [];
+
+      const [updated] = await tx.update(repairsTable).set(updateFields)
+        .where(and(eq(repairsTable.id, Number(req.params.id)), eq(repairsTable.userId, userId)))
+        .returning();
+      if (shouldStockOut && !existingMovement) {
+        await deductRepairParts(tx, userId, updated.id, updated.partsUsed);
+      }
+      return updated;
+    });
+    if (!result) return res.status(404).json({ error: "Not found" });
+    res.json(result);
+  } catch (err: any) {
+    const status = err.status ?? 500;
+    if (status < 500) return res.status(status).json({ error: err.message });
+    req.log.error(err); res.status(500).json({ error: "Failed to update repair" });
+  }
 });
 
 router.delete("/:id", async (req, res) => {
