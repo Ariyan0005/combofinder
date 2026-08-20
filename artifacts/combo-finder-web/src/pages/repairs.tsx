@@ -392,10 +392,12 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
         const partsArr: PartEntry[] = (() => {
           try { return repair.partsUsed ? JSON.parse(repair.partsUsed) : []; } catch { return []; }
         })();
-        if (partsArr.length > 0 && prevStatus !== "Delivered") {
-          if (newStatus === "Cancelled" && prevStatus === "Ready") {
-            // Restore parts to local inventory when a Ready repair is cancelled
+        if (partsArr.length > 0) {
+          if (newStatus === "Cancelled" && (prevStatus === "Ready" || prevStatus === "Delivered")) {
+            // Restore parts to local inventory when a stocked repair is cancelled
             partsArr.forEach(p => localInventory.restoreStock(uid, p.inventoryId, Number(p.qty) || 1));
+            saved.stockDeducted = false;
+            localRepairs.update(uid, repair.id, saved);
             qc.invalidateQueries({ queryKey: ["inventory"] });
           }
         }

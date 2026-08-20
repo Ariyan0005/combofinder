@@ -191,7 +191,19 @@ router.put("/:id", async (req, res) => {
       const newIsReady      = newStatus  === "Ready";
       const newIsDelivered  = newStatus  === "Delivered";
 
-      if (!prevIsDelivered) {
+      if (newStatus === "Cancelled" && (prevIsReady || prevIsDelivered)) {
+        // Cancellation after stock-out returns all parts to inventory.
+        for (const [inventoryId, oldQty] of oldMap) {
+          await tx.update(inventoryTable)
+            .set({ quantity: sql`${inventoryTable.quantity} + ${oldQty}`, updatedAt: new Date() })
+            .where(and(eq(inventoryTable.id, inventoryId), eq(inventoryTable.userId, userId)));
+          await tx.insert(stockMovementsTable).values({
+            inventoryId, type: "in", quantity: oldQty,
+            unitPrice: "0", totalPrice: "0", userId,
+            reference: `Repair #${repairId} - parts restored (Cancelled)`,
+          });
+        }
+      } else if (!prevIsDelivered) {
         if (!prevIsReady && newIsReady) {
           // ── Transition → Ready: deduct ALL current parts ─────────────────────
           for (const part of newParts) {
