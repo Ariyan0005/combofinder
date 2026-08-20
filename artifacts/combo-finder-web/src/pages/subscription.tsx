@@ -18,6 +18,7 @@ const PRO_FEATURES = [
   "🌐 Access from Web & Desktop",
   "☁️ Cloud Backup & Sync",
   "🔄 Access from any device",
+  "👥 Staff Login & Team Access",
   "📤 1-click migrate Free plan data to cloud",
   "📊 Advanced Analytics & Reports",
   "⭐ Priority Support",
