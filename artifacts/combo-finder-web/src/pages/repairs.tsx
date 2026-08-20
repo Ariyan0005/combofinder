@@ -46,6 +46,7 @@ type Repair = {
   isPaid?: boolean;
   notes?: string;
   engineer?: string;
+  stockDeducted?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -360,7 +361,17 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
     mutationFn: async ({ newStatus, reason }) => {
       const updated = { ...repair, status: newStatus, notes: newStatus === "Cancelled" && reason ? reason : repair.notes };
       if (isSummaryFree && summaryUser?.id) {
-        return localRepairs.update(summaryUser.id, repair.id, updated) as Repair;
+        const saved = localRepairs.update(summaryUser.id, repair.id, updated) as Repair;
+        if (["Ready", "Delivered"].includes(newStatus) && !repair.stockDeducted) {
+          const partsArr: PartEntry[] = (() => {
+            try { return repair.partsUsed ? JSON.parse(repair.partsUsed) : []; } catch { return []; }
+          })();
+          partsArr.forEach(p => localInventory.deductStock(summaryUser.id, p.inventoryId, Number(p.qty) || 1));
+          saved.stockDeducted = true;
+          localRepairs.update(summaryUser.id, repair.id, saved);
+          qc.invalidateQueries({ queryKey: ["inventory"] });
+        }
+        return saved;
       }
       const res = await fetch(`/api/repairs/${repair.id}`, {
         method: "PUT", credentials: "include",
@@ -382,11 +393,7 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
           try { return repair.partsUsed ? JSON.parse(repair.partsUsed) : []; } catch { return []; }
         })();
         if (partsArr.length > 0 && prevStatus !== "Delivered") {
-          if (newStatus === "Ready" && prevStatus !== "Ready") {
-            // Deduct parts from local inventory when repair becomes Ready
-            partsArr.forEach(p => localInventory.deductStock(uid, p.inventoryId, Number(p.qty) || 1));
-            qc.invalidateQueries({ queryKey: ["inventory"] });
-          } else if (newStatus === "Cancelled" && prevStatus === "Ready") {
+          if (newStatus === "Cancelled" && prevStatus === "Ready") {
             // Restore parts to local inventory when a Ready repair is cancelled
             partsArr.forEach(p => localInventory.restoreStock(uid, p.inventoryId, Number(p.qty) || 1));
             qc.invalidateQueries({ queryKey: ["inventory"] });
@@ -395,6 +402,7 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
       }
       setStatus(newStatus);
       repair.status = newStatus;
+      repair.stockDeducted = saved.stockDeducted;
       repair.notes = saved.notes; // keep notes in sync so paymentMut doesn't overwrite them
       qc.invalidateQueries({ queryKey: ["repairs"] });
     },
@@ -859,8 +867,12 @@ function RepairForm({ onClose, existing }: { onClose: () => void; existing?: Rep
         const saved = existing
           ? localRepairs.update(uid, existing.id, body)
           : localRepairs.create(uid, body);
-        // NOTE: Inventory is only deducted when status → Ready (handled in statusMut).
-        // Do NOT deduct here on creation.
+        if (["Ready", "Delivered"].includes(form.status) && (!existing || !existing.stockDeducted) && parts.length > 0) {
+          parts.forEach(p => localInventory.deductStock(uid, p.inventoryId, Number(p.qty) || 1));
+          saved.stockDeducted = true;
+          localRepairs.update(uid, saved.id, saved);
+          qc.invalidateQueries({ queryKey: ["inventory"] });
+        }
         return saved;
       }
 
