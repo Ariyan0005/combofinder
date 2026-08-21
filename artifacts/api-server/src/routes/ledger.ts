@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, ledgerAccountsTable, ledgerEntriesTable } from "@workspace/db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 
 const router = Router();
 
@@ -13,15 +13,30 @@ router.get("/accounts", async (req, res) => {
       .where(eq(ledgerAccountsTable.userId, userId))
       .orderBy(ledgerAccountsTable.name);
 
-    // Compute balance for each account
-    const withBalance = await Promise.all(accounts.map(async (acc) => {
-      const [credit] = await db.select({ total: sql<string>`coalesce(sum(cast(amount as numeric)) filter (where type = 'credit'), 0)` })
-        .from(ledgerEntriesTable).where(and(eq(ledgerEntriesTable.accountId, acc.id), eq(ledgerEntriesTable.userId, userId)));
-      const [debit] = await db.select({ total: sql<string>`coalesce(sum(cast(amount as numeric)) filter (where type = 'debit'), 0)` })
-        .from(ledgerEntriesTable).where(and(eq(ledgerEntriesTable.accountId, acc.id), eq(ledgerEntriesTable.userId, userId)));
-      const balance = Number(credit?.total ?? 0) - Number(debit?.total ?? 0);
-      return { ...acc, balance };
-    }));
+    // Calculate in JavaScript instead of casting every amount in PostgreSQL.
+    // A single legacy malformed amount must not make the entire user's
+    // otherwise valid ledger return HTTP 500.
+    const entries = await db.select({
+      accountId: ledgerEntriesTable.accountId,
+      type: ledgerEntriesTable.type,
+      amount: ledgerEntriesTable.amount,
+    }).from(ledgerEntriesTable)
+      .where(eq(ledgerEntriesTable.userId, userId));
+
+    const totals = new Map<number, { creditSum: number; debitSum: number }>();
+    for (const entry of entries) {
+      const amount = Number(String(entry.amount).replace(/,/g, "").trim());
+      if (!Number.isFinite(amount)) continue;
+      const current = totals.get(entry.accountId) ?? { creditSum: 0, debitSum: 0 };
+      if (entry.type === "credit") current.creditSum += amount;
+      if (entry.type === "debit") current.debitSum += amount;
+      totals.set(entry.accountId, current);
+    }
+
+    const withBalance = accounts.map((acc) => {
+      const { creditSum, debitSum } = totals.get(acc.id) ?? { creditSum: 0, debitSum: 0 };
+      return { ...acc, creditSum, debitSum, balance: creditSum - debitSum };
+    });
 
     res.json(withBalance);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to fetch accounts" }); }
