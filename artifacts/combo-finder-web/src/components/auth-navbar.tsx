@@ -42,11 +42,11 @@ export function AuthNavbar({ lang, onLangChange, supportLabel = "Support" }: Pro
       <Link href="/">
         <div className="flex items-center gap-2.5 cursor-pointer select-none">
           <img
-            src="/pos-cert-logo.png"
+            src="/pos-cert-logo.png?v=2"
             alt="PosCert"
             className="w-36 h-12 object-contain"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = "/pos-cert-logo.png";
+              (e.target as HTMLImageElement).src = "/pos-cert-logo.png?v=2";
             }}
           />
         </div>

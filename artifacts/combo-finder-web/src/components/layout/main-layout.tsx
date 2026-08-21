@@ -103,11 +103,11 @@ export default function MainLayout({ children }: { children: ReactNode }) {
         <header className="md:hidden flex items-center justify-between px-4 py-3 bg-card border-b border-border sticky top-0 z-30">
           <div className="flex items-center gap-2.5">
             <img
-              src="/pos-cert-logo.png"
+              src="/pos-cert-logo.png?v=2"
               alt="PosCert"
               className="w-32 h-11 object-contain"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = "/pos-cert-logo.png";
+                (e.target as HTMLImageElement).src = "/pos-cert-logo.png?v=2";
               }}
             />
           </div>

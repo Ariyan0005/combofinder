@@ -59,11 +59,11 @@ export default function Sidebar({ onClose }: { onClose: () => void }) {
       <div className="h-16 flex items-center px-5 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
           <div className="flex items-center">
           <img
-            src="/pos-cert-logo.png"
+            src="/pos-cert-logo.png?v=2"
               alt="PosCert"
               className="w-44 h-14 object-contain"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = "/pos-cert-logo.png";
+              (e.target as HTMLImageElement).src = "/pos-cert-logo.png?v=2";
             }}
           />
         </div>

@@ -19,11 +19,11 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 font-bold text-foreground">
             <img
-              src="/pos-cert-logo.png"
+              src="/pos-cert-logo.png?v=2"
               alt="PosCert"
             className="w-36 h-12 object-contain"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = "/pos-cert-logo.png";
+                (e.target as HTMLImageElement).src = "/pos-cert-logo.png?v=2";
               }}
             />
           </Link>

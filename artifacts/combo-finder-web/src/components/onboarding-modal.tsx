@@ -240,7 +240,7 @@ export function OnboardingModal() {
         <div className="text-center space-y-2">
           <div className="mx-auto flex items-center justify-center">
             <img
-              src="/pos-cert-logo.png"
+              src="/pos-cert-logo.png?v=2"
               alt="Pos Cert Logo"
               className="w-14 h-14 rounded-2xl object-contain shadow-lg ring-2 ring-primary/20"
               onError={(e) => {
