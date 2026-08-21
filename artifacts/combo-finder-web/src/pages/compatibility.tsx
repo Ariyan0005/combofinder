@@ -78,8 +78,10 @@ export default function Compatibility() {
     queryFn: () => fetch(`/api/categories`, { credentials: "include" }).then(r => r.json()),
   });
   useEffect(() => {
-    // ISP & Pinout has its own dedicated page — exclude it from this dropdown
-    if (Array.isArray(cats)) setCategories(cats.filter((c: any) => c.slug !== "isp-pinout" && c.slug !== "isp"));
+    // Compatibility keeps the original three categories only.
+    if (Array.isArray(cats)) {
+      setCategories(cats.filter((c: any) => ["display", "battery", "ic"].includes(c.slug)));
+    }
   }, [cats]);
 
   // Default the selection to "Display" when no category is in the URL

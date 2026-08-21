@@ -1359,16 +1359,10 @@ export default function Inventory() {
 
   const list = Array.isArray(items) ? items : [];
 
-  // Category tabs: "All" + DB categories.
-  // Fallback part-type chips only shown when user has created zero categories.
+  // Category tabs: "All" plus categories created by the user.
   const catTabs: { key: string; name: string; id?: number; parentId?: number }[] = [
     { key: "All", name: "All" },
     ...categories.map(c => ({ key: `cat:${c.id}`, name: c.name, id: c.id, parentId: c.parentId ?? undefined })),
-    ...(categories.length === 0
-      ? ["Display","Battery","IC","Connector","Camera","Speaker","Other"]
-          .filter(t => list.some(i => i.partType === t))
-          .map(t => ({ key: `type:${t}`, name: t }))
-      : []),
   ];
 
   // Two-tier category logic
