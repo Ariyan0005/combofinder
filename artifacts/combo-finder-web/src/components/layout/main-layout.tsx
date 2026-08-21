@@ -104,13 +104,12 @@ export default function MainLayout({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-2.5">
             <img
               src="/pos-cert-logo.png"
-              alt="Pos Cert"
-              className="w-7 h-7 rounded-lg object-contain shadow-sm"
+              alt="PosCert"
+              className="w-28 h-10 object-contain shadow-sm"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = "/pos-cert-logo.png";
               }}
             />
-            <span className="font-bold text-base tracking-tight">Pos Cert</span>
           </div>
           {/* Donate (Free users only) / Support (Premium users) + Avatar / Login */}
           <div className="flex items-center gap-2">

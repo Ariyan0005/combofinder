@@ -57,21 +57,15 @@ export default function Sidebar({ onClose }: { onClose: () => void }) {
 
       {/* Logo */}
       <div className="h-16 flex items-center px-5 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-        <div className="flex items-center gap-2.5">
+          <div className="flex items-center">
           <img
             src="/pos-cert-logo.png"
-            alt="Pos Cert"
-            className="w-8 h-8 rounded-lg object-contain shadow-sm"
+              alt="PosCert"
+              className="w-36 h-12 object-contain shadow-sm"
             onError={(e) => {
               (e.target as HTMLImageElement).src = "/pos-cert-logo.png";
             }}
           />
-          <div>
-          <p className="text-sm font-bold text-white tracking-tight">Pos Cert</p>
-            <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>
-              Smart POS for every Business
-            </p>
-          </div>
         </div>
       </div>
 

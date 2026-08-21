@@ -43,15 +43,12 @@ export function AuthNavbar({ lang, onLangChange, supportLabel = "Support" }: Pro
         <div className="flex items-center gap-2.5 cursor-pointer select-none">
           <img
             src="/pos-cert-logo.png"
-            alt="Pos Cert"
-            className="w-8 h-8 rounded-xl object-contain shadow-sm"
+            alt="PosCert"
+            className="w-28 h-10 object-contain shadow-sm"
             onError={(e) => {
               (e.target as HTMLImageElement).src = "/pos-cert-logo.png";
             }}
           />
-          <span className="text-base font-extrabold tracking-tight" style={{ color: "hsl(var(--foreground))" }}>
-            Pos Cert
-          </span>
         </div>
       </Link>
 

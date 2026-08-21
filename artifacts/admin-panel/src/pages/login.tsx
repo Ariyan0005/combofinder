@@ -33,7 +33,6 @@ export default function LoginPage() {
           <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/20">
             <Smartphone className="h-7 w-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white mb-1">Pos Cert Admin</h1>
           <p className="text-sm text-muted-foreground">Sign in to the super-admin control panel</p>
         </div>
         

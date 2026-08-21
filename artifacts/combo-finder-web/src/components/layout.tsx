@@ -20,13 +20,12 @@ export default function Layout({ children }: { children: ReactNode }) {
           <Link href="/" className="flex items-center gap-2.5 font-bold text-foreground">
             <img
               src="/pos-cert-logo.png"
-              alt="Pos Cert"
-              className="w-7 h-7 rounded-lg object-contain shadow-sm"
+              alt="PosCert"
+              className="w-28 h-10 object-contain shadow-sm"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = "/pos-cert-logo.png";
               }}
             />
-            <span className="text-sm font-bold">Pos Cert</span>
           </Link>
           <nav className="hidden sm:flex items-center gap-1">
             {navLinks.map(({ href, label, icon: Icon }) => (

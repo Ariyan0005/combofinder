@@ -75,10 +75,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
                 <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30 flex-shrink-0">
                   <Smartphone className="h-4 w-4 text-white" />
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-white tracking-tight">Pos Cert</span>
-                  <span className="text-[10px] font-medium text-muted-foreground">Admin Panel</span>
-                </div>
               </div>
             </Link>
           </div>
