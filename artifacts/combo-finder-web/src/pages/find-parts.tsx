@@ -240,8 +240,8 @@ export default function FindParts() {
 
   // Set SEO page title
   useEffect(() => {
-    document.title = "Buy Mobile Spare Parts Near You | ComboFinder";
-    return () => { document.title = "ComboFinder"; };
+    document.title = "Buy Mobile Spare Parts Near You | Pos Cert";
+    return () => { document.title = "Pos Cert"; };
   }, []);
 
   // IP-based country detection - only save detected country name for display

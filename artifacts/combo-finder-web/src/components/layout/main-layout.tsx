@@ -103,14 +103,14 @@ export default function MainLayout({ children }: { children: ReactNode }) {
         <header className="md:hidden flex items-center justify-between px-4 py-3 bg-card border-b border-border sticky top-0 z-30">
           <div className="flex items-center gap-2.5">
             <img
-              src="/logo.png"
-              alt="ComboFinder"
+              src="/pos-cert-logo.png"
+              alt="Pos Cert"
               className="w-7 h-7 rounded-lg object-contain shadow-sm"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = "/favicon.svg";
+                (e.target as HTMLImageElement).src = "/pos-cert-logo.png";
               }}
             />
-            <span className="font-bold text-base tracking-tight">ComboFinder</span>
+            <span className="font-bold text-base tracking-tight">Pos Cert</span>
           </div>
           {/* Donate (Free users only) / Support (Premium users) + Avatar / Login */}
           <div className="flex items-center gap-2">

@@ -76,7 +76,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
                   <Smartphone className="h-4 w-4 text-white" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-sm font-bold text-white tracking-tight">ComboFinder</span>
+                  <span className="text-sm font-bold text-white tracking-tight">Pos Cert</span>
                   <span className="text-[10px] font-medium text-muted-foreground">Admin Panel</span>
                 </div>
               </div>
@@ -215,7 +215,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               Site
             </a>
             <Link href="/">
-              <span className="text-sm font-bold text-foreground cursor-pointer hover:text-primary transition-colors">ComboFinder Admin</span>
+              <span className="text-sm font-bold text-foreground cursor-pointer hover:text-primary transition-colors">Pos Cert Admin</span>
             </Link>
           </div>
           <button

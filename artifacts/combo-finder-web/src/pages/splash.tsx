@@ -15,20 +15,20 @@ export default function Splash() {
       {/* Center content */}
       <div className="flex flex-col items-center gap-4 text-white text-center">
         {/* Logo icon */}
-        <div className="w-24 h-24 flex items-center justify-center">
+        <div className="w-64 h-32 rounded-3xl flex items-center justify-center overflow-hidden bg-white">
           <img
-            src="/logo.png"
-            alt="ComboFinder"
+            src="/pos-cert-logo.png"
+            alt="Pos Cert"
             className="w-full h-full object-contain drop-shadow-2xl"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = "/favicon.svg";
+              (e.target as HTMLImageElement).src = "/pos-cert-logo.png";
             }}
           />
         </div>
 
         <div>
-          <h1 className="text-4xl font-extrabold tracking-tight">ComboFinder</h1>
-          <p className="mt-1.5 text-sm opacity-80 font-medium">Every Business. One Powerful Platform.</p>
+          <h1 className="text-4xl font-extrabold tracking-tight">Pos Cert</h1>
+          <p className="mt-1.5 text-sm opacity-80 font-medium">Smart POS for every Business</p>
         </div>
 
         {/* Illustration */}

@@ -59,17 +59,17 @@ export default function Sidebar({ onClose }: { onClose: () => void }) {
       <div className="h-16 flex items-center px-5 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
         <div className="flex items-center gap-2.5">
           <img
-            src="/logo.png"
-            alt="ComboFinder"
+            src="/pos-cert-logo.png"
+            alt="Pos Cert"
             className="w-8 h-8 rounded-lg object-contain shadow-sm"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = "/favicon.svg";
+              (e.target as HTMLImageElement).src = "/pos-cert-logo.png";
             }}
           />
           <div>
-            <p className="text-sm font-bold text-white tracking-tight">ComboFinder</p>
+          <p className="text-sm font-bold text-white tracking-tight">Pos Cert</p>
             <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>
-              Every Business. One Powerful Platform.
+              Smart POS for every Business
             </p>
           </div>
         </div>

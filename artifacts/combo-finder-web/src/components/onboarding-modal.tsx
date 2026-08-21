@@ -240,8 +240,8 @@ export function OnboardingModal() {
         <div className="text-center space-y-2">
           <div className="mx-auto flex items-center justify-center">
             <img
-              src="/logo.png"
-              alt="ComboFinder Logo"
+              src="/pos-cert-logo.png"
+              alt="Pos Cert Logo"
               className="w-14 h-14 rounded-2xl object-contain shadow-lg ring-2 ring-primary/20"
               onError={(e) => {
                 // Fallback to favicon if logo png loading fails
@@ -250,7 +250,7 @@ export function OnboardingModal() {
             />
           </div>
           <h2 className="text-xl md:text-2xl font-extrabold tracking-tight">
-            Welcome to ComboFinder!
+            Welcome to Pos Cert!
           </h2>
           <p className="text-xs md:text-sm text-muted-foreground">
             Let's configure your business profile to personalize your experience.

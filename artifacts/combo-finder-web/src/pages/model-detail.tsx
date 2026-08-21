@@ -159,7 +159,7 @@ export default function ModelDetail() {
               {model?.name}
             </h1>
             <div className="pt-1">
-              <ShareButton title={model?.name ?? "ComboFinder"} text={`Check out ${model?.name} on ComboFinder`} />
+              <ShareButton title={model?.name ?? "Pos Cert"} text={`Check out ${model?.name} on Pos Cert`} />
             </div>
           </div>
 

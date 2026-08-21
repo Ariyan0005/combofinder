@@ -37,7 +37,7 @@ export default function Donate() {
           >
             <Heart className="w-7 h-7" style={{ color: "hsl(var(--primary))" }} />
           </div>
-          <h1 className="text-2xl font-black tracking-tight">Support ComboFinder</h1>
+          <h1 className="text-2xl font-black tracking-tight">Support Pos Cert</h1>
           <p className="text-xs mt-1.5 leading-relaxed max-w-xs text-muted-foreground">
             Your generous contributions help us cover server costs, databases, and continuous development for technicians.
           </p>
@@ -196,7 +196,7 @@ export default function Donate() {
 
         {/* Simple Thank you text without any plan or activation */}
         <p className="text-xs text-center text-muted-foreground pt-1">
-          Every contribution keeps ComboFinder fast, free, and accessible to everyone. Thank you!
+          Every contribution keeps Pos Cert fast, free, and accessible to everyone. Thank you!
         </p>
       </div>
     </div>
