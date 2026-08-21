@@ -62,13 +62,18 @@ function escapeHtml(v: unknown) {
 
 export default function Ledger() {
   const { user } = useAuth();
-  const isPro = user?.plan === "Pro";
+  // Subscription values may contain a tier/suffix (for example
+  // "Pro Monthly") and older accounts may use different casing. All Pro
+  // variants must use the server ledger; falling back to localStorage makes
+  // an otherwise valid database ledger appear empty for that one user.
+  const isPro = user?.plan?.trim().toLowerCase().startsWith("pro") ?? false;
   const currency = user?.currency ?? "USD";
   const currencySymbols: Record<string, string> = { USD: "$", EUR: "€", GBP: "£", BDT: "Tk", INR: "₹", PKR: "₨", AED: "د.إ", SAR: "﷼", MYR: "RM", NGN: "₦", TRY: "₺", PHP: "₱", NPR: "रू" };
   const sym = currencySymbols[currency] ?? currency;
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -311,6 +316,7 @@ export default function Ledger() {
 
   async function loadAccounts() {
     setLoading(true);
+    setLoadError("");
     try {
       if (!isPro && user?.id) {
         setAccounts(localLedger.getAllAccounts(user.id));
@@ -319,12 +325,16 @@ export default function Ledger() {
         const data = await safeJson(r);
         setAccounts(Array.isArray(data) ? data : []);
       }
-    } catch {}
+    } catch (err: any) {
+      setAccounts([]);
+      setLoadError(err?.message ?? "Ledger data could not be loaded.");
+    }
     setLoading(false);
   }
 
   async function loadEntries(accountId: number) {
     setLoadingEntries(true);
+    setLoadError("");
     setDateFrom(""); setDateTo("");
     try {
       if (!isPro && user?.id) {
@@ -336,7 +346,10 @@ export default function Ledger() {
         setSelectedAccount(data);
         setEntries(data.entries ?? []);
       }
-    } catch {}
+    } catch (err: any) {
+      setEntries([]);
+      setLoadError(err?.message ?? "Ledger entries could not be loaded.");
+    }
     setLoadingEntries(false);
   }
 
@@ -889,10 +902,21 @@ export default function Ledger() {
         ) : filteredAccounts.length === 0 ? (
           <div className="bg-card rounded-2xl border border-border p-8 text-center">
             <BookMarked className="w-10 h-10 mx-auto mb-3 opacity-20" />
-            <p className="font-semibold text-sm">No accounts yet</p>
-            <p className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>
-              Add a customer account to start tracking credit and debt
+            <p className="font-semibold text-sm">
+              {loadError ? "Ledger could not be loaded" : "No accounts yet"}
             </p>
+            <p className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>
+              {loadError || "Add a customer account to start tracking credit and debt"}
+            </p>
+            {loadError && (
+              <button
+                onClick={loadAccounts}
+                className="mt-4 px-4 py-2 rounded-xl text-xs font-bold text-white"
+                style={{ background: "hsl(var(--primary))" }}
+              >
+                Try again
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-2">
