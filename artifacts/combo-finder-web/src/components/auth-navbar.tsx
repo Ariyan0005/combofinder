@@ -44,7 +44,7 @@ export function AuthNavbar({ lang, onLangChange, supportLabel = "Support" }: Pro
           <img
             src="/pos-cert-logo.png?v=2"
             alt="PosCert"
-            className="w-36 h-12 object-contain"
+            className="w-32 h-10 object-contain"
             onError={(e) => {
               (e.target as HTMLImageElement).src = "/pos-cert-logo.png?v=2";
             }}
