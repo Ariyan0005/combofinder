@@ -61,7 +61,7 @@ export default function Sidebar({ onClose }: { onClose: () => void }) {
           <img
             src="/pos-cert-logo.png"
               alt="PosCert"
-              className="w-36 h-12 object-contain shadow-sm"
+              className="w-44 h-14 object-contain"
             onError={(e) => {
               (e.target as HTMLImageElement).src = "/pos-cert-logo.png";
             }}

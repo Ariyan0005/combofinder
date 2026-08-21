@@ -21,7 +21,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             <img
               src="/pos-cert-logo.png"
               alt="PosCert"
-              className="w-28 h-10 object-contain shadow-sm"
+            className="w-36 h-12 object-contain"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = "/pos-cert-logo.png";
               }}
