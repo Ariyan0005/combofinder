@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
+import { useUser } from "@/context/UserContext";
 
 const domain = process.env.EXPO_PUBLIC_DOMAIN;
 const baseUrl = domain ? `https://${domain}` : "";
@@ -28,12 +29,16 @@ export default function LedgerScreen() {
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { user, loading: userLoading } = useUser();
   const {
     data = [],
     isLoading,
+    isError,
     refetch,
   } = useQuery<LedgerAccount[]>({
-    queryKey: ["ledger-accounts"],
+    // Scope the cache to the authenticated user. Without this, a cached empty
+    // response from the auth transition can mask another user's ledger.
+    queryKey: ["ledger-accounts", user.id],
     queryFn: async () => {
       const response = await fetch(`${baseUrl}/api/ledger/accounts`, {
         credentials: "include",
@@ -41,6 +46,9 @@ export default function LedgerScreen() {
       if (!response.ok) throw new Error("Failed to load ledger");
       return response.json();
     },
+    enabled: !userLoading && !!user.id,
+    retry: 2,
+    refetchOnMount: "always",
   });
 
   return (
@@ -56,9 +64,21 @@ export default function LedgerScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>Ledger</Text>
       </View>
-      {isLoading ? (
+      {userLoading || isLoading ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : isError ? (
+        <View style={styles.centered}>
+          <Text style={[styles.empty, { color: colors.mutedForeground }]}>
+            Unable to load ledger accounts.
+          </Text>
+          <Pressable
+            onPress={() => refetch()}
+            style={[styles.retryButton, { backgroundColor: colors.primary }]}
+          >
+            <Text style={styles.retryText}>Try again</Text>
+          </Pressable>
         </View>
       ) : (
         <FlatList
@@ -136,6 +156,17 @@ const styles = StyleSheet.create({
     marginTop: 40,
     fontSize: 15,
     fontFamily: "Inter_500Medium",
+  },
+  retryButton: {
+    marginTop: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  retryText: {
+    color: "#fff",
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
   },
   card: {
     flexDirection: "row",
