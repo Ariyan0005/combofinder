@@ -683,7 +683,7 @@ export default function Settings() {
 
         {/* App version */}
         <p className="text-xs text-center pb-2" style={{ color: "hsl(var(--muted-foreground))" }}>
-          ComboFinder v1.0 · All-in-One for Technicians
+          Pos Cert v1.0 · Smart POS for every Business
         </p>
       </div>
 

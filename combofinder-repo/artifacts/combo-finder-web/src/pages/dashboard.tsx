@@ -283,7 +283,7 @@ export default function Dashboard() {
         {/* ── ComboFinder Tools ── */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-sm">ComboFinder Tools</h2>
+            <h2 className="font-bold text-sm">Pos Cert Tools</h2>
             <Link href="/compatibility">
               <span className="text-xs font-semibold" style={{ color: "hsl(var(--primary))" }}>See all →</span>
             </Link>

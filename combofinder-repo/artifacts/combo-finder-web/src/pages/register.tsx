@@ -492,7 +492,7 @@ export default function Register() {
           {step === "form" && (<>
           <div className="mb-3">
             <h1 className="text-xl font-extrabold">Create Account</h1>
-            <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Set up your ComboFinder app</p>
+            <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Set up your Pos Cert app</p>
           </div>
 
           {/* Social buttons */}

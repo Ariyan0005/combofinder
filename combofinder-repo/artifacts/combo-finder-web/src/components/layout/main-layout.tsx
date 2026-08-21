@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, Search, Plus, Package, Menu, X,
   Users, BookOpen, BarChart2, Unlock, Receipt,
-  Settings, LogOut, CreditCard, Smartphone, ShoppingCart, FileText,
+  Settings, LogOut, CreditCard, ShoppingCart, FileText,
   BookMarked, Heart,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
@@ -59,11 +59,10 @@ export default function MainLayout({ children }: { children: ReactNode }) {
         {/* Mobile top bar */}
         <header className="md:hidden flex items-center justify-between px-4 py-3 bg-card border-b border-border sticky top-0 z-30">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{ background: "hsl(var(--primary))" }}>
-              <Smartphone className="w-4 h-4 text-white" />
+            <div className="w-12 h-7 rounded-lg flex items-center justify-center overflow-hidden bg-white">
+              <img src="/pos-cert-logo.png" alt="Pos Cert" className="w-full h-full object-contain" />
             </div>
-            <span className="font-bold text-base">ComboFinder</span>
+            <span className="font-bold text-base">Pos Cert</span>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/donate">

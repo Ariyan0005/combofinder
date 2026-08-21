@@ -126,7 +126,7 @@ function getMailTransporter() {
   return null;
 }
 
-const FROM_NAME = () => process.env["MAIL_FROM_NAME"] ?? "ComboFinder";
+const FROM_NAME = () => process.env["MAIL_FROM_NAME"] ?? "Pos Cert";
 const FROM_EMAIL = () => process.env["MAIL_FROM_EMAIL"] ?? "noreply@iunlockd.com";
 
 async function sendWelcomeEmail(name: string, email: string) {
@@ -136,17 +136,17 @@ async function sendWelcomeEmail(name: string, email: string) {
     await transporter.sendMail({
       from: `"${FROM_NAME()}" <${FROM_EMAIL()}>`,
       to: `"${name}" <${email}>`,
-      subject: `Welcome to ComboFinder, ${name}!`,
+      subject: `Welcome to Pos Cert, ${name}!`,
       html: `<div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#ffffff;">
-        <h2 style="color:#0080DB;margin-bottom:8px;">Welcome to ComboFinder!</h2>
+        <h2 style="color:#0080DB;margin-bottom:8px;">Welcome to Pos Cert!</h2>
         <p style="color:#374151;font-size:15px;line-height:1.6;">Hi <strong>${name}</strong>,</p>
-        <p style="color:#374151;font-size:15px;line-height:1.6;">Your account has been created successfully. ComboFinder is a free tool for mobile technicians.</p>
+        <p style="color:#374151;font-size:15px;line-height:1.6;">Your account has been created successfully. Pos Cert is a free tool for mobile technicians.</p>
         <div style="margin:24px 0;">
-          <a href="https://finder.iunlockd.com/login" style="background:#0080DB;color:#ffffff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Go to ComboFinder</a>
+          <a href="https://finder.iunlockd.com/login" style="background:#0080DB;color:#ffffff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Go to Pos Cert</a>
         </div>
         <p style="color:#6B7280;font-size:13px;margin-top:32px;">If you didn't create this account, you can ignore this email.</p>
       </div>`,
-      text: `Welcome to ComboFinder, ${name}!\n\nYour account has been created. Login at: https://finder.iunlockd.com/login`,
+      text: `Welcome to Pos Cert, ${name}!\n\nYour account has been created. Login at: https://finder.iunlockd.com/login`,
     });
   } catch (err) {
     console.error("Welcome email failed:", err);
@@ -161,7 +161,7 @@ async function sendPasswordResetEmail(name: string, email: string, code: string)
   await transporter.sendMail({
     from: `"${FROM_NAME()}" <${FROM_EMAIL()}>`,
     to: `"${name}" <${email}>`,
-    subject: "ComboFinder — Password Reset Code",
+    subject: "Pos Cert — Password Reset Code",
     html: `<div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#ffffff;">
       <h2 style="color:#0080DB;margin-bottom:8px;">Password Reset</h2>
       <p style="color:#374151;font-size:15px;line-height:1.6;">Hi <strong>${name}</strong>,</p>
@@ -173,7 +173,7 @@ async function sendPasswordResetEmail(name: string, email: string, code: string)
       </div>
       <p style="color:#6B7280;font-size:13px;">If you didn't request this, ignore this email — your password won't change.</p>
     </div>`,
-    text: `ComboFinder Password Reset\n\nYour reset code: ${code}\n\nThis code expires in 15 minutes.\n\nIf you didn't request this, ignore this email.`,
+    text: `Pos Cert Password Reset\n\nYour reset code: ${code}\n\nThis code expires in 15 minutes.\n\nIf you didn't request this, ignore this email.`,
   });
 }
 
@@ -185,11 +185,11 @@ async function sendVerificationEmail(name: string, email: string, code: string):
     await transporter.sendMail({
       from: `"${FROM_NAME()}" <${FROM_EMAIL()}>`,
       to: `"${name}" <${email}>`,
-      subject: "ComboFinder — Verify Your Email",
+      subject: "Pos Cert — Verify Your Email",
       html: `<div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#ffffff;">
         <h2 style="color:#0080DB;margin-bottom:8px;">Verify Your Email</h2>
         <p style="color:#374151;font-size:15px;line-height:1.6;">Hi <strong>${name}</strong>,</p>
-        <p style="color:#374151;font-size:15px;line-height:1.6;">Use the code below to activate your ComboFinder account. It expires in <strong>15 minutes</strong>.</p>
+        <p style="color:#374151;font-size:15px;line-height:1.6;">Use the code below to activate your Pos Cert account. It expires in <strong>15 minutes</strong>.</p>
         <div style="margin:24px 0;text-align:center;">
           <div style="display:inline-block;background:#F3F4F6;border-radius:12px;padding:18px 40px;">
             <span style="font-size:36px;font-weight:800;letter-spacing:8px;color:#0080DB;">${code}</span>
@@ -197,7 +197,7 @@ async function sendVerificationEmail(name: string, email: string, code: string):
         </div>
         <p style="color:#6B7280;font-size:13px;">If you didn't create this account, you can ignore this email.</p>
       </div>`,
-      text: `ComboFinder — Verify Your Email\n\nYour verification code: ${code}\n\nThis code expires in 15 minutes.`,
+      text: `Pos Cert — Verify Your Email\n\nYour verification code: ${code}\n\nThis code expires in 15 minutes.`,
     });
     return true;
   } catch (err) {

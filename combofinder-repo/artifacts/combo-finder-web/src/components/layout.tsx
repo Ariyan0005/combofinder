@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { Search, Grid2x2, Home, Smartphone } from "lucide-react";
+import { Search, Grid2x2, Home } from "lucide-react";
 
 export default function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
@@ -19,9 +19,9 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 font-bold text-foreground">
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-              <Smartphone className="w-4 h-4 text-white" />
+              <img src="/pos-cert-logo.png" alt="Pos Cert" className="w-full h-full object-contain rounded-lg" />
             </div>
-            <span className="text-sm font-bold">ComboFinder</span>
+            <span className="text-sm font-bold">Pos Cert</span>
           </Link>
           <nav className="hidden sm:flex items-center gap-1">
             {navLinks.map(({ href, label, icon: Icon }) => (

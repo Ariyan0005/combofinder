@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
-import { Smartphone, ChevronDown, MessageCircle } from "lucide-react";
+import { ChevronDown, MessageCircle } from "lucide-react";
 
 const WHATSAPP_URL = "https://wa.me/96897043234";
 
@@ -41,12 +41,11 @@ export function AuthNavbar({ lang, onLangChange, supportLabel = "Support" }: Pro
       {/* Logo */}
       <Link href="/">
         <div className="flex items-center gap-2 cursor-pointer select-none">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-            style={{ background: "hsl(var(--primary))" }}>
-            <Smartphone className="w-4 h-4 text-white" />
+          <div className="w-12 h-8 rounded-xl flex items-center justify-center overflow-hidden bg-white">
+            <img src="/pos-cert-logo.png" alt="Pos Cert" className="w-full h-full object-contain" />
           </div>
           <span className="text-base font-extrabold" style={{ color: "hsl(var(--foreground))" }}>
-            ComboFinder
+            Pos Cert
           </span>
         </div>
       </Link>

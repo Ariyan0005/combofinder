@@ -26,7 +26,7 @@ function getMailTransporter() {
   return null;
 }
 
-const FROM_NAME  = () => process.env["MAIL_FROM_NAME"]  ?? "ComboFinder";
+const FROM_NAME  = () => process.env["MAIL_FROM_NAME"]  ?? "Pos Cert";
 const FROM_EMAIL = () => process.env["MAIL_FROM_EMAIL"] ?? "noreply@iunlockd.com";
 
 // ── POST /api/backup/save ─────────────────────────────────────────────────────
@@ -72,12 +72,12 @@ router.post("/backup/save", async (req: any, res: any) => {
         transporter.sendMail({
           from: `"${FROM_NAME()}" <${FROM_EMAIL()}>`,
           to: `"${user.name}" <${user.email}>`,
-          subject: "ComboFinder — Backup Successful ✅",
+          subject: "Pos Cert — Backup Successful ✅",
           html: `<div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#ffffff;">
             <h2 style="color:#0080DB;margin-bottom:8px;">Backup Successful! ✅</h2>
             <p style="color:#374151;font-size:15px;line-height:1.6;">Hello <strong>${user.name}</strong>,</p>
             <p style="color:#374151;font-size:15px;line-height:1.6;">
-              Your ComboFinder data was backed up on <strong>${backupDate}</strong>.
+              Your Pos Cert data was backed up on <strong>${backupDate}</strong>.
             </p>
             <div style="background:#F9FAFB;border-radius:12px;padding:16px 20px;margin:20px 0;">
               <p style="margin:0 0 8px;font-weight:600;color:#111827;">Backed up data:</p>
@@ -86,7 +86,7 @@ router.post("/backup/save", async (req: any, res: any) => {
             <div style="background:#EFF6FF;border-radius:12px;padding:16px 20px;margin:20px 0;border-left:4px solid #0080DB;">
               <p style="margin:0;font-size:14px;color:#1E40AF;font-weight:600;">📱 To Restore on a New Device:</p>
               <ol style="margin:8px 0 0;padding-left:16px;color:#1E40AF;font-size:13px;line-height:1.8;">
-                <li>Log in to ComboFinder on your new device</li>
+                <li>Log in to Pos Cert on your new device</li>
                 <li>Go to Settings → Data &amp; Backup</li>
                 <li>Tap the "Restore from Backup" button</li>
                 <li>All your data will be back ✅</li>
@@ -96,7 +96,7 @@ router.post("/backup/save", async (req: any, res: any) => {
               Your backup is stored securely in your account — it can be restored at any time while your account is active.
             </p>
           </div>`,
-          text: `ComboFinder Backup Successful!\n\nDate: ${backupDate}\n\nTo restore: Log in on your new device → Settings → Restore from Backup`,
+          text: `Pos Cert Backup Successful!\n\nDate: ${backupDate}\n\nTo restore: Log in on your new device → Settings → Restore from Backup`,
         }).catch(() => {}); // non-blocking
       }
     }

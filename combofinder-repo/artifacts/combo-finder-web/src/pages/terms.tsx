@@ -6,7 +6,7 @@ export default function Terms() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-1">Terms of Service</h1>
         <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
-          ComboFinder · combofinder.iunlockd.com · Last updated: July 2025
+          Pos Cert · combofinder.iunlockd.com · Last updated: July 2025
         </p>
       </div>
 
@@ -15,7 +15,7 @@ export default function Terms() {
         <section>
           <h2 className="text-base font-semibold mb-2" style={{ color: "hsl(var(--foreground))" }}>1. Acceptance of Terms</h2>
           <p>
-            By creating an account or using ComboFinder, you agree to these Terms of Service.
+            By creating an account or using Pos Cert, you agree to these Terms of Service.
             If you do not agree, please do not use the service.
           </p>
         </section>
@@ -23,7 +23,7 @@ export default function Terms() {
         <section>
           <h2 className="text-base font-semibold mb-2" style={{ color: "hsl(var(--foreground))" }}>2. Description of Service</h2>
           <p>
-            ComboFinder is a business management tool for mobile phone repair technicians. It provides
+            Pos Cert is a business management tool for mobile phone repair technicians. It provides
             features including repair tracking, inventory management, customer records, invoicing,
             compatibility lookup, and optional cloud backup via Google Drive.
           </p>
@@ -52,7 +52,7 @@ export default function Terms() {
         <section>
           <h2 className="text-base font-semibold mb-2" style={{ color: "hsl(var(--foreground))" }}>5. Google Drive Integration</h2>
           <p className="mb-2">
-            When you connect Google Drive, you grant ComboFinder permission to create and manage
+            When you connect Google Drive, you grant Pos Cert permission to create and manage
             a single backup file (<code className="text-xs px-1 py-0.5 rounded" style={{ background: "hsl(var(--muted))", color: "hsl(var(--foreground))" }}>combofinder-backup.json</code>) in your Drive.
             We will not access any other files. You can revoke this access at any time from Settings.
           </p>
@@ -90,7 +90,7 @@ export default function Terms() {
         <section>
           <h2 className="text-base font-semibold mb-2" style={{ color: "hsl(var(--foreground))" }}>9. Limitation of Liability</h2>
           <p>
-            ComboFinder is provided "as is" without warranties of any kind. We are not liable
+            Pos Cert is provided "as is" without warranties of any kind. We are not liable
             for any indirect, incidental, or consequential damages arising from your use of the service.
           </p>
         </section>
@@ -116,7 +116,7 @@ export default function Terms() {
 
       <div className="mt-10 pt-6 border-t text-xs text-center"
         style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-        © {new Date().getFullYear()} ComboFinder · iunlockd.com
+        © {new Date().getFullYear()} Pos Cert · iunlockd.com
       </div>
     </div>
   );

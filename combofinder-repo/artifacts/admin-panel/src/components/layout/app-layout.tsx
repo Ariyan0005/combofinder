@@ -1,7 +1,7 @@
 import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { 
-  LayoutDashboard, Smartphone, Layers, Search, LogOut, Cpu, 
+  LayoutDashboard, Layers, Search, LogOut, Cpu,
   Menu, X, ChevronRight, ChevronDown, Wrench, Users, Package, 
   SunMoon, Bell, FileText, Settings, ShieldCheck, Database, 
   Video, FolderOpen, CreditCard, DollarSign, Activity, FileKey, 
@@ -97,10 +97,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <Link href="/">
               <div className="flex items-center gap-2.5 cursor-pointer group">
                 <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30 flex-shrink-0">
-                  <Smartphone className="h-4 w-4 text-white" />
+                  <img src="/pos-cert-logo.png" alt="Pos Cert" className="h-full w-full rounded-xl object-contain bg-white" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-sm font-bold text-white tracking-tight">ComboFinder</span>
+                  <span className="text-sm font-bold text-white tracking-tight">Pos Cert</span>
                   <span className="text-[10px] font-medium text-muted-foreground">Admin Panel</span>
                 </div>
               </div>
@@ -239,7 +239,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               Site
             </a>
             <Link href="/">
-              <span className="text-sm font-bold text-foreground cursor-pointer hover:text-primary transition-colors">ComboFinder Admin</span>
+              <span className="text-sm font-bold text-foreground cursor-pointer hover:text-primary transition-colors">Pos Cert Admin</span>
             </Link>
           </div>
           <button

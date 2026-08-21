@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, Search, Wrench, Package, Users,
   BookOpen, BarChart2, Unlock, Receipt, Settings,
-  LogOut, CreditCard, ChevronRight, Smartphone, ShoppingCart, FileText,
+  LogOut, CreditCard, ChevronRight, ShoppingCart, FileText,
   BookMarked,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
@@ -44,11 +44,11 @@ export default function Sidebar({ onClose }: { onClose: () => void }) {
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center"
             style={{ background: "hsl(var(--primary))" }}>
-            <Smartphone className="w-4 h-4 text-white" />
+            <img src="/pos-cert-logo.png" alt="Pos Cert" className="w-full h-full object-contain rounded-lg" />
           </div>
           <div>
-            <p className="text-sm font-bold text-white tracking-tight">ComboFinder</p>
-            <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Every Business. One Powerful Platform.</p>
+          <p className="text-sm font-bold text-white tracking-tight">Pos Cert</p>
+            <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Smart POS for every Business</p>
           </div>
         </div>
       </div>

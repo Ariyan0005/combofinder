@@ -4,7 +4,7 @@ import { Heart, Coffee, Smartphone, ArrowLeft, ExternalLink } from "lucide-react
 const DONATE_TIERS = [
   { amount: "$2", label: "Buy us a coffee", icon: Coffee, desc: "Every little bit helps keep the servers running." },
   { amount: "$5", label: "Support a feature", icon: Smartphone, desc: "Help us build better tools for mobile technicians and general store owners." },
-  { amount: "$10", label: "Be a hero", icon: Heart, desc: "Your generosity keeps ComboFinder free for everyone." },
+  { amount: "$10", label: "Be a hero", icon: Heart, desc: "Your generosity keeps Pos Cert free for everyone." },
 ];
 
 export default function Donate() {
@@ -27,9 +27,9 @@ export default function Donate() {
             style={{ background: "hsl(var(--primary) / 0.12)" }}>
             <Heart className="w-8 h-8" style={{ color: "hsl(var(--primary))" }} />
           </div>
-          <h1 className="text-2xl font-extrabold">Support ComboFinder</h1>
+          <h1 className="text-2xl font-extrabold">Support Pos Cert</h1>
           <p className="text-sm mt-2 leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
-            ComboFinder is a <strong>100% free service</strong> for mobile technicians and general store owners. We cover the tools, server costs, development, and data maintenance from our own pocket.
+            Pos Cert is a <strong>100% free service</strong> for mobile technicians and general store owners. We cover the tools, server costs, development, and data maintenance from our own pocket.
             If this tool saves you time, consider buying us a coffee!
           </p>
         </div>
@@ -68,7 +68,7 @@ export default function Donate() {
           </a>
           <p className="text-xs text-center" style={{ color: "hsl(var(--muted-foreground))" }}>
             All donations go directly toward server and development costs.
-            Thank you for keeping ComboFinder free!
+            Thank you for keeping Pos Cert free!
           </p>
         </div>
 
@@ -76,7 +76,7 @@ export default function Donate() {
         <div className="mt-8 p-4 rounded-xl text-center"
           style={{ background: "hsl(var(--muted) / 0.4)" }}>
           <p className="text-xs font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>
-            ComboFinder will always remain free. Donations are voluntary and deeply appreciated.
+            Pos Cert will always remain free. Donations are voluntary and deeply appreciated.
           </p>
         </div>
       </div>

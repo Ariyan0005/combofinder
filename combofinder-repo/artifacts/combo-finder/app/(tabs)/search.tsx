@@ -11,6 +11,7 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -351,7 +352,10 @@ export default function SearchScreen() {
       >
         <View style={styles.headerTop}>
           <View>
-            <Text style={styles.headerTitle}>ComboFinder</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Image source={require("../../assets/images/pos-cert-logo.png")} style={{ width: 56, height: 32, borderRadius: 6 }} resizeMode="contain" />
+              <Text style={styles.headerTitle}>Pos Cert</Text>
+            </View>
             <Text style={styles.headerSubtitle}>Compatibility Finder</Text>
           </View>
           {/* Stats pills */}

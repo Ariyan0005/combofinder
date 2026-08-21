@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
-import { Smartphone, Lock, User } from "lucide-react";
+import { Lock, User } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function LoginPage() {
@@ -30,10 +30,10 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-foreground font-sans">
       <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
         <div className="p-8 pb-6 text-center border-b border-border bg-card">
-          <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/20">
-            <Smartphone className="h-7 w-7 text-white" />
+          <div className="w-28 h-14 rounded-2xl bg-white flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/20 overflow-hidden">
+            <img src="/pos-cert-logo.png" alt="Pos Cert" className="h-full w-full object-contain" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white mb-1">ComboFinder Admin</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white mb-1">Pos Cert Admin</h1>
           <p className="text-sm text-muted-foreground">Sign in to the super-admin control panel</p>
         </div>
         
@@ -88,7 +88,7 @@ export default function LoginPage() {
         </div>
       </div>
       <div className="mt-8 text-xs text-muted-foreground">
-        &copy; {new Date().getFullYear()} ComboFinder Platform. All rights reserved.
+        &copy; {new Date().getFullYear()} Pos Cert Platform. All rights reserved.
       </div>
     </div>
   );

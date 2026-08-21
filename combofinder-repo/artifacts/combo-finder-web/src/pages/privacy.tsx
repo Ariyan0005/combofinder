@@ -6,7 +6,7 @@ export default function Privacy() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-1">Privacy Policy</h1>
         <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
-          ComboFinder · combofinder.iunlockd.com · Last updated: July 2025
+          Pos Cert · combofinder.iunlockd.com · Last updated: July 2025
         </p>
       </div>
 
@@ -15,7 +15,7 @@ export default function Privacy() {
         <section>
           <h2 className="text-base font-semibold mb-2" style={{ color: "hsl(var(--foreground))" }}>1. Overview</h2>
           <p>
-            ComboFinder is a tool for mobile phone repair technicians. We take your privacy seriously.
+            Pos Cert is a tool for mobile phone repair technicians. We take your privacy seriously.
             This policy explains what data we collect, how we use it, and how we protect it.
           </p>
         </section>
@@ -37,10 +37,10 @@ export default function Privacy() {
             Here is exactly what we do and do not do with Google Drive:
           </p>
           <ul className="list-disc pl-5 space-y-1.5">
-            <li>We request the <strong style={{ color: "hsl(var(--foreground))" }}>drive.file</strong> scope only — this gives us access exclusively to files that ComboFinder itself creates.</li>
+            <li>We request the <strong style={{ color: "hsl(var(--foreground))" }}>drive.file</strong> scope only — this gives us access exclusively to files that Pos Cert itself creates.</li>
             <li>We create and manage a single file: <code className="text-xs px-1 py-0.5 rounded" style={{ background: "hsl(var(--muted))", color: "hsl(var(--foreground))" }}>combofinder-backup.json</code> in your Google Drive.</li>
             <li>We <strong style={{ color: "hsl(var(--foreground))" }}>cannot read, access, or modify</strong> any other files in your Google Drive.</li>
-            <li>Your backup file contains only your own ComboFinder data (inventory, customers, etc.).</li>
+            <li>Your backup file contains only your own Pos Cert data (inventory, customers, etc.).</li>
             <li>We do not share, sell, or transmit your Drive data to any third party.</li>
             <li>You can disconnect Google Drive at any time from the Settings page. We will immediately stop all Drive access.</li>
           </ul>
@@ -49,7 +49,7 @@ export default function Privacy() {
         <section>
           <h2 className="text-base font-semibold mb-2" style={{ color: "hsl(var(--foreground))" }}>4. How We Use Your Data</h2>
           <ul className="list-disc pl-5 space-y-1.5">
-            <li>To provide and improve the ComboFinder service.</li>
+            <li>To provide and improve the Pos Cert service.</li>
             <li>To restore your data when you log in on a new device (Pro plan) or restore from backup (Free plan).</li>
             <li>We do not sell your data to third parties.</li>
             <li>We do not use your data for advertising.</li>
@@ -87,7 +87,7 @@ export default function Privacy() {
 
       <div className="mt-10 pt-6 border-t text-xs text-center"
         style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-        © {new Date().getFullYear()} ComboFinder · iunlockd.com
+        © {new Date().getFullYear()} Pos Cert · iunlockd.com
       </div>
     </div>
   );

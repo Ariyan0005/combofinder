@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Smartphone, Cpu, Wrench, Package, Heart } from "lucide-react";
+import { Cpu, Wrench, Package, Heart } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 
 export default function Splash() {
@@ -14,15 +14,15 @@ export default function Splash() {
 
       {/* Center content */}
       <div className="flex flex-col items-center gap-4 text-white text-center">
-        {/* Logo icon */}
-        <div className="w-20 h-20 rounded-3xl flex items-center justify-center"
-          style={{ background: "rgba(255,255,255,0.15)", border: "2px solid rgba(255,255,255,0.3)" }}>
-          <Smartphone className="w-10 h-10 text-white" />
+        {/* Pos Cert logo */}
+        <div className="w-64 h-32 rounded-3xl flex items-center justify-center overflow-hidden"
+          style={{ background: "#fff", border: "2px solid rgba(255,255,255,0.3)" }}>
+          <img src="/pos-cert-logo.png" alt="Pos Cert" className="w-full h-full object-contain" />
         </div>
 
         <div>
-          <h1 className="text-4xl font-extrabold tracking-tight">ComboFinder</h1>
-          <p className="mt-1.5 text-sm opacity-80 font-medium">Every Business. One Powerful Platform.</p>
+          <h1 className="text-4xl font-extrabold tracking-tight">Pos Cert</h1>
+          <p className="mt-1.5 text-sm opacity-80 font-medium">Smart POS for every Business</p>
         </div>
 
         {/* Illustration */}
