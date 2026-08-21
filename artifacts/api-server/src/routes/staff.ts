@@ -5,6 +5,10 @@ import { pbkdf2Sync, randomBytes } from "node:crypto";
 
 const router = Router();
 
+function isProPlan(plan: unknown): boolean {
+  return String(plan ?? "").trim().toLowerCase().startsWith("pro");
+}
+
 function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
   return `${salt}:${pbkdf2Sync(password, salt, 10000, 64, "sha512").toString("hex")}`;
@@ -34,7 +38,7 @@ router.post("/", async (req, res) => {
   try {
     const userId: number = (req as any).userId;
     const b = req.body;
-    const isPro = String((req.session as any).userPlan ?? "").toLowerCase() === "pro";
+    const isPro = isProPlan((req.session as any).userPlan);
     if (!isPro && (b.username || b.password)) {
       res.status(403).json({ error: "Staff login is available on the Pro plan only" });
       return;
@@ -82,7 +86,7 @@ router.put("/:id", async (req, res) => {
   try {
     const userId: number = (req as any).userId;
     const b = req.body;
-    const isPro = String((req.session as any).userPlan ?? "").toLowerCase() === "pro";
+    const isPro = isProPlan((req.session as any).userPlan);
     if (!isPro && (b.username !== undefined || b.password !== undefined)) {
       res.status(403).json({ error: "Staff login is available on the Pro plan only" });
       return;
