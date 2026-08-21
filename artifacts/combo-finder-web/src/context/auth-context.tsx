@@ -48,6 +48,17 @@ function applyBusinessTheme(user: UserInfo | null) {
   }
 }
 
+// Subscription values have historically been stored with inconsistent casing
+// for some users. Keep the UI's plan checks reliable without requiring a data
+// migration just to render the correct account data.
+function normalizeUser(user: UserInfo): UserInfo {
+  const plan = user.plan?.trim();
+  return {
+    ...user,
+    plan: plan?.toLowerCase() === "pro" ? "Pro" : plan,
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isGuest, setIsGuest] = useState(false);
@@ -58,11 +69,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const r = await fetch(`/api/auth/me`, { credentials: "include" });
     const data = await r.json() as { authenticated: boolean; user?: UserInfo };
     if (data.authenticated && data.user) {
-      setUser(data.user);
-      applyBusinessTheme(data.user);
+      const normalizedUser = normalizeUser(data.user);
+      setUser(normalizedUser);
+      applyBusinessTheme(normalizedUser);
       // Free users: auto-backup to Google Drive (silent — only if already connected)
-      if (data.user.id && data.user.plan !== "Pro") {
-        const uid = data.user.id;
+      if (normalizedUser.id && normalizedUser.plan !== "Pro") {
+        const uid = normalizedUser.id;
         silentDriveBackup(uid, () => exportAllLocalData(uid)).catch(() => {});
       }
     } else {
@@ -89,24 +101,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const data = await res.json() as { success?: boolean; error?: string; user?: UserInfo };
     if (!res.ok) throw new Error(data.error ?? "Invalid credentials");
-    setUser(data.user!);
-    applyBusinessTheme(data.user!);
+    const normalizedUser = normalizeUser(data.user!);
+    setUser(normalizedUser);
+    applyBusinessTheme(normalizedUser);
     setIsGuest(false);
     sessionStorage.removeItem("cf_guest");
-    if (data.user?.id && data.user?.plan !== "Pro") {
-      const uid = data.user.id;
+    if (normalizedUser.id && normalizedUser.plan !== "Pro") {
+      const uid = normalizedUser.id;
       silentDriveBackup(uid, () => exportAllLocalData(uid)).catch(() => {});
     }
   }
 
   async function loginWithGoogle(userData?: UserInfo) {
     if (userData) {
-      setUser(userData);
-      applyBusinessTheme(userData);
+      const normalizedUser = normalizeUser(userData);
+      setUser(normalizedUser);
+      applyBusinessTheme(normalizedUser);
       setIsGuest(false);
       sessionStorage.removeItem("cf_guest");
-      if (userData.id && userData.plan !== "Pro") {
-        const uid = userData.id;
+      if (normalizedUser.id && normalizedUser.plan !== "Pro") {
+        const uid = normalizedUser.id;
         silentDriveBackup(uid, () => exportAllLocalData(uid)).catch(() => {});
       }
     } else {
@@ -128,8 +142,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const data = await res.json() as { success?: boolean; error?: string; user?: UserInfo };
     if (!res.ok) throw new Error(data.error ?? "Registration failed");
-    setUser(data.user!);
-    applyBusinessTheme(data.user!);
+    const normalizedUser = normalizeUser(data.user!);
+    setUser(normalizedUser);
+    applyBusinessTheme(normalizedUser);
     setIsGuest(false);
     sessionStorage.removeItem("cf_guest");
   }
