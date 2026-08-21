@@ -8,6 +8,10 @@ import nodemailer from "nodemailer";
 
 const router = Router();
 
+function isProPlan(plan: unknown): boolean {
+  return String(plan ?? "").trim().toLowerCase().startsWith("pro");
+}
+
 // ---------------------------------------------------------------------------
 // In-memory rate limiter — no external package needed.
 // Keyed by IP + route so limits are independent per endpoint.
@@ -680,7 +684,7 @@ router.post("/auth/login", loginLimiter, async (req, res) => {
       if (!owner || !owner.isActive || !owner.isApproved) {
         res.status(403).json({ error: "This business account is not active" }); return;
       }
-      if (String(owner.subscriptionPlan ?? "").toLowerCase() !== "pro") {
+      if (!isProPlan(owner.subscriptionPlan)) {
         res.status(403).json({ error: "Staff login is available on the Pro plan only" }); return;
       }
       (req.session as any).authenticated = true;
