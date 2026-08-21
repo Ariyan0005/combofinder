@@ -459,8 +459,7 @@ export default function Settings() {
                 </span>
               </div>
               <p className="text-xs mt-1 truncate" style={{ color: "hsl(var(--muted-foreground))" }}>
-                {user?.email && <span>{user.email} · </span>}
-                {user?.role ?? "Technician"}
+                {user?.email}
               </p>
             </div>
           </div>
@@ -789,7 +788,11 @@ export default function Settings() {
 
         {/* App Version Footer */}
         <p className="text-xs text-center pt-2" style={{ color: "hsl(var(--muted-foreground))" }}>
-          Pos Cert v1.0 · Smart POS for every Business
+          <span>
+            <span style={{ color: "#6d28d9", fontWeight: 800 }}>Pos</span>
+            <span style={{ color: "#1f2937", fontWeight: 800 }}>Cert</span>
+            <span> v1.0 · Smart POS for every Business</span>
+          </span>
         </p>
       </div>
 
