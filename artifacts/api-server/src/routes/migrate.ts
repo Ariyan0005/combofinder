@@ -331,8 +331,13 @@ router.post("/migrate", async (req: any, res: any) => {
     }
   }
 
-  res.json({
-    success: true,
+  // A migration is only safe to finalize when every record was accepted.
+  // The client removes local data after a successful response, so reporting
+  // success for a partial migration can permanently hide records that failed
+  // to insert (especially ledger entries whose account ID could not be mapped).
+  const migrationSucceeded = errors.length === 0;
+  res.status(migrationSucceeded ? 200 : 422).json({
+    success: migrationSucceeded,
     migratedRepairs,
     migratedInventory,
     migratedCustomers,

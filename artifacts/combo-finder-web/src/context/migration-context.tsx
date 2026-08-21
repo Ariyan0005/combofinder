@@ -57,6 +57,9 @@ export function MigrationProvider({ children }: { children: ReactNode }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Migration failed");
+      if (data.warnings?.length) {
+        throw new Error(`Migration incomplete: ${data.warnings[0]}`);
+      }
 
       // Clear all local data after successful migration
       localRepairs.clear(uid);
