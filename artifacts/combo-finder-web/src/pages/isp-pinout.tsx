@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Search, Plus, X, Cpu, ExternalLink, ArrowLeft, ZoomIn, ZoomOut, Trash2, ChevronRight,
@@ -139,6 +139,10 @@ function AddPinoutSheet({ onClose, onSaved }: { onClose: () => void; onSaved: ()
 // ── Image Zoom Modal ──────────────────────────────────────────────────────────
 function ImageModal({ src, title, link, onClose }: { src: string; title: string; link?: string; onClose: () => void }) {
   const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const positionStart = useRef({ x: 0, y: 0 });
   const MIN = 0.5;
   const MAX = 4;
 
@@ -151,6 +155,32 @@ function ImageModal({ src, title, link, onClose }: { src: string; title: string;
     };
   }, []);
 
+  function resetView() {
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+  }
+
+  function changeScale(next: number) {
+    setScale(next);
+    if (next <= 1) setPosition({ x: 0, y: 0 });
+  }
+
+  function startDrag(e: ReactPointerEvent<HTMLDivElement>) {
+    if (scale <= 1) return;
+    setDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    positionStart.current = position;
+  }
+
+  function moveDrag(e: ReactPointerEvent<HTMLDivElement>) {
+    if (!dragging) return;
+    setPosition({
+      x: positionStart.current.x + e.clientX - dragStart.current.x,
+      y: positionStart.current.y + e.clientY - dragStart.current.y,
+    });
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "rgba(0,0,0,0.92)" }}>
       {/* Top bar */}
@@ -159,13 +189,25 @@ function ImageModal({ src, title, link, onClose }: { src: string; title: string;
         <button onClick={onClose}><X className="w-5 h-5 text-white" /></button>
       </div>
 
-      {/* Scrollable image area */}
-      <div className="flex-1 overflow-auto flex items-center justify-center px-4 pb-4">
+      {/* Pointer drag works with both mouse and touch after zooming. */}
+      <div
+        className={`flex-1 overflow-hidden flex items-center justify-center px-4 pb-4 ${scale > 1 ? "cursor-grab" : ""} ${dragging ? "cursor-grabbing" : ""}`}
+        style={{ touchAction: scale > 1 ? "none" : "pan-y" }}
+        onPointerDown={startDrag}
+        onPointerMove={moveDrag}
+        onPointerUp={() => setDragging(false)}
+        onPointerCancel={() => setDragging(false)}
+      >
         <img
           src={src}
           alt={title}
-          style={{ transform: `scale(${scale})`, transformOrigin: "center center", transition: "transform 0.2s ease" }}
-          className="max-w-full rounded-2xl object-contain"
+          draggable={false}
+          style={{
+            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+            transformOrigin: "center center",
+            transition: dragging ? "none" : "transform 0.2s ease",
+          }}
+          className="max-w-full max-h-full rounded-2xl object-contain select-none"
         />
       </div>
 
@@ -174,7 +216,7 @@ function ImageModal({ src, title, link, onClose }: { src: string; title: string;
         {/* Zoom controls */}
         <div className="flex items-center justify-center gap-4">
           <button
-            onClick={() => setScale(s => Math.max(MIN, parseFloat((s - 0.25).toFixed(2))))}
+            onClick={() => changeScale(Math.max(MIN, parseFloat((scale - 0.25).toFixed(2))))}
             disabled={scale <= MIN}
             className="w-11 h-11 rounded-full flex items-center justify-center disabled:opacity-40"
             style={{ background: "rgba(255,255,255,0.15)" }}>
@@ -182,7 +224,7 @@ function ImageModal({ src, title, link, onClose }: { src: string; title: string;
           </button>
           <span className="text-white text-sm font-bold w-12 text-center">{Math.round(scale * 100)}%</span>
           <button
-            onClick={() => setScale(s => Math.min(MAX, parseFloat((s + 0.25).toFixed(2))))}
+            onClick={() => changeScale(Math.min(MAX, parseFloat((scale + 0.25).toFixed(2))))}
             disabled={scale >= MAX}
             className="w-11 h-11 rounded-full flex items-center justify-center disabled:opacity-40"
             style={{ background: "rgba(255,255,255,0.15)" }}>
@@ -193,7 +235,7 @@ function ImageModal({ src, title, link, onClose }: { src: string; title: string;
         {/* Reset & External link */}
         <div className="flex gap-2">
           {scale !== 1 && (
-            <button onClick={() => setScale(1)}
+            <button onClick={resetView}
               className="flex-1 py-2.5 rounded-xl font-semibold text-sm"
               style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}>
               Reset
@@ -223,17 +265,35 @@ function PinoutCard({
   onZoom: (p: Pinout) => void;
   onDelete: (id: number) => void;
 }) {
+  const [imageSrc, setImageSrc] = useState(p.fileUrl ?? "");
+  const [imageFailed, setImageFailed] = useState(false);
+
+  function handleImageError() {
+    if (p.thumbnailUrl && imageSrc !== p.thumbnailUrl) {
+      setImageSrc(p.thumbnailUrl);
+    } else {
+      setImageFailed(true);
+    }
+  }
+
   return (
     <div className="rounded-2xl border overflow-hidden relative" style={{ borderColor: BORDER, background: CARD }}>
-      <button className="block w-full" onClick={() => onZoom(p)}>
-        {p.fileUrl ? (
-          <img src={p.fileUrl} alt={p.title} className="w-full h-36 object-cover" loading="lazy" />
+      <button className="block w-full" onClick={() => onZoom({ ...p, fileUrl: imageSrc })}>
+        {imageSrc && !imageFailed ? (
+          <img
+            src={imageSrc}
+            alt={p.title}
+            onError={handleImageError}
+            className="w-full h-40 object-contain bg-muted/30"
+            loading="lazy"
+          />
         ) : (
-          <div className="w-full h-36 flex items-center justify-center" style={{ background: palette.bg }}>
-            <Cpu className="w-10 h-10" style={{ color: palette.color }} />
+          <div className="w-full h-40 flex flex-col gap-1 items-center justify-center" style={{ background: palette.bg }}>
+            <Cpu className="w-9 h-9" style={{ color: palette.color }} />
+            <span className="text-[10px] font-semibold" style={{ color: palette.color }}>Diagram unavailable</span>
           </div>
         )}
-        {p.fileUrl && (
+        {imageSrc && !imageFailed && (
           <div className="absolute inset-0 bg-black/0 hover:bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-all">
             <ZoomIn className="w-7 h-7 text-white" />
           </div>
