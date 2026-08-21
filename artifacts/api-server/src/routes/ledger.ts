@@ -4,6 +4,11 @@ import { eq, and, desc } from "drizzle-orm";
 
 const router = Router();
 
+function parseAmount(value: unknown): number {
+  const amount = Number(String(value ?? "").replace(/,/g, "").trim());
+  return Number.isFinite(amount) ? amount : 0;
+}
+
 // ── Accounts ─────────────────────────────────────────────────────────────────
 
 router.get("/accounts", async (req, res) => {
@@ -25,8 +30,7 @@ router.get("/accounts", async (req, res) => {
 
     const totals = new Map<number, { creditSum: number; debitSum: number }>();
     for (const entry of entries) {
-      const amount = Number(String(entry.amount).replace(/,/g, "").trim());
-      if (!Number.isFinite(amount)) continue;
+      const amount = parseAmount(entry.amount);
       const current = totals.get(entry.accountId) ?? { creditSum: 0, debitSum: 0 };
       if (entry.type === "credit") current.creditSum += amount;
       if (entry.type === "debit") current.debitSum += amount;
@@ -53,8 +57,8 @@ router.get("/accounts/:id", async (req, res) => {
       .where(and(eq(ledgerEntriesTable.accountId, acc.id), eq(ledgerEntriesTable.userId, userId)))
       .orderBy(desc(ledgerEntriesTable.date));
 
-    const creditSum = entries.filter(e => e.type === "credit").reduce((s, e) => s + Number(e.amount), 0);
-    const debitSum = entries.filter(e => e.type === "debit").reduce((s, e) => s + Number(e.amount), 0);
+    const creditSum = entries.filter(e => e.type === "credit").reduce((s, e) => s + parseAmount(e.amount), 0);
+    const debitSum = entries.filter(e => e.type === "debit").reduce((s, e) => s + parseAmount(e.amount), 0);
     const balance = creditSum - debitSum;
 
     res.json({ ...acc, balance, creditSum, debitSum, entries });
@@ -111,7 +115,13 @@ router.post("/entries", async (req, res) => {
     const { accountId, type, amount, itemName, description, reference, date } = req.body;
     if (!accountId || !type || !amount || !date) return res.status(400).json({ error: "accountId, type, amount, date are required" });
     if (!["credit", "debit"].includes(type)) return res.status(400).json({ error: "type must be credit or debit" });
-    const [row] = await db.insert(ledgerEntriesTable).values({ userId, accountId: Number(accountId), type, amount: String(amount), itemName: itemName || null, description, reference, date }).returning();
+    const numericAmount = parseAmount(amount);
+    if (numericAmount <= 0) return res.status(400).json({ error: "amount must be a positive number" });
+    const [account] = await db.select({ id: ledgerAccountsTable.id })
+      .from(ledgerAccountsTable)
+      .where(and(eq(ledgerAccountsTable.id, Number(accountId)), eq(ledgerAccountsTable.userId, userId)));
+    if (!account) return res.status(404).json({ error: "Account not found" });
+    const [row] = await db.insert(ledgerEntriesTable).values({ userId, accountId: Number(accountId), type, amount: String(numericAmount), itemName: itemName || null, description, reference, date }).returning();
     res.status(201).json(row);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to create entry" }); }
 });
@@ -120,8 +130,11 @@ router.put("/entries/:id", async (req, res) => {
   try {
     const userId: number = (req as any).userId;
     const { type, amount, itemName, description, reference, date } = req.body;
+    if (!["credit", "debit"].includes(type)) return res.status(400).json({ error: "type must be credit or debit" });
+    const numericAmount = parseAmount(amount);
+    if (numericAmount <= 0) return res.status(400).json({ error: "amount must be a positive number" });
     const [row] = await db.update(ledgerEntriesTable)
-      .set({ type, amount: String(amount), itemName: itemName || null, description, reference, date })
+      .set({ type, amount: String(numericAmount), itemName: itemName || null, description, reference, date })
       .where(and(eq(ledgerEntriesTable.id, Number(req.params.id)), eq(ledgerEntriesTable.userId, userId)))
       .returning();
     if (!row) return res.status(404).json({ error: "Not found" });
