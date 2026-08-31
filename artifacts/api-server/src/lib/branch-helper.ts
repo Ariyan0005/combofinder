@@ -38,7 +38,7 @@ export function getBranchScope(req: Request, body?: Record<string, any>): Branch
 export function getBranchCondition(
   req: Request,
   branchIdColumn: any
-): SQL | null {
+): SQL {
   const { branchId } = getBranchScope(req);
   return branchId === null ? isNull(branchIdColumn) : eq(branchIdColumn, branchId);
 }

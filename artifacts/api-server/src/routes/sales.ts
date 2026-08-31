@@ -455,7 +455,7 @@ router.post("/:id/return", async (req: any, res) => {
         if (saleItem.inventoryId) {
           await tx.update(inventoryTable)
             .set({ quantity: sql`${inventoryTable.quantity} + ${quantity}`, updatedAt: new Date() })
-             .where(and(eq(inventoryTable.id, saleItem.inventoryId), eq(inventoryTable.userId, sale.userId), getBranchCondition(req, inventoryTable.branchId)));
+             .where(and(eq(inventoryTable.id, saleItem.inventoryId), eq(inventoryTable.userId, userId), getBranchCondition(req, inventoryTable.branchId)));
 
           await tx.insert(stockMovementsTable).values({
              userId,
