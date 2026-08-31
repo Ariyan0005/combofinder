@@ -20,7 +20,10 @@ router.get("/stats", async (req: any, res): Promise<void> => {
   if (userId) {
     try {
       const [c] = await db.select({ count: sql<number>`cast(count(*) as int)` })
-        .from(customersTable).where(eq(customersTable.userId, userId));
+        .from(customersTable).where(and(
+          eq(customersTable.userId, userId),
+          getBranchCondition(req, customersTable.branchId),
+        ));
       totalCustomers = c?.count ?? 0;
     } catch {}
 

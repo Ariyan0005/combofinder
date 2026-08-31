@@ -1,44 +1,46 @@
-import { SQL, eq } from "drizzle-orm";
+import { SQL, eq, isNull } from "drizzle-orm";
 import type { Request } from "express";
 
 /**
- * Resolves optional branch filter condition.
+ * Resolves the effective branch for the request.
  * 
  * Rules:
  * 1. If staff/manager is logged in and assigned to a specific branch -> returns eq(column, branchId)
- * 2. If the user is an owner/admin and passed a specific sub-branch ID -> returns eq(column, branchId)
- * 3. In ALL OTHER CASES (Default store, Main branch, "all", empty, legacy user) -> returns null
- *    (which means the query will ONLY filter by user_id = :userId and show all data without hiding anything!).
+ * 2. If the owner/admin selected a specific sub-branch -> returns eq(column, branchId)
+ * 3. Main/default/legacy data is stored with a NULL branch_id and must be filtered
+ *    explicitly with IS NULL. There is no implicit "all branches" scope.
  */
+export type BranchScope = { branchId: number | null };
+
+function positiveBranchId(value: unknown): number | null {
+  if (value === undefined || value === null) return null;
+  const str = String(value).trim();
+  if (!str || ["all", "0", "default-main", "main", "default"].includes(str.toLowerCase())) return null;
+  const num = Number(str);
+  return Number.isInteger(num) && num > 0 ? num : null;
+}
+
+export function getBranchScope(req: Request, body?: Record<string, any>): BranchScope {
+  const session = req.session as any;
+  const role = String(session?.userRole ?? "").toLowerCase();
+  const isStaff = ["staff", "technician", "manager"].includes(role);
+
+  // A staff member's assignment always wins over client-provided branch values.
+  if (isStaff) {
+    return { branchId: positiveBranchId(session?.branchId) };
+  }
+
+  const rawQueryBranch = req.query?.branchId ?? req.query?.branch_id ?? req.headers?.["x-branch-id"];
+  const requested = positiveBranchId(rawQueryBranch ?? body?.branchId ?? body?.branch_id);
+  return { branchId: requested };
+}
+
 export function getBranchCondition(
   req: Request,
   branchIdColumn: any
 ): SQL | null {
-  const session = req.session as any;
-  const isStaff = session?.userRole === "Staff" || session?.userRole === "Technician" || session?.userRole === "Manager";
-  
-  // 1. If staff has a specific branch assignment (e.g. branchId is "2" or 2)
-  if (isStaff && session?.branchId && String(session.branchId).trim() !== "" && String(session.branchId).toLowerCase() !== "main" && String(session.branchId).toLowerCase() !== "default") {
-    const sBranchId = Number(session.branchId);
-    if (!Number.isNaN(sBranchId) && sBranchId > 0) {
-      return eq(branchIdColumn, sBranchId);
-    }
-  }
-
-  // 2. If query or header explicitly requested a specific sub-branch
-  const rawQueryBranch = (req.query?.branchId ?? req.query?.branch_id ?? req.headers?.["x-branch-id"]) as string | undefined;
-  if (rawQueryBranch) {
-    const str = String(rawQueryBranch).trim();
-    if (str !== "" && str !== "all" && str !== "0" && str !== "default-main" && str.toUpperCase() !== "MAIN" && str.toLowerCase() !== "default") {
-      const num = Number(str);
-      if (!Number.isNaN(num) && num > 0) {
-        return eq(branchIdColumn, num);
-      }
-    }
-  }
-
-  // Default: no branch filter (pure user_id query, all records visible!)
-  return null;
+  const { branchId } = getBranchScope(req);
+  return branchId === null ? isNull(branchIdColumn) : eq(branchIdColumn, branchId);
 }
 
 /**
@@ -49,12 +51,13 @@ export function extractBranchSaveData(
   body: Record<string, any>
 ): { branchId: number | null; branchName: string | null } {
   const session = req.session as any;
-  const isStaff = session?.userRole === "Staff" || session?.userRole === "Technician" || session?.userRole === "Manager";
+  const role = String(session?.userRole ?? "").toLowerCase();
+  const isStaff = ["staff", "technician", "manager"].includes(role);
 
   // If staff has branch
-  if (isStaff && session?.branchId) {
-    const sId = Number(session.branchId);
-    if (!Number.isNaN(sId) && sId > 0) {
+  if (isStaff) {
+    const sId = positiveBranchId(session?.branchId);
+    if (sId !== null) {
       return {
         branchId: sId,
         branchName: session?.branchName ? String(session.branchName) : null,
@@ -63,28 +66,20 @@ export function extractBranchSaveData(
   }
 
   // If passed in body or headers
-  const rawId = body.branchId ?? body.branch_id ?? req.headers?.["x-branch-id"];
+  const scope = getBranchScope(req, body);
+  const rawId = scope.branchId;
   const rawName = body.branchName ?? body.branch_name ?? req.headers?.["x-branch-name"];
 
-  if (rawId) {
-    const str = String(rawId).trim();
-    if (str !== "" && str !== "all" && str !== "0" && str !== "default-main" && str.toUpperCase() !== "MAIN" && str.toLowerCase() !== "default") {
-      const num = Number(str);
-      if (!Number.isNaN(num) && num > 0) {
-        let name: string | null = null;
-        if (rawName) {
-          try {
-            name = decodeURIComponent(String(rawName));
-          } catch {
-            name = String(rawName);
-          }
+  if (rawId !== null) {
+    let name: string | null = null;
+    if (rawName) {
+      try {
+        name = decodeURIComponent(String(rawName));
+      } catch {
+        name = String(rawName);
         }
-        return {
-          branchId: num,
-          branchName: name,
-        };
-      }
     }
+    return { branchId: rawId, branchName: name };
   }
 
   return { branchId: null, branchName: null };

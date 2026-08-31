@@ -4,6 +4,8 @@ import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
 export const supplierPurchasesTable = pgTable("supplier_purchases", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
+  branchId: integer("branch_id"),
+  branchName: text("branch_name"),
   supplierId: integer("supplier_id").notNull(),
   supplierName: text("supplier_name"),
   stockMovementId: integer("stock_movement_id"), // optional link to stock movement
@@ -25,6 +27,8 @@ export const supplierPurchasesTable = pgTable("supplier_purchases", {
 export const supplierPaymentsTable = pgTable("supplier_payments", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
+  branchId: integer("branch_id"),
+  branchName: text("branch_name"),
   supplierId: integer("supplier_id").notNull(),
   supplierName: text("supplier_name"),
   purchaseId: integer("purchase_id"), // optional — can be a general payment against dues

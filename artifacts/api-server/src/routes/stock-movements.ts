@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, stockMovementsTable, inventoryTable } from "@workspace/db";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, and } from "drizzle-orm";
+import { getBranchCondition, extractBranchSaveData } from "../lib/branch-helper";
 
 const router = Router();
 
@@ -38,15 +39,15 @@ router.get("/", async (req, res) => {
     const rows = invId
       ? await baseQuery
           .where(
-            userId
-              ? sql`${stockMovementsTable.inventoryId} = ${invId} AND ${inventoryTable.userId} = ${userId}`
+               userId
+               ? and(eq(stockMovementsTable.inventoryId, invId), eq(inventoryTable.userId, userId), getBranchCondition(req, inventoryTable.branchId))
               : eq(stockMovementsTable.inventoryId, invId)
           )
           .orderBy(desc(stockMovementsTable.createdAt))
           .limit(limit)
       : await baseQuery
           .where(
-            userId ? eq(inventoryTable.userId, userId) : undefined
+             userId ? and(eq(inventoryTable.userId, userId), getBranchCondition(req, inventoryTable.branchId)) : undefined
           )
           .orderBy(desc(stockMovementsTable.createdAt))
           .limit(limit);
@@ -79,6 +80,7 @@ router.post("/", async (req, res) => {
     const userId: number = (req as any).userId;
 
     const result = await db.transaction(async (tx) => {
+      const branch = extractBranchSaveData(req, req.body);
       // Update inventory quantity — only succeed if result stays >= 0
       const [updated] = await tx
         .update(inventoryTable)
@@ -92,15 +94,15 @@ router.post("/", async (req, res) => {
         .where(
           // For outgoing movements enforce quantity >= amount being removed
           type === "in"
-            ? and(eq(inventoryTable.id, inventoryId), eq(inventoryTable.userId, userId))
-            : sql`${inventoryTable.id} = ${inventoryId} AND ${inventoryTable.userId} = ${userId} AND ${inventoryTable.quantity} >= ${quantity}`
+             ? and(eq(inventoryTable.id, inventoryId), eq(inventoryTable.userId, userId), getBranchCondition(req, inventoryTable.branchId))
+             : and(eq(inventoryTable.id, inventoryId), eq(inventoryTable.userId, userId), getBranchCondition(req, inventoryTable.branchId), sql`${inventoryTable.quantity} >= ${quantity}`)
         )
         .returning();
 
       if (!updated) {
         // Rolled back automatically by transaction — tell caller why
         const [current] = await tx.select({ q: inventoryTable.quantity })
-          .from(inventoryTable).where(and(eq(inventoryTable.id, inventoryId), eq(inventoryTable.userId, userId)));
+           .from(inventoryTable).where(and(eq(inventoryTable.id, inventoryId), eq(inventoryTable.userId, userId), getBranchCondition(req, inventoryTable.branchId)));
         if (!current) throw Object.assign(new Error("Inventory item not found"), { status: 404 });
         throw Object.assign(
           new Error(`Not enough stock (available: ${current.q}, requested: ${quantity})`),
@@ -110,6 +112,9 @@ router.post("/", async (req, res) => {
 
       // Insert movement ledger record
       const [movement] = await tx.insert(stockMovementsTable).values({
+         userId,
+         branchId: branch.branchId,
+         branchName: branch.branchName,
         inventoryId, type, quantity, supplierId, supplierName,
         unitPrice, totalPrice,
         notes: notes ? String(notes).slice(0, 500) : null,

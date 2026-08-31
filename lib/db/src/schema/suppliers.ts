@@ -3,6 +3,8 @@ import { pgTable, serial, text, timestamp, boolean, integer } from "drizzle-orm/
 export const suppliersTable = pgTable("suppliers", {
   id: serial("id").primaryKey(),
   userId: integer("user_id"),
+  branchId: integer("branch_id"),
+  branchName: text("branch_name"),
   name: text("name").notNull(),
   contactPerson: text("contact_person"),
   phone: text("phone"),

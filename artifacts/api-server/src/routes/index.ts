@@ -110,7 +110,7 @@ export function requirePaidOwnerAuth(req: any, res: any, next: any) {
   if (!req.session?.authenticated || !req.session?.userId) {
     res.status(401).json({ error: "Unauthorized" }); return;
   }
-  if (String(req.session.userRole ?? "").toLowerCase() === "staff") {
+  if (["staff", "technician", "manager"].includes(String(req.session.userRole ?? "").toLowerCase())) {
     res.status(403).json({ error: "Branch management is available to owners only" }); return;
   }
   const plan = String(req.session.userPlan ?? "").trim().toLowerCase();

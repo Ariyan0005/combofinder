@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, supplierPurchasesTable, supplierPaymentsTable, suppliersTable, stockMovementsTable, inventoryTable } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
+import { getBranchCondition, extractBranchSaveData } from "../lib/branch-helper";
 
 const router = Router();
 
@@ -23,10 +24,10 @@ router.get("/", async (req, res) => {
 
     const rows = supplierId
       ? await db.select().from(supplierPurchasesTable)
-          .where(and(eq(supplierPurchasesTable.userId, userId), eq(supplierPurchasesTable.supplierId, supplierId)))
+          .where(and(eq(supplierPurchasesTable.userId, userId), eq(supplierPurchasesTable.supplierId, supplierId), getBranchCondition(req, supplierPurchasesTable.branchId)))
           .orderBy(desc(supplierPurchasesTable.createdAt))
       : await db.select().from(supplierPurchasesTable)
-          .where(eq(supplierPurchasesTable.userId, userId))
+           .where(and(eq(supplierPurchasesTable.userId, userId), getBranchCondition(req, supplierPurchasesTable.branchId)))
           .orderBy(desc(supplierPurchasesTable.createdAt))
           .limit(100);
 
@@ -41,8 +42,8 @@ router.get("/balance", async (req, res) => {
     const supplierId = req.query.supplierId ? Number(req.query.supplierId) : null;
 
     const whereClause = supplierId
-      ? and(eq(supplierPurchasesTable.userId, userId), eq(supplierPurchasesTable.supplierId, supplierId))
-      : eq(supplierPurchasesTable.userId, userId);
+      ? and(eq(supplierPurchasesTable.userId, userId), eq(supplierPurchasesTable.supplierId, supplierId), getBranchCondition(req, supplierPurchasesTable.branchId))
+      : and(eq(supplierPurchasesTable.userId, userId), getBranchCondition(req, supplierPurchasesTable.branchId));
 
     const [totals] = await db.select({
       totalPurchased: sql<string>`COALESCE(SUM(CAST(${supplierPurchasesTable.totalAmount} AS NUMERIC)), 0)`,
@@ -74,7 +75,7 @@ router.get("/balances", async (req, res) => {
       purchaseCount: sql<number>`COUNT(*)`,
     })
       .from(supplierPurchasesTable)
-      .where(eq(supplierPurchasesTable.userId, userId))
+       .where(and(eq(supplierPurchasesTable.userId, userId), getBranchCondition(req, supplierPurchasesTable.branchId)))
       .groupBy(supplierPurchasesTable.supplierId, supplierPurchasesTable.supplierName);
 
     res.json(rows.map(r => ({
@@ -93,6 +94,7 @@ router.get("/balances", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
+    const branch = extractBranchSaveData(req, req.body);
     const {
       supplierId, supplierName, inventoryId, productName,
       quantity, totalAmount, paidAmount, purchaseDate, notes,
@@ -126,13 +128,16 @@ router.post("/", async (req, res) => {
             ...(supplierName ? { supplier: String(supplierName) } : {}),
             ...(unitPriceStr ? { purchasePrice: unitPriceStr } : {}),
           })
-          .where(and(eq(inventoryTable.id, Number(inventoryId)), eq(inventoryTable.userId, userId)))
+           .where(and(eq(inventoryTable.id, Number(inventoryId)), eq(inventoryTable.userId, userId), getBranchCondition(req, inventoryTable.branchId)))
           .returning();
 
         if (!updatedItem) throw Object.assign(new Error("Inventory item not found"), { status: 404 });
 
         // Insert stock movement record
         const [movement] = await tx.insert(stockMovementsTable).values({
+           userId,
+           branchId: branch.branchId,
+           branchName: branch.branchName,
           inventoryId: Number(inventoryId),
           type: "in",
           quantity: qty,
@@ -146,6 +151,7 @@ router.post("/", async (req, res) => {
         // Insert supplier purchase linked to the movement
         const [purchase] = await tx.insert(supplierPurchasesTable).values({
           userId,
+           ...branch,
           supplierId: Number(supplierId),
           supplierName: supplierName ? String(supplierName) : null,
           stockMovementId: movement.id,
@@ -168,6 +174,7 @@ router.post("/", async (req, res) => {
     // ── Standard purchase record (no stock update) ─────────────────────────────
     const [row] = await db.insert(supplierPurchasesTable).values({
       userId,
+      ...branch,
       supplierId: Number(supplierId),
       supplierName: supplierName ? String(supplierName) : null,
       stockMovementId: null,
@@ -196,6 +203,7 @@ router.post("/", async (req, res) => {
 router.post("/invoice", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
+    const branch = extractBranchSaveData(req, req.body);
     const { supplierId, supplierName, invoiceNumber, purchaseDate, paidAmount, notes, items } = req.body;
 
     if (!supplierId) return res.status(400).json({ error: "supplierId is required" });
@@ -239,11 +247,14 @@ router.post("/invoice", async (req, res) => {
               ...(supplierName ? { supplier: String(supplierName) } : {}),
               ...(line.unitPrice > 0 ? { purchasePrice: String(line.unitPrice) } : {}),
             })
-            .where(and(eq(inventoryTable.id, Number(line.inventoryId)), eq(inventoryTable.userId, userId)))
+             .where(and(eq(inventoryTable.id, Number(line.inventoryId)), eq(inventoryTable.userId, userId), getBranchCondition(req, inventoryTable.branchId)))
             .returning();
 
           if (updatedItem) {
             const [movement] = await tx.insert(stockMovementsTable).values({
+               userId,
+               branchId: branch.branchId,
+               branchName: branch.branchName,
               inventoryId: Number(line.inventoryId),
               type: "in",
               quantity: line.qty,
@@ -260,6 +271,7 @@ router.post("/invoice", async (req, res) => {
         // Create purchase record
         const [purchase] = await tx.insert(supplierPurchasesTable).values({
           userId,
+          ...branch,
           supplierId: Number(supplierId),
           supplierName: supplierName ? String(supplierName) : null,
           stockMovementId: movementId,
@@ -283,6 +295,7 @@ router.post("/invoice", async (req, res) => {
       if (paid > 0) {
         const [p] = await tx.insert(supplierPaymentsTable).values({
           userId,
+          ...branch,
           supplierId: Number(supplierId),
           supplierName: supplierName ? String(supplierName) : null,
           purchaseId: null,
@@ -316,7 +329,7 @@ router.post("/:id/pay", async (req, res) => {
     if (!amount || parseAmount(amount) <= 0) return res.status(400).json({ error: "Valid amount is required" });
 
     const [purchase] = await db.select().from(supplierPurchasesTable)
-      .where(and(eq(supplierPurchasesTable.id, purchaseId), eq(supplierPurchasesTable.userId, userId)));
+      .where(and(eq(supplierPurchasesTable.id, purchaseId), eq(supplierPurchasesTable.userId, userId), getBranchCondition(req, supplierPurchasesTable.branchId)));
 
     if (!purchase) return res.status(404).json({ error: "Purchase not found" });
 
@@ -331,12 +344,14 @@ router.post("/:id/pay", async (req, res) => {
       // Update the purchase record
       const [updated] = await tx.update(supplierPurchasesTable)
         .set({ paidAmount: String(newPaid), dueAmount: String(newDue), paymentStatus: newStatus, updatedAt: new Date() })
-        .where(and(eq(supplierPurchasesTable.id, purchaseId), eq(supplierPurchasesTable.userId, userId)))
+        .where(and(eq(supplierPurchasesTable.id, purchaseId), eq(supplierPurchasesTable.userId, userId), getBranchCondition(req, supplierPurchasesTable.branchId)))
         .returning();
 
       // Record the payment
       const [payment] = await tx.insert(supplierPaymentsTable).values({
         userId,
+        branchId: purchase.branchId,
+        branchName: purchase.branchName,
         supplierId: purchase.supplierId,
         supplierName: purchase.supplierName,
         purchaseId,
@@ -357,6 +372,7 @@ router.post("/:id/pay", async (req, res) => {
 router.post("/general-pay", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
+    const branch = extractBranchSaveData(req, req.body);
     const { supplierId, supplierName, amount, paymentMethod, date, notes } = req.body;
 
     if (!supplierId) return res.status(400).json({ error: "supplierId is required" });
@@ -369,6 +385,7 @@ router.post("/general-pay", async (req, res) => {
         .where(and(
           eq(supplierPurchasesTable.userId, userId),
           eq(supplierPurchasesTable.supplierId, Number(supplierId)),
+          getBranchCondition(req, supplierPurchasesTable.branchId),
           sql`${supplierPurchasesTable.paymentStatus} != 'paid'`
         ))
         .orderBy(supplierPurchasesTable.createdAt);
@@ -388,7 +405,7 @@ router.post("/general-pay", async (req, res) => {
 
         await tx.update(supplierPurchasesTable)
           .set({ paidAmount: String(newPaid), dueAmount: String(newDue), paymentStatus: newStatus, updatedAt: new Date() })
-          .where(eq(supplierPurchasesTable.id, p.id));
+          .where(and(eq(supplierPurchasesTable.id, p.id), eq(supplierPurchasesTable.userId, userId), getBranchCondition(req, supplierPurchasesTable.branchId)));
 
         remaining -= applyAmt;
       }
@@ -396,6 +413,7 @@ router.post("/general-pay", async (req, res) => {
       // Record the overall payment entry
       const [payment] = await tx.insert(supplierPaymentsTable).values({
         userId,
+        ...branch,
         supplierId: Number(supplierId),
         supplierName: supplierName ? String(supplierName) : null,
         purchaseId: null,
@@ -420,10 +438,10 @@ router.get("/payments", async (req, res) => {
 
     const rows = supplierId
       ? await db.select().from(supplierPaymentsTable)
-          .where(and(eq(supplierPaymentsTable.userId, userId), eq(supplierPaymentsTable.supplierId, supplierId)))
+          .where(and(eq(supplierPaymentsTable.userId, userId), eq(supplierPaymentsTable.supplierId, supplierId), getBranchCondition(req, supplierPaymentsTable.branchId)))
           .orderBy(desc(supplierPaymentsTable.createdAt))
       : await db.select().from(supplierPaymentsTable)
-          .where(eq(supplierPaymentsTable.userId, userId))
+           .where(and(eq(supplierPaymentsTable.userId, userId), getBranchCondition(req, supplierPaymentsTable.branchId)))
           .orderBy(desc(supplierPaymentsTable.createdAt))
           .limit(100);
 

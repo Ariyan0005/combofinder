@@ -42,12 +42,14 @@ import StaffPage from "@/pages/staff";
 import StockIn from "@/pages/stock-in";
 import BranchManagement from "@/pages/branch-management";
 import { GuestDemoDashboard } from "@/components/guest-demo-dashboard";
+import { installBranchFetchInterceptor } from "@/lib/branch-store";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
 });
 
 if (typeof window !== "undefined") {
+  installBranchFetchInterceptor();
   window.addEventListener("branch-changed", () => {
     queryClient.invalidateQueries();
   });

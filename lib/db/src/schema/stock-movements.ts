@@ -3,6 +3,9 @@ import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
 // Records every stock change: purchase (in), sale, repair use (out), manual adjustment
 export const stockMovementsTable = pgTable("stock_movements", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id"),
+  branchId: integer("branch_id"),
+  branchName: text("branch_name"),
   inventoryId: integer("inventory_id").notNull(),
   type: text("type").notNull(), // "in" | "sale" | "out" | "adjustment"
   quantity: integer("quantity").notNull(),          // always positive; type tells direction

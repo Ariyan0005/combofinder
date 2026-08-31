@@ -13,7 +13,15 @@ function getUid(req: any, res: any): number | null {
 
 const STOCK_OUT_STATUSES = new Set(["Ready", "Delivered"]);
 
-async function deductPartsOnCreation(tx: any, userId: number, repairId: number, status: string, partsUsed: unknown) {
+async function deductPartsOnCreation(
+  tx: any,
+  userId: number,
+  repairId: number,
+  status: string,
+  partsUsed: unknown,
+  branch: { branchId: number | null; branchName: string | null },
+  req: any,
+) {
   let parts: any[] = [];
   try {
     parts = partsUsed ? (typeof partsUsed === "string" ? JSON.parse(partsUsed) : partsUsed) : [];
@@ -37,6 +45,7 @@ async function deductPartsOnCreation(tx: any, userId: number, repairId: number, 
       .where(and(
         eq(inventoryTable.id, inventoryId),
         eq(inventoryTable.userId, userId),
+        getBranchCondition(req, inventoryTable.branchId),
         sql`${inventoryTable.quantity} >= ${quantity}`,
       ))
       .returning();
@@ -52,6 +61,8 @@ async function deductPartsOnCreation(tx: any, userId: number, repairId: number, 
       unitPrice: part.unitPrice != null ? String(part.unitPrice) : "0",
       totalPrice: String(Number(part.unitPrice || 0) * quantity),
       userId,
+      branchId: branch.branchId,
+      branchName: branch.branchName,
       reference: `Repair #${repairId} - status ${status.toLowerCase()}`,
     });
   }
@@ -115,7 +126,7 @@ router.get("/:id", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
     const [row] = await db.select().from(repairsTable)
-      .where(and(eq(repairsTable.id, Number(req.params.id)), eq(repairsTable.userId, userId)));
+      .where(and(eq(repairsTable.id, Number(req.params.id)), eq(repairsTable.userId, userId), getBranchCondition(req, repairsTable.branchId)));
     if (!row) return res.status(404).json({ error: "Not found" });
     res.json(row);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed" }); }
@@ -153,7 +164,7 @@ router.post("/", async (req, res) => {
         })
         .returning();
       if (STOCK_OUT_STATUSES.has(created.status)) {
-        await deductPartsOnCreation(tx, userId, created.id, created.status, created.partsUsed);
+         await deductPartsOnCreation(tx, userId, created.id, created.status, created.partsUsed, branchSave, req);
       }
       return created;
     });
@@ -167,6 +178,7 @@ router.put("/:id", async (req, res) => {
     const userId = getUid(req, res); if (!userId) return;
     const repairId = Number(req.params.id);
     const b = req.body;
+    const branchSave = extractBranchSaveData(req, req.body);
 
     interface PartEntry { inventoryId: number; qty: number; unitPrice: string; name: string; }
 
@@ -180,7 +192,7 @@ router.put("/:id", async (req, res) => {
       // Fetch existing repair to detect status change and get old parts
       const [existing] = await tx.select({ partsUsed: repairsTable.partsUsed, status: repairsTable.status })
         .from(repairsTable)
-        .where(and(eq(repairsTable.id, repairId), eq(repairsTable.userId, userId)));
+        .where(and(eq(repairsTable.id, repairId), eq(repairsTable.userId, userId), getBranchCondition(req, repairsTable.branchId)));
       if (!existing) throw Object.assign(new Error("Not found"), { status: 404 });
       prevStatus = existing.status ?? "";
 
@@ -207,10 +219,11 @@ router.put("/:id", async (req, res) => {
         for (const [inventoryId, oldQty] of oldMap) {
           await tx.update(inventoryTable)
             .set({ quantity: sql`${inventoryTable.quantity} + ${oldQty}`, updatedAt: new Date() })
-            .where(and(eq(inventoryTable.id, inventoryId), eq(inventoryTable.userId, userId)));
+            .where(and(eq(inventoryTable.id, inventoryId), eq(inventoryTable.userId, userId), getBranchCondition(req, inventoryTable.branchId)));
           await tx.insert(stockMovementsTable).values({
             inventoryId, type: "in", quantity: oldQty,
             unitPrice: "0", totalPrice: "0", userId,
+            branchId: branchSave.branchId, branchName: branchSave.branchName,
             reference: `Repair #${repairId} - parts restored (Cancelled)`,
           });
         }
@@ -221,12 +234,13 @@ router.put("/:id", async (req, res) => {
             if (!part.inventoryId || !part.qty) continue;
             await tx.update(inventoryTable)
               .set({ quantity: sql`GREATEST(0, ${inventoryTable.quantity} - ${Number(part.qty)})`, updatedAt: new Date() })
-              .where(and(eq(inventoryTable.id, part.inventoryId), eq(inventoryTable.userId, userId)));
+              .where(and(eq(inventoryTable.id, part.inventoryId), eq(inventoryTable.userId, userId), getBranchCondition(req, inventoryTable.branchId)));
             const lineTotal = Math.round(Number(part.unitPrice) * Number(part.qty) * 100) / 100;
             await tx.insert(stockMovementsTable).values({
               inventoryId: part.inventoryId, type: "repair", quantity: Number(part.qty),
               unitPrice: String(part.unitPrice), totalPrice: String(lineTotal),
               userId,
+              branchId: branchSave.branchId, branchName: branchSave.branchName,
               reference: `Repair #${repairId} - status ready`,
             });
           }
@@ -235,11 +249,12 @@ router.put("/:id", async (req, res) => {
           for (const [inventoryId, oldQty] of oldMap) {
             await tx.update(inventoryTable)
               .set({ quantity: sql`${inventoryTable.quantity} + ${oldQty}`, updatedAt: new Date() })
-              .where(and(eq(inventoryTable.id, inventoryId), eq(inventoryTable.userId, userId)));
+              .where(and(eq(inventoryTable.id, inventoryId), eq(inventoryTable.userId, userId), getBranchCondition(req, inventoryTable.branchId)));
             await tx.insert(stockMovementsTable).values({
               inventoryId, type: "in", quantity: oldQty,
               unitPrice: "0", totalPrice: "0",
               userId,
+              branchId: branchSave.branchId, branchName: branchSave.branchName,
               reference: `Repair #${repairId} - parts restored (${newStatus})`,
             });
           }
@@ -252,11 +267,12 @@ router.put("/:id", async (req, res) => {
             if (delta > 0) {
               await tx.update(inventoryTable)
                 .set({ quantity: sql`${inventoryTable.quantity} + ${delta}`, updatedAt: new Date() })
-                .where(and(eq(inventoryTable.id, inventoryId), eq(inventoryTable.userId, userId)));
+                .where(and(eq(inventoryTable.id, inventoryId), eq(inventoryTable.userId, userId), getBranchCondition(req, inventoryTable.branchId)));
               await tx.insert(stockMovementsTable).values({
                 inventoryId, type: "in", quantity: delta,
                 unitPrice: "0", totalPrice: "0",
                 userId,
+                branchId: branchSave.branchId, branchName: branchSave.branchName,
                 reference: `Repair #${repairId} - parts returned to stock`,
               });
             }
@@ -268,12 +284,13 @@ router.put("/:id", async (req, res) => {
             if (delta > 0) {
               await tx.update(inventoryTable)
                 .set({ quantity: sql`GREATEST(0, ${inventoryTable.quantity} - ${delta})`, updatedAt: new Date() })
-                .where(and(eq(inventoryTable.id, part.inventoryId), eq(inventoryTable.userId, userId)));
+                .where(and(eq(inventoryTable.id, part.inventoryId), eq(inventoryTable.userId, userId), getBranchCondition(req, inventoryTable.branchId)));
               const lineTotal = Math.round(Number(part.unitPrice) * delta * 100) / 100;
               await tx.insert(stockMovementsTable).values({
                 inventoryId: part.inventoryId, type: "repair", quantity: delta,
                 unitPrice: String(part.unitPrice), totalPrice: String(lineTotal),
                 userId,
+                branchId: branchSave.branchId, branchName: branchSave.branchName,
                 reference: `Repair #${repairId}`,
               });
             }
@@ -284,12 +301,13 @@ router.put("/:id", async (req, res) => {
             if (!part.inventoryId || !part.qty) continue;
             await tx.update(inventoryTable)
               .set({ quantity: sql`GREATEST(0, ${inventoryTable.quantity} - ${Number(part.qty)})`, updatedAt: new Date() })
-              .where(and(eq(inventoryTable.id, part.inventoryId), eq(inventoryTable.userId, userId)));
+              .where(and(eq(inventoryTable.id, part.inventoryId), eq(inventoryTable.userId, userId), getBranchCondition(req, inventoryTable.branchId)));
             const lineTotal = Math.round(Number(part.unitPrice) * Number(part.qty) * 100) / 100;
             await tx.insert(stockMovementsTable).values({
               inventoryId: part.inventoryId, type: "repair", quantity: Number(part.qty),
               unitPrice: String(part.unitPrice), totalPrice: String(lineTotal),
               userId,
+              branchId: branchSave.branchId, branchName: branchSave.branchName,
               reference: `Repair #${repairId} - delivered`,
             });
           }
@@ -327,7 +345,7 @@ router.put("/:id", async (req, res) => {
       }
 
       const [row] = await tx.update(repairsTable).set(updateFields)
-        .where(and(eq(repairsTable.id, repairId), eq(repairsTable.userId, userId)))
+        .where(and(eq(repairsTable.id, repairId), eq(repairsTable.userId, userId), getBranchCondition(req, repairsTable.branchId)))
         .returning();
       return row ?? null;
     });
@@ -346,7 +364,7 @@ router.delete("/:id", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
     await db.delete(repairsTable)
-      .where(and(eq(repairsTable.id, Number(req.params.id)), eq(repairsTable.userId, userId)));
+      .where(and(eq(repairsTable.id, Number(req.params.id)), eq(repairsTable.userId, userId), getBranchCondition(req, repairsTable.branchId)));
     res.json({ success: true });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to delete repair" }); }
 });

@@ -3,6 +3,8 @@ import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
 export const ledgerAccountsTable = pgTable("ledger_accounts", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
+  branchId: integer("branch_id"),
+  branchName: text("branch_name"),
   name: text("name").notNull(),
   phone: text("phone"),
   email: text("email"),
@@ -15,6 +17,8 @@ export const ledgerAccountsTable = pgTable("ledger_accounts", {
 export const ledgerEntriesTable = pgTable("ledger_entries", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
+  branchId: integer("branch_id"),
+  branchName: text("branch_name"),
   accountId: integer("account_id").notNull(),
   type: text("type").notNull(), // credit | debit
   amount: text("amount").notNull(),

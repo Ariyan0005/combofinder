@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, customersTable, salesTable } from "@workspace/db";
 import { eq, ilike, or, and, sql } from "drizzle-orm";
+import { getBranchCondition, getBranchScope, extractBranchSaveData } from "../lib/branch-helper";
 
 const router = Router();
 
@@ -23,12 +24,17 @@ router.get("/", async (req, res) => {
     const userId = getUid(req, res); if (!userId) return;
     const q = req.query.q ? String(req.query.q) : null;
     const userFilter = eq(customersTable.userId, userId);
+    const branchCond = getBranchCondition(req, customersTable.branchId);
+    const customerFilter = and(userFilter, branchCond);
 
     const rows = q
       ? await db.select().from(customersTable)
-          .where(and(userFilter, or(ilike(customersTable.name, `%${q}%`), ilike(customersTable.phone, `%${q}%`))))
+          .where(and(customerFilter, or(ilike(customersTable.name, `%${q}%`), ilike(customersTable.phone, `%${q}%`))))
           .orderBy(customersTable.createdAt)
-      : await db.select().from(customersTable).where(userFilter).orderBy(customersTable.createdAt);
+      : await db.select().from(customersTable).where(customerFilter).orderBy(customersTable.createdAt);
+    const branchId = getBranchScope(req).branchId;
+    const repairBranchFilter = branchId === null ? sql`AND branch_id IS NULL` : sql`AND branch_id = ${branchId}`;
+    const saleBranchFilter = branchId === null ? sql`AND s.branch_id IS NULL` : sql`AND s.branch_id = ${branchId}`;
 
     if (rows.length > 0) {
       // Repair count + repair due per customer
@@ -45,7 +51,7 @@ router.get("/", async (req, res) => {
                  END
                ))                                                     AS repair_due
         FROM repairs
-        WHERE customer_id IS NOT NULL AND user_id = ${userId}
+         WHERE customer_id IS NOT NULL AND user_id = ${userId} ${repairBranchFilter}
         GROUP BY customer_id
       `);
       const repairMap = new Map<number, { count: number; due: number }>(
@@ -75,7 +81,7 @@ router.get("/", async (req, res) => {
         ) r ON r.sale_id = s.id
         WHERE s.payment_method = 'Credit'
           AND s.customer_id IS NOT NULL
-          AND s.user_id = ${userId}
+           AND s.user_id = ${userId} ${saleBranchFilter}
         GROUP BY s.customer_id
       `);
       const creditMap = new Map<number, number>(
@@ -98,7 +104,7 @@ router.get("/:id", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
     const [row] = await db.select().from(customersTable)
-      .where(and(eq(customersTable.id, Number(req.params.id)), eq(customersTable.userId, userId)));
+      .where(and(eq(customersTable.id, Number(req.params.id)), eq(customersTable.userId, userId), getBranchCondition(req, customersTable.branchId)));
     if (!row) return res.status(404).json({ error: "Not found" });
 
     const [[repairRow], [dueRow]] = await Promise.all([
@@ -114,7 +120,8 @@ router.get("/:id", async (req, res) => {
                  END
                )) AS repair_due
         FROM repairs
-        WHERE customer_id = ${row.id} AND user_id = ${userId}
+         WHERE customer_id = ${row.id} AND user_id = ${userId}
+           ${getBranchScope(req).branchId === null ? sql`AND branch_id IS NULL` : sql`AND branch_id = ${getBranchScope(req).branchId}`}
       `).then(r => r.rows as any[]),
       db.execute(sql`
         SELECT GREATEST(0, SUM(
@@ -132,7 +139,8 @@ router.get("/:id", async (req, res) => {
           SELECT sale_id, SUM(refund_amount::numeric) AS total_refund
           FROM sale_returns GROUP BY sale_id
         ) r ON r.sale_id = s.id
-        WHERE s.payment_method = 'Credit' AND s.customer_id = ${row.id} AND s.user_id = ${userId}
+         WHERE s.payment_method = 'Credit' AND s.customer_id = ${row.id} AND s.user_id = ${userId}
+           ${getBranchScope(req).branchId === null ? sql`AND s.branch_id IS NULL` : sql`AND s.branch_id = ${getBranchScope(req).branchId}`}
       `).then(r => r.rows as any[]),
     ]);
 
@@ -149,7 +157,9 @@ router.post("/", async (req, res) => {
   try {
     if (!ownerOnly(req, res)) return;
     const userId = getUid(req, res); if (!userId) return;
-    const [row] = await db.insert(customersTable).values({ ...req.body, userId }).returning();
+    const { branchId, branchName } = extractBranchSaveData(req, req.body);
+    const { id: _id, userId: _userId, createdAt: _createdAt, ...safeBody } = req.body;
+    const [row] = await db.insert(customersTable).values({ ...safeBody, userId, branchId, branchName }).returning();
     res.status(201).json(row);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to create customer" }); }
 });
@@ -158,9 +168,9 @@ router.put("/:id", async (req, res) => {
   try {
     if (!ownerOnly(req, res)) return;
     const userId = getUid(req, res); if (!userId) return;
-    const { id: _id, userId: _userId, createdAt: _ca, ...safeUpdates } = req.body;
+    const { id: _id, userId: _userId, createdAt: _ca, branchId: _branchId, branchName: _branchName, ...safeUpdates } = req.body;
     const [row] = await db.update(customersTable).set({ ...safeUpdates, updatedAt: new Date() })
-      .where(and(eq(customersTable.id, Number(req.params.id)), eq(customersTable.userId, userId)))
+      .where(and(eq(customersTable.id, Number(req.params.id)), eq(customersTable.userId, userId), getBranchCondition(req, customersTable.branchId)))
       .returning();
     if (!row) return res.status(404).json({ error: "Not found" });
     res.json(row);
@@ -172,7 +182,7 @@ router.delete("/:id", async (req, res) => {
     if (!ownerOnly(req, res)) return;
     const userId = getUid(req, res); if (!userId) return;
     await db.delete(customersTable)
-      .where(and(eq(customersTable.id, Number(req.params.id)), eq(customersTable.userId, userId)));
+      .where(and(eq(customersTable.id, Number(req.params.id)), eq(customersTable.userId, userId), getBranchCondition(req, customersTable.branchId)));
     res.json({ success: true });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to delete customer" }); }
 });

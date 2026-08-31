@@ -26,6 +26,30 @@ export async function migrateBranches(): Promise<void> {
     await db.execute(sql.raw('ALTER TABLE "expenses" ADD COLUMN IF NOT EXISTS "branch_id" integer'));
     await db.execute(sql.raw('ALTER TABLE "expenses" ADD COLUMN IF NOT EXISTS "branch_name" text'));
 
+    await db.execute(sql.raw('ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "branch_id" integer'));
+    await db.execute(sql.raw('ALTER TABLE "customers" ADD COLUMN IF NOT EXISTS "branch_name" text'));
+    await db.execute(sql.raw('ALTER TABLE "suppliers" ADD COLUMN IF NOT EXISTS "branch_id" integer'));
+    await db.execute(sql.raw('ALTER TABLE "suppliers" ADD COLUMN IF NOT EXISTS "branch_name" text'));
+    await db.execute(sql.raw('ALTER TABLE "ledger_accounts" ADD COLUMN IF NOT EXISTS "branch_id" integer'));
+    await db.execute(sql.raw('ALTER TABLE "ledger_accounts" ADD COLUMN IF NOT EXISTS "branch_name" text'));
+    await db.execute(sql.raw('ALTER TABLE "ledger_entries" ADD COLUMN IF NOT EXISTS "branch_id" integer'));
+    await db.execute(sql.raw('ALTER TABLE "ledger_entries" ADD COLUMN IF NOT EXISTS "branch_name" text'));
+    await db.execute(sql.raw('ALTER TABLE "supplier_purchases" ADD COLUMN IF NOT EXISTS "branch_id" integer'));
+    await db.execute(sql.raw('ALTER TABLE "supplier_purchases" ADD COLUMN IF NOT EXISTS "branch_name" text'));
+    await db.execute(sql.raw('ALTER TABLE "supplier_payments" ADD COLUMN IF NOT EXISTS "branch_id" integer'));
+    await db.execute(sql.raw('ALTER TABLE "supplier_payments" ADD COLUMN IF NOT EXISTS "branch_name" text'));
+    await db.execute(sql.raw('ALTER TABLE "stock_movements" ADD COLUMN IF NOT EXISTS "user_id" integer'));
+    await db.execute(sql.raw('ALTER TABLE "stock_movements" ADD COLUMN IF NOT EXISTS "branch_id" integer'));
+    await db.execute(sql.raw('ALTER TABLE "stock_movements" ADD COLUMN IF NOT EXISTS "branch_name" text'));
+
+    await db.execute(sql.raw('CREATE INDEX IF NOT EXISTS "customers_user_branch_idx" ON "customers" ("user_id", "branch_id")'));
+    await db.execute(sql.raw('CREATE INDEX IF NOT EXISTS "suppliers_user_branch_idx" ON "suppliers" ("user_id", "branch_id")'));
+    await db.execute(sql.raw('CREATE INDEX IF NOT EXISTS "ledger_accounts_user_branch_idx" ON "ledger_accounts" ("user_id", "branch_id")'));
+    await db.execute(sql.raw('CREATE INDEX IF NOT EXISTS "ledger_entries_user_branch_idx" ON "ledger_entries" ("user_id", "branch_id")'));
+    await db.execute(sql.raw('CREATE INDEX IF NOT EXISTS "supplier_purchases_user_branch_idx" ON "supplier_purchases" ("user_id", "branch_id")'));
+    await db.execute(sql.raw('CREATE INDEX IF NOT EXISTS "supplier_payments_user_branch_idx" ON "supplier_payments" ("user_id", "branch_id")'));
+    await db.execute(sql.raw('CREATE INDEX IF NOT EXISTS "stock_movements_user_branch_idx" ON "stock_movements" ("user_id", "branch_id")'));
+
     logger.info("migrateBranches: branches table and branch columns ready");
   } catch (err) { logger.warn({ err }, "migrateBranches failed — skipping"); }
 }

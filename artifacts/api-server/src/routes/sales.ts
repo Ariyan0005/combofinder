@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, salesTable, saleItemsTable, saleReturnsTable, inventoryTable, stockMovementsTable, transactionsTable } from "@workspace/db";
 import { eq, and, gte, lte, desc, sql, inArray } from "drizzle-orm";
-import { getBranchCondition, extractBranchSaveData } from "../lib/branch-helper";
+import { getBranchCondition, getBranchScope, extractBranchSaveData } from "../lib/branch-helper";
 
 const router = Router();
 
@@ -43,6 +43,13 @@ function csvField(v: unknown): string {
   return s;
 }
 
+function rawSalesBranchCondition(req: any, alias: string): ReturnType<typeof sql> {
+  const { branchId } = getBranchScope(req);
+  return branchId === null
+    ? sql.raw(`${alias}.branch_id IS NULL`)
+    : sql`${sql.raw(`${alias}.branch_id`)} = ${branchId}`;
+}
+
 // GET /api/sales?from=YYYY-MM-DD&to=YYYY-MM-DD&q=search
 router.get("/", async (req, res) => {
   try {
@@ -74,7 +81,8 @@ router.get("/", async (req, res) => {
         SELECT sr.sale_id::int, SUM(sr.refund_amount::numeric) AS total_refund
         FROM sale_returns sr
         INNER JOIN sales s ON s.id = sr.sale_id
-        WHERE s.user_id = ${userId}
+         WHERE s.user_id = ${userId}
+           AND ${rawSalesBranchCondition(req, "s")}
         GROUP BY sr.sale_id
       `);
       const refundMap = new Map<number, number>(
@@ -128,7 +136,7 @@ router.get("/customers/:customerId", async (req, res) => {
     const sales = await db
       .select()
       .from(salesTable)
-      .where(and(eq(salesTable.userId, userId), eq(salesTable.customerId, customerId)))
+      .where(and(eq(salesTable.userId, userId), eq(salesTable.customerId, customerId), getBranchCondition(req, salesTable.branchId)))
       .orderBy(desc(salesTable.id));
 
     // Attach totalRefund per sale so the frontend can compute correct Amount Due
@@ -137,7 +145,9 @@ router.get("/customers/:customerId", async (req, res) => {
         SELECT sale_id::int, SUM(refund_amount::numeric) AS total_refund
         FROM sale_returns
         WHERE sale_id IN (
-          SELECT id FROM sales WHERE customer_id = ${customerId} AND user_id = ${userId}
+           SELECT id FROM sales
+           WHERE customer_id = ${customerId} AND user_id = ${userId}
+             AND ${rawSalesBranchCondition(req, "sales")}
         )
         GROUP BY sale_id
       `);
@@ -155,7 +165,7 @@ router.get("/:id", async (req, res) => {
   try {
     const userId: number = (req as any).userId;
     const id = Number(req.params.id);
-    const whereClause = and(eq(salesTable.id, id), eq(salesTable.userId, userId));
+     const whereClause = and(eq(salesTable.id, id), eq(salesTable.userId, userId), getBranchCondition(req, salesTable.branchId));
     const [sale] = await db.select().from(salesTable).where(whereClause);
     if (!sale) return res.status(404).json({ error: "Not found" });
     const items = await db.select().from(saleItemsTable).where(eq(saleItemsTable.saleId, id));
@@ -194,6 +204,7 @@ router.post("/", async (req, res) => {
     const customerPhone = req.body.customerPhone ? String(req.body.customerPhone).slice(0, 50) : null;
     const notes = req.body.notes ? String(req.body.notes).slice(0, 500) : null;
     const advancePaid = req.body.advancePaid !== undefined ? round2(Math.max(0, Number(req.body.advancePaid) || 0)) : 0;
+    const branchSave = extractBranchSaveData(req, req.body);
 
     const result = await db.transaction(async (tx) => {
       let subtotal = 0;
@@ -203,11 +214,17 @@ router.post("/", async (req, res) => {
         const [updated] = await tx
           .update(inventoryTable)
           .set({ quantity: sql`${inventoryTable.quantity} - ${it.quantity}`, updatedAt: new Date() })
-          .where(sql`${inventoryTable.id} = ${it.inventoryId} AND ${inventoryTable.userId} = ${saleUserId} AND ${inventoryTable.quantity} >= ${it.quantity}`)
+           .where(and(
+             eq(inventoryTable.id, it.inventoryId),
+             eq(inventoryTable.userId, saleUserId),
+             getBranchCondition(req, inventoryTable.branchId),
+             sql`${inventoryTable.quantity} >= ${it.quantity}`,
+           ))
           .returning();
 
         if (!updated) {
-          const [current] = await tx.select().from(inventoryTable).where(and(eq(inventoryTable.id, it.inventoryId), eq(inventoryTable.userId, saleUserId)));
+           const [current] = await tx.select().from(inventoryTable)
+             .where(and(eq(inventoryTable.id, it.inventoryId), eq(inventoryTable.userId, saleUserId), getBranchCondition(req, inventoryTable.branchId)));
           if (!current) throw Object.assign(new Error(`Inventory item #${it.inventoryId} not found`), { status: 404 });
           throw Object.assign(
             new Error(`Not enough stock for "${current.partName}" (available: ${current.quantity}, requested: ${it.quantity})`),
@@ -220,6 +237,9 @@ router.post("/", async (req, res) => {
         lineItems.push({ inventoryId: it.inventoryId, partName: updated.partName, quantity: it.quantity, unitPrice: it.unitPrice, total: lineTotal });
 
         await tx.insert(stockMovementsTable).values({
+           userId: saleUserId,
+           branchId: branchSave.branchId,
+           branchName: branchSave.branchName,
           inventoryId: it.inventoryId, type: "sale", quantity: it.quantity,
           unitPrice: String(it.unitPrice), totalPrice: String(lineTotal),
           reference: "POS sale",
@@ -235,8 +255,6 @@ router.post("/", async (req, res) => {
       // number from the DB-assigned serial id so concurrent checkouts can
       // never collide (invoice_number has a unique constraint as a backstop).
       const effectiveAdvance = paymentMethod === "Credit" ? Math.min(advancePaid, total) : total;
-      const branchSave = extractBranchSaveData(req, req.body);
-
       const [inserted] = await tx.insert(salesTable).values({
         userId: saleUserId,
         invoiceNumber: `PENDING-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -314,6 +332,7 @@ router.post("/customers/:customerId/payment", async (req, res) => {
         eq(salesTable.userId, userId),
         eq(salesTable.customerId, customerId),
         eq(salesTable.paymentMethod, "Credit"),
+        getBranchCondition(req, salesTable.branchId),
         ...(targetSaleIds && targetSaleIds.length > 0 ? [inArray(salesTable.id, targetSaleIds)] : []),
       );
       const openSales = await tx.select().from(salesTable)
@@ -335,7 +354,7 @@ router.post("/customers/:customerId/payment", async (req, res) => {
         const newAdvance = round2(paidSoFar + applied);
         await tx.update(salesTable)
           .set({ advancePaid: String(newAdvance) })
-          .where(eq(salesTable.id, sale.id));
+          .where(and(eq(salesTable.id, sale.id), eq(salesTable.userId, userId), getBranchCondition(req, salesTable.branchId)));
 
         remaining = round2(remaining - applied);
         updated.push({ id: sale.id, invoiceNumber: sale.invoiceNumber, applied });
@@ -370,7 +389,8 @@ router.post("/customers/:customerId/payment", async (req, res) => {
           SELECT sale_id, SUM(refund_amount::numeric) AS total_refund
           FROM sale_returns GROUP BY sale_id
         ) r ON r.sale_id = s.id
-        WHERE s.payment_method = 'Credit' AND s.customer_id = ${customerId} AND s.user_id = ${userId}
+         WHERE s.payment_method = 'Credit' AND s.customer_id = ${customerId} AND s.user_id = ${userId}
+           AND ${rawSalesBranchCondition(req, "s")}
       `).then(r => r.rows as any[]);
 
       return {
@@ -395,13 +415,15 @@ router.post("/:id/return", async (req: any, res) => {
   try {
     const saleId = Number(req.params.id);
     const userId = req.userId;
+    const branchSave = extractBranchSaveData(req, req.body);
     const rawItems = req.body.items;
     if (!Array.isArray(rawItems) || rawItems.length === 0)
       throw new Error("At least one item to return is required");
     const reason = req.body.reason ? String(req.body.reason).slice(0, 500) : null;
 
     const result = await db.transaction(async (tx) => {
-      const [sale] = await tx.select().from(salesTable).where(and(eq(salesTable.id, saleId), eq(salesTable.userId, userId)));
+       const [sale] = await tx.select().from(salesTable)
+         .where(and(eq(salesTable.id, saleId), eq(salesTable.userId, userId), getBranchCondition(req, salesTable.branchId)));
       if (!sale) throw Object.assign(new Error("Sale not found"), { status: 404 });
 
       let refundTotal = 0;
@@ -433,9 +455,12 @@ router.post("/:id/return", async (req: any, res) => {
         if (saleItem.inventoryId) {
           await tx.update(inventoryTable)
             .set({ quantity: sql`${inventoryTable.quantity} + ${quantity}`, updatedAt: new Date() })
-            .where(and(eq(inventoryTable.id, saleItem.inventoryId), eq(inventoryTable.userId, sale.userId)));
+             .where(and(eq(inventoryTable.id, saleItem.inventoryId), eq(inventoryTable.userId, sale.userId), getBranchCondition(req, inventoryTable.branchId)));
 
           await tx.insert(stockMovementsTable).values({
+             userId,
+             branchId: branchSave.branchId,
+             branchName: branchSave.branchName,
             inventoryId: saleItem.inventoryId, type: "in", quantity,
             unitPrice: saleItem.unitPrice, totalPrice: String(refundAmount),
             reference: `Return - ${sale.invoiceNumber}`, notes: reason,
@@ -455,7 +480,7 @@ router.post("/:id/return", async (req: any, res) => {
 
       const [updatedSale] = await tx.update(salesTable)
         .set({ status: newStatus })
-        .where(eq(salesTable.id, saleId)).returning();
+        .where(and(eq(salesTable.id, saleId), eq(salesTable.userId, userId), getBranchCondition(req, salesTable.branchId))).returning();
 
       await tx.insert(transactionsTable).values({
         type: "Refund", category: "Sale", amount: String(refundTotal),

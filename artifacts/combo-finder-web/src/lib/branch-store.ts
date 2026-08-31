@@ -45,6 +45,39 @@ export function getActiveBranchHeaders(): Record<string, string> {
   return headers;
 }
 
+let branchFetchInstalled = false;
+
+/**
+ * Add the active branch to every same-app API request. Keeping this at the
+ * request boundary prevents page-local fetches and mutations from silently
+ * omitting the current branch.
+ */
+export function installBranchFetchInterceptor(): void {
+  if (typeof window === "undefined" || branchFetchInstalled) return;
+  branchFetchInstalled = true;
+
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string"
+      ? input
+      : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+    if (!url.startsWith("/") || !url.startsWith("/api/")) {
+      return originalFetch(input, init);
+    }
+
+    const headers = new Headers(input instanceof Request ? input.headers : undefined);
+    if (init?.headers) {
+      new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+    }
+    Object.entries(getActiveBranchHeaders()).forEach(([key, value]) => headers.set(key, value));
+
+    return originalFetch(input, { ...init, headers });
+  };
+}
+
 async function request(path: string, options?: RequestInit) {
   const response = await fetch(path, {
     ...options,

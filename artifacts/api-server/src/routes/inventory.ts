@@ -82,7 +82,7 @@ router.get("/:id", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
     const [row] = await db.select().from(inventoryTable)
-      .where(and(eq(inventoryTable.id, Number(req.params.id)), eq(inventoryTable.userId, userId)));
+      .where(and(eq(inventoryTable.id, Number(req.params.id)), eq(inventoryTable.userId, userId), getBranchCondition(req, inventoryTable.branchId)));
     if (!row) return res.status(404).json({ error: "Not found" });
     res.json(req.session?.userRole === "Staff"
       ? { ...row, purchasePrice: null, supplierId: null, supplier: null }
@@ -117,8 +117,6 @@ function bodyToRow(b: Record<string, any>, userId: number) {
     supplier: b.supplier ? String(b.supplier) : null,
     shelfLocation: b.shelfLocation ? String(b.shelfLocation) : null,
     notes: b.notes ? String(b.notes) : null,
-    branchId: b.branchId !== undefined ? (b.branchId ? Number(b.branchId) : null) : undefined,
-    branchName: b.branchName ? String(b.branchName) : undefined,
     updatedAt: new Date(),
   };
 }
@@ -129,10 +127,8 @@ router.post("/", async (req, res) => {
   try {
     values = bodyToRow(req.body, userId);
     const branchSave = extractBranchSaveData(req, req.body);
-    if (branchSave.branchId) {
-      values.branchId = branchSave.branchId;
-      values.branchName = branchSave.branchName;
-    }
+    values.branchId = branchSave.branchId;
+    values.branchName = branchSave.branchName;
   } catch (err: any) { return res.status(400).json({ error: err.message }); }
   try {
     // Enforce Free plan limit: 50 inventory items total
@@ -154,11 +150,15 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   const userId = getUid(req, res); if (!userId) return;
   let values: ReturnType<typeof bodyToRow>;
-  try { values = bodyToRow(req.body, userId); }
+  try {
+    values = bodyToRow(req.body, userId);
+    delete (values as any).branchId;
+    delete (values as any).branchName;
+  }
   catch (err: any) { return res.status(400).json({ error: err.message }); }
   try {
     const [row] = await db.update(inventoryTable).set(values as any)
-      .where(and(eq(inventoryTable.id, Number(req.params.id)), eq(inventoryTable.userId, userId)))
+       .where(and(eq(inventoryTable.id, Number(req.params.id)), eq(inventoryTable.userId, userId), getBranchCondition(req, inventoryTable.branchId)))
       .returning();
     if (!row) return res.status(404).json({ error: "Not found" });
     res.json(req.session?.userRole === "Staff"
@@ -171,7 +171,7 @@ router.delete("/:id", async (req, res) => {
   const userId = getUid(req, res); if (!userId) return;
   try {
     await db.delete(inventoryTable)
-      .where(and(eq(inventoryTable.id, Number(req.params.id)), eq(inventoryTable.userId, userId)));
+      .where(and(eq(inventoryTable.id, Number(req.params.id)), eq(inventoryTable.userId, userId), getBranchCondition(req, inventoryTable.branchId)));
     res.json({ success: true });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to delete item" }); }
 });

@@ -91,7 +91,11 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
           purchasePrice:    inventoryTable.purchasePrice,
         })
         .from(saleItemsTable)
-        .leftJoin(inventoryTable, eq(saleItemsTable.inventoryId, inventoryTable.id))
+        .leftJoin(inventoryTable, and(
+          eq(saleItemsTable.inventoryId, inventoryTable.id),
+          eq(inventoryTable.userId, userId),
+          getBranchCondition(req, inventoryTable.branchId),
+        ))
         .where(inArray(saleItemsTable.saleId, saleIds));
 
       posCost = saleItems.reduce((sum, item) => {
@@ -159,7 +163,11 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
       const invItems = await db
         .select({ id: inventoryTable.id, purchasePrice: inventoryTable.purchasePrice })
         .from(inventoryTable)
-        .where(inArray(inventoryTable.id, [...allInvIds]));
+        .where(and(
+          eq(inventoryTable.userId, userId),
+          getBranchCondition(req, inventoryTable.branchId),
+          inArray(inventoryTable.id, [...allInvIds]),
+        ));
       for (const item of invItems) {
         purchasePriceMap[item.id] = Number(item.purchasePrice ?? 0);
       }
@@ -203,6 +211,7 @@ router.get("/sales-summary", async (req: any, res): Promise<void> => {
         eq(repairsTable.userId, userId),
         eq(repairsTable.isPaid, false),
         sql`${repairsTable.status} IN ('Ready', 'Delivered')`,
+        getBranchCondition(req, repairsTable.branchId),
       ));
     const outstanding = unpaidRepairs.reduce((s, r) => {
       const due = Number(r.totalCost ?? 0) - Number(r.advancePaid ?? 0);

@@ -29,7 +29,7 @@ router.get("/:id", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
     const [row] = await db.select().from(expensesTable)
-      .where(and(eq(expensesTable.id, Number(req.params.id)), eq(expensesTable.userId, userId)));
+      .where(and(eq(expensesTable.id, Number(req.params.id)), eq(expensesTable.userId, userId), getBranchCondition(req, expensesTable.branchId)));
     if (!row) return res.status(404).json({ error: "Not found" });
     res.json(row);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed" }); }
@@ -52,9 +52,9 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
-    const { id: _id, userId: _userId, createdAt: _ca, ...safeUpdates } = req.body;
+    const { id: _id, userId: _userId, createdAt: _ca, branchId: _branchId, branchName: _branchName, ...safeUpdates } = req.body;
     const [row] = await db.update(expensesTable).set(safeUpdates)
-      .where(and(eq(expensesTable.id, Number(req.params.id)), eq(expensesTable.userId, userId)))
+      .where(and(eq(expensesTable.id, Number(req.params.id)), eq(expensesTable.userId, userId), getBranchCondition(req, expensesTable.branchId)))
       .returning();
     if (!row) return res.status(404).json({ error: "Not found" });
     res.json(row);
@@ -65,7 +65,7 @@ router.delete("/:id", async (req, res) => {
   try {
     const userId = getUid(req, res); if (!userId) return;
     await db.delete(expensesTable)
-      .where(and(eq(expensesTable.id, Number(req.params.id)), eq(expensesTable.userId, userId)));
+      .where(and(eq(expensesTable.id, Number(req.params.id)), eq(expensesTable.userId, userId), getBranchCondition(req, expensesTable.branchId)));
     res.json({ success: true });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Failed to delete" }); }
 });
