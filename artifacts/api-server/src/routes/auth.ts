@@ -515,25 +515,35 @@ router.post("/auth/verify-email", verifyLimiter, async (req, res) => {
   }
 });
 
+function getFacebookConfig() {
+  const appId = (process.env.FACEBOOK_APP_ID || process.env.VITE_FACEBOOK_APP_ID || "")
+    .trim()
+    .replace(/^["']|["']$/g, "");
+  const appSecret = (process.env.FACEBOOK_APP_SECRET || "")
+    .trim()
+    .replace(/^["']|["']$/g, "");
+  return { appId, appSecret };
+}
+
 // Public auth config (e.g. Google Client ID, GitHub Client ID, Facebook App ID)
 router.get("/auth/config", (req, res) => {
-  const googleClientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || "";
-  const githubClientId = process.env.GITHUB_CLIENT_ID || process.env.VITE_GITHUB_CLIENT_ID || "";
-  const facebookAppId = process.env.FACEBOOK_APP_ID || process.env.VITE_FACEBOOK_APP_ID || "";
+  const googleClientId = (process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || "").trim().replace(/^["']|["']$/g, "");
+  const githubClientId = (process.env.GITHUB_CLIENT_ID || process.env.VITE_GITHUB_CLIENT_ID || "").trim().replace(/^["']|["']$/g, "");
+  const { appId: facebookAppId } = getFacebookConfig();
   res.json({ googleClientId, githubClientId, facebookAppId });
 });
 
 // Facebook OAuth Redirect (Initiate)
 router.get("/auth/facebook", (req, res) => {
-  const appId = process.env.FACEBOOK_APP_ID || process.env.VITE_FACEBOOK_APP_ID || "";
+  const { appId } = getFacebookConfig();
   if (!appId) {
-    res.status(500).json({ error: "Facebook OAuth is not configured on the server." });
+    res.status(500).json({ error: "Facebook OAuth is not configured on the server. FACEBOOK_APP_ID is missing." });
     return;
   }
   const host = req.get("host");
   const protocol = req.protocol === "https" || req.get("x-forwarded-proto") === "https" ? "https" : "http";
   const callbackUrl = `${protocol}://${host}/api/auth/facebook/callback`;
-  const redirectUri = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=email,public_profile`;
+  const redirectUri = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${encodeURIComponent(appId)}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=email,public_profile`;
   res.redirect(redirectUri);
 });
 
@@ -549,8 +559,7 @@ router.get("/auth/facebook/callback", async (req, res) => {
     return;
   }
 
-  const appId = process.env.FACEBOOK_APP_ID || process.env.VITE_FACEBOOK_APP_ID || "";
-  const appSecret = process.env.FACEBOOK_APP_SECRET || "";
+  const { appId, appSecret } = getFacebookConfig();
 
   if (!appId || !appSecret) {
     res.redirect("/login?error=" + encodeURIComponent("Facebook App ID or App Secret is missing"));
