@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Wrench, Store, Check, Building2, Coins, ArrowRight, MapPin, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
-import posCertLogo from "@/assets/pos-cert-logo.png";
+import posCertLogo from "@/assets/pos-cert-logo.webp";
 
 const COMMON_CURRENCIES = [
   { code: "BDT", symbol: "Tk", name: "Bangladeshi Taka" },

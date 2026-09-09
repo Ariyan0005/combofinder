@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { Search, Grid2x2, Home, Smartphone } from "lucide-react";
-import posCertLogo from "@/assets/pos-cert-logo.png";
+import posCertLogo from "@/assets/pos-cert-logo.webp";
 
 export default function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();

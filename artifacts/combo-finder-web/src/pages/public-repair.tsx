@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { Wrench, CheckCircle2, FileText, Smartphone, Clock, Shield, ArrowRight, Store } from "lucide-react";
 import { SeoHead } from "@/components/seo-head";
 import { PublicFooter } from "@/components/public-footer";
-import posCertLogo from "@/assets/pos-cert-logo.png";
+import posCertLogo from "@/assets/pos-cert-logo.webp";
 import { useState } from "react";
 import { GuestModal } from "@/components/guest-modal";
 

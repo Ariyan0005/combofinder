@@ -19,7 +19,7 @@ import {
   Zap,
   ShieldCheck
 } from "lucide-react";
-import posCertLogo from "@/assets/pos-cert-logo.png";
+import posCertLogo from "@/assets/pos-cert-logo.webp";
 import { GuestModal } from "@/components/guest-modal";
 import { SeoHead } from "@/components/seo-head";
 import { PublicFooter } from "@/components/public-footer";
@@ -103,7 +103,7 @@ export default function Splash() {
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex h-[74px] w-full max-w-7xl items-center justify-between px-4 sm:px-8 lg:px-10">
           <Link href="/" aria-label="PosCert home" className="transition-opacity hover:opacity-80">
-            <img src={posCertLogo} alt="PosCert ERP" className="h-10 w-auto max-w-[130px] object-contain object-left" />
+            <img src={posCertLogo} alt="PosCert ERP" width="130" height="40" fetchPriority="high" className="h-10 w-auto max-w-[130px] object-contain object-left" />
           </Link>
 
           <nav aria-label="Main navigation" className="flex items-center gap-2 sm:gap-3">

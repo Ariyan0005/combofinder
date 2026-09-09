@@ -16,7 +16,7 @@ import {
   CreditCard,
   Building2
 } from "lucide-react";
-import posCertLogo from "@/assets/pos-cert-logo.png";
+import posCertLogo from "@/assets/pos-cert-logo.webp";
 
 interface PublicFooterProps {
   onOpenDemo?: () => void;

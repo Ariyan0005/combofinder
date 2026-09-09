@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { ShoppingCart, Zap, Barcode, Receipt, CreditCard, Layers, ArrowRight, CheckCircle2, Store } from "lucide-react";
 import { SeoHead } from "@/components/seo-head";
 import { PublicFooter } from "@/components/public-footer";
-import posCertLogo from "@/assets/pos-cert-logo.png";
+import posCertLogo from "@/assets/pos-cert-logo.webp";
 import { useState } from "react";
 import { GuestModal } from "@/components/guest-modal";
 

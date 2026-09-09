@@ -41,6 +41,35 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("jspdf") || id.includes("html2canvas") || id.includes("purify")) {
+              return "vendor-pdf";
+            }
+            if (id.includes("recharts") || id.includes("d3-")) {
+              return "vendor-charts";
+            }
+            if (id.includes("@radix-ui")) {
+              return "vendor-radix";
+            }
+            if (id.includes("lucide-react")) {
+              return "vendor-icons";
+            }
+            if (id.includes("framer-motion") || id.includes("motion-dom") || id.includes("motion")) {
+              return "vendor-motion";
+            }
+            if (id.includes("@tanstack/react-query")) {
+              return "vendor-query";
+            }
+            if (id.includes("cmdk") || id.includes("vaul") || id.includes("embla-carousel")) {
+              return "vendor-ui";
+            }
+          }
+        },
+      },
+    },
   },
   server: {
     port,

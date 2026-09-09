@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import { Smartphone, ChevronDown, MessageCircle } from "lucide-react";
-import posCertLogo from "@/assets/pos-cert-logo.png";
+import posCertLogo from "@/assets/pos-cert-logo.webp";
 
 const WHATSAPP_URL = "https://wa.me/96897043234";
 

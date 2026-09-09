@@ -6,7 +6,7 @@ import {
   BookMarked, Building2, Users2,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
-import posCertLogo from "@/assets/pos-cert-logo.png";
+import posCertLogo from "@/assets/pos-cert-logo.webp";
 
 const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },

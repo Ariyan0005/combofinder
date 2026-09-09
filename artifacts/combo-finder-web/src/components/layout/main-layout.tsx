@@ -10,7 +10,7 @@ import { useAuth } from "@/context/auth-context";
 import Sidebar from "./sidebar";
 import { OnboardingModal } from "@/components/onboarding-modal";
 import { GuestModal } from "@/components/guest-modal";
-import posCertLogo from "@/assets/pos-cert-logo.png";
+import posCertLogo from "@/assets/pos-cert-logo.webp";
 
 const WHATSAPP_SUPPORT_URL = "https://wa.me/96897043234?text=Hi%21+I+need+support.+I%27m+contacting+you+from+the+PosCert+app.";
 

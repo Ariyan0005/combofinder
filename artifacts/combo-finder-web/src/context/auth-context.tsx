@@ -68,12 +68,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [guestMode, setGuestMode] = useState<"mobile_repair" | "general_store">("mobile_repair");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("poscert_has_session") === "1";
+  });
 
   async function fetchMe() {
     const r = await fetch(`/api/auth/me`, { credentials: "include" });
     const data = await r.json() as { authenticated: boolean; user?: UserInfo };
     if (data.authenticated && data.user) {
+      localStorage.setItem("poscert_has_session", "1");
       const normalizedUser = normalizeUser(data.user);
       setUser(normalizedUser);
       applyBusinessTheme(normalizedUser);
@@ -83,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         silentDriveBackup(uid, () => exportAllLocalData(uid)).catch(() => {});
       }
     } else {
+      localStorage.removeItem("poscert_has_session");
       setUser(null);
       applyBusinessTheme(null);
     }
@@ -114,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const data = await res.json() as { success?: boolean; error?: string; user?: UserInfo };
     if (!res.ok) throw new Error(data.error ?? "Invalid credentials");
+    localStorage.setItem("poscert_has_session", "1");
     const normalizedUser = normalizeUser(data.user!);
     setUser(normalizedUser);
     applyBusinessTheme(normalizedUser);
@@ -170,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout() {
+    localStorage.removeItem("poscert_has_session");
     await fetch(`/api/auth/logout`, { method: "POST", credentials: "include" });
     setUser(null); setIsGuest(false);
     applyBusinessTheme(null);
