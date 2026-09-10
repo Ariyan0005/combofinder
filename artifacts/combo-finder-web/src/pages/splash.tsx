@@ -103,7 +103,7 @@ export default function Splash() {
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex h-[74px] w-full max-w-7xl items-center justify-between px-4 sm:px-8 lg:px-10">
           <Link href="/" aria-label="PosCert home" className="transition-opacity hover:opacity-80">
-            <img src={posCertLogo} alt="PosCert ERP" width="130" height="40" fetchPriority="high" className="h-10 w-auto max-w-[130px] object-contain object-left" />
+            <img src={posCertLogo} alt="PosCert ERP" width="450" height="156" fetchPriority="high" className="h-10 w-auto max-w-[130px] object-contain object-left" />
           </Link>
 
           <nav aria-label="Main navigation" className="flex items-center gap-2 sm:gap-3">
@@ -334,12 +334,12 @@ export default function Splash() {
                   <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${tones[tone as keyof typeof tones]}`}>
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </span>
-                  <p className="mt-6 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">{label}</p>
+                  <p className="mt-6 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-600">{label}</p>
                   <h3 className="mt-2 text-lg font-black leading-6 tracking-tight text-slate-900">{title}</h3>
                   <p className="mt-3 text-sm leading-6 text-slate-600">{description}</p>
                 </div>
                 <div className="mt-6 pt-4 border-t border-slate-100">
-                  <Link href={link} className="inline-flex items-center gap-1.5 text-xs font-bold text-violet-600 hover:text-violet-800">
+                  <Link href={link} aria-label={`Learn more about ${title}`} className="inline-flex items-center gap-1.5 text-xs font-bold text-violet-600 hover:text-violet-800">
                     Learn more <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>
@@ -401,14 +401,17 @@ export default function Splash() {
               <div key={faq.q} className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm transition">
                 <button
                   type="button"
+                  id={`faq-btn-${index}`}
+                  aria-expanded={isOpen}
+                  aria-controls={`faq-panel-${index}`}
                   onClick={() => setOpenFaq(isOpen ? null : index)}
                   className="flex w-full items-center justify-between p-5 text-left font-bold text-slate-900 hover:text-violet-600"
                 >
                   <span className="text-base">{faq.q}</span>
-                  <ChevronDown className={`h-5 w-5 shrink-0 text-slate-400 transition-transform ${isOpen ? "rotate-180 text-violet-600" : ""}`} />
+                  <ChevronDown className={`h-5 w-5 shrink-0 text-slate-400 transition-transform ${isOpen ? "rotate-180 text-violet-600" : ""}`} aria-hidden="true" />
                 </button>
                 {isOpen && (
-                  <div className="px-5 pb-5 text-sm leading-relaxed text-slate-600 border-t border-slate-100 pt-4">
+                  <div id={`faq-panel-${index}`} role="region" aria-labelledby={`faq-btn-${index}`} className="px-5 pb-5 text-sm leading-relaxed text-slate-600 border-t border-slate-100 pt-4">
                     {faq.a}
                   </div>
                 )}

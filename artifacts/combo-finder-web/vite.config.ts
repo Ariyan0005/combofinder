@@ -41,6 +41,19 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist"),
     emptyOutDir: true,
+    modulePreload: {
+      polyfill: false,
+      resolveDependencies: (filename, deps) => {
+        return deps.filter(
+          (dep) =>
+            !dep.includes("vendor-pdf") &&
+            !dep.includes("vendor-charts") &&
+            !dep.includes("vendor-radix") &&
+            !dep.includes("vendor-motion") &&
+            !dep.includes("vendor-ui")
+        );
+      },
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {

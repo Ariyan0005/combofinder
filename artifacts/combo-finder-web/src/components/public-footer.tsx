@@ -159,6 +159,8 @@ export function PublicFooter({ onOpenDemo }: PublicFooterProps) {
                     <li key={item.title}>
                       <a
                         href={item.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="group flex items-center justify-between rounded-xl border border-slate-200/80 bg-white p-2.5 transition-all hover:border-emerald-300 hover:bg-emerald-50/60 hover:shadow-xs active:scale-[0.99]"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -205,14 +207,14 @@ export function PublicFooter({ onOpenDemo }: PublicFooterProps) {
         </div>
 
         {/* Bottom bar */}
-        <div className="border-t border-slate-200 pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-3">
+        <div className="border-t border-slate-200 pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
           <p>© {new Date().getFullYear()} PosCert Technologies. All rights reserved.</p>
-          <div className="flex items-center gap-4 text-xs font-medium">
-            <Link href="/privacy" className="hover:text-violet-700">Privacy Policy</Link>
-            <span>·</span>
-            <Link href="/terms" className="hover:text-violet-700">Terms of Service</Link>
-            <span>·</span>
-            <Link href="/pricing" className="hover:text-violet-700">Pricing</Link>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-semibold">
+            <Link href="/privacy" className="py-2.5 inline-block hover:text-violet-700">Privacy Policy</Link>
+            <span className="text-slate-300" aria-hidden="true">·</span>
+            <Link href="/terms" className="py-2.5 inline-block hover:text-violet-700">Terms of Service</Link>
+            <span className="text-slate-300" aria-hidden="true">·</span>
+            <Link href="/pricing" className="py-2.5 inline-block hover:text-violet-700">Pricing</Link>
           </div>
         </div>
 
