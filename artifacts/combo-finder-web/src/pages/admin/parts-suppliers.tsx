@@ -64,6 +64,7 @@ export default function AdminPartsSuppliers() {
         document.body.style.overflow = originalOverflow;
       };
     }
+    return undefined;
   }, [showModal]);
 
   const fetchSuppliers = async () => {

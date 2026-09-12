@@ -112,6 +112,7 @@ export default function Ledger() {
         document.body.style.overflow = originalOverflow;
       };
     }
+    return undefined;
   }, [accOpen, entryOpen]);
 
   // Date range filter (account detail view)

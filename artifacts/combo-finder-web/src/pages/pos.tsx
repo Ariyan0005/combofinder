@@ -644,6 +644,7 @@ function PosMain() {
         document.body.style.overflow = originalOverflow;
       };
     }
+    return undefined;
   }, [showPosScanner, showMobileCart]);
 
   const { data: items = [], isLoading } = useQuery<Item[]>({

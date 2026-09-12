@@ -3,7 +3,13 @@ import App from "./App";
 import "./index.css";
 
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(() => {}); });
+  window.addEventListener("load", () => {
+    const baseUrl = new URL(import.meta.env.BASE_URL, window.location.origin);
+    const serviceWorkerUrl = new URL("sw.js", baseUrl);
+    navigator.serviceWorker
+      .register(serviceWorkerUrl, { scope: import.meta.env.BASE_URL })
+      .catch(() => {});
+  });
 }
 
 createRoot(document.getElementById("root")!).render(<App />);

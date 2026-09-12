@@ -224,8 +224,9 @@ export function BarcodeScanner({ onDetect, onClose }: { onDetect: (code: string)
 }
 
 // ─── Add / Edit Product Modal ─────────────────────────────────────────────────
-export function AddProductModal({ onClose, existing, suppliers, categories, allItems }: {
+export function AddProductModal({ onClose, existing, suppliers, categories, allItems, onCreated }: {
   onClose: () => void; existing?: Item; suppliers: Supplier[]; categories: Category[]; allItems?: Item[];
+  onCreated?: (newItem: Item) => void;
 }) {
   const qc = useQueryClient();
   const isEdit = !!(existing && existing.id > 0);
@@ -252,6 +253,7 @@ export function AddProductModal({ onClose, existing, suppliers, categories, allI
     barcode: existing?.barcode ?? "",
     sku: existing?.sku ?? "",
     model: existing?.model ?? "",
+    partType: existing?.partType ?? "General",
     notes: existing?.notes ?? "",
     shelfLocation: existing?.shelfLocation ?? "",
   });
@@ -299,7 +301,11 @@ export function AddProductModal({ onClose, existing, suppliers, categories, allI
       if (!res.ok) throw new Error(d.error ?? "Failed");
       return d;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["inventory"] }); onClose(); },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+      if (!isEdit) onCreated?.(data as Item);
+      onClose();
+    },
     onError: (err: any) => setError(err.message),
   });
 

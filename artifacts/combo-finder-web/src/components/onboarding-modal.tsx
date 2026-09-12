@@ -164,6 +164,7 @@ export function OnboardingModal() {
         document.body.style.touchAction = originalTouchAction;
       };
     }
+    return undefined;
   }, [open]);
 
   useEffect(() => {

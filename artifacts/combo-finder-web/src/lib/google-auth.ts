@@ -20,8 +20,9 @@ export async function getGoogleClientId(): Promise<string> {
     if (res.ok) {
       const data = await res.json();
       if (data.googleClientId && typeof data.googleClientId === "string") {
-        cachedClientId = data.googleClientId.trim();
-        return cachedClientId;
+        const clientId = data.googleClientId.trim();
+        cachedClientId = clientId;
+        return clientId;
       }
     }
   } catch (e) {

@@ -137,7 +137,7 @@ export default function SalesReport() {
   const netProfit       = s?.netProfit       ?? 0;
   const outstanding     = s?.outstanding     ?? 0;
   const weeklyChart     = s?.weeklyChart     ?? [];
-  const expByCategory   = s?.expenseByCategory ?? {};
+  const expByCategory: Record<string, number> = s?.expenseByCategory ?? {};
 
   // Repair service profit = repairRevenue - repairPartsCost
   const repairServiceProfit = repairRevenue - repairPartsCost;

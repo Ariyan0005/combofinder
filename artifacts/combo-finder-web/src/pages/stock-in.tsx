@@ -137,6 +137,7 @@ function StockInMain() {
   const [lines, setLines] = useState<StockLine[]>([]);
   const [supplierId, setSupplierId] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
+  const [notes, setNotes] = useState("");
   const [purchaseDate, setPurchaseDate] = useState(today);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);

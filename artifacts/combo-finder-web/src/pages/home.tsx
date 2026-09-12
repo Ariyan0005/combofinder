@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
-import { useGetStats, useSearchModels } from "@workspace/api-client-react";
+import { getSearchModelsQueryKey, useGetStats, useSearchModels } from "@workspace/api-client-react";
 import {
   Search, Smartphone, Layers, ChevronRight,
   Battery, Cpu, Wrench, ShieldCheck, ExternalLink,
@@ -28,7 +28,7 @@ export default function Home() {
   const { data: stats } = useGetStats();
   const { data: results, isLoading } = useSearchModels(
     { q: query },
-    { query: { enabled: query.length >= 2 } }
+    { query: { enabled: query.length >= 2, queryKey: getSearchModelsQueryKey({ q: query }) } }
   );
   const [, navigate] = useLocation();
 

@@ -3,10 +3,10 @@ import { type ReactNode, lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/context/auth-context";
 import { MigrationProvider } from "@/context/migration-context";
-import MainLayout from "@/components/layout/main-layout";
 import Splash from "@/pages/splash";
 
 // Lazy-load routes for code-splitting and rapid initial page load
+const MainLayout = lazy(() => import("@/components/layout/main-layout"));
 const Login = lazy(() => import("@/pages/login"));
 const Register = lazy(() => import("@/pages/register"));
 const ForgotPassword = lazy(() => import("@/pages/forgot-password"));

@@ -281,6 +281,7 @@ export default function Settings() {
         document.body.style.overflow = prev;
       };
     }
+    return undefined;
   }, [profileOpen, shopModalOpen, passOpen]);
 
   // Sync currency/shopName/phone when user loads from server

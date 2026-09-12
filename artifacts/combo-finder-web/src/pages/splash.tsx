@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Link } from "wouter";
 import {
   ArrowRight,
@@ -20,9 +20,14 @@ import {
   ShieldCheck
 } from "lucide-react";
 import posCertLogo from "@/assets/pos-cert-logo.webp";
-import { GuestModal } from "@/components/guest-modal";
 import { SeoHead } from "@/components/seo-head";
 import { PublicFooter } from "@/components/public-footer";
+
+const GuestModal = lazy(() =>
+  import("@/components/guest-modal").then((module) => ({
+    default: module.GuestModal,
+  })),
+);
 
 const featureCards = [
   {
@@ -445,7 +450,11 @@ export default function Splash() {
       {/* Site Footer with SEO Backlinks */}
       <PublicFooter onOpenDemo={() => setShowGuestModal(true)} />
 
-      <GuestModal open={showGuestModal} onClose={() => setShowGuestModal(false)} />
+      <Suspense fallback={null}>
+        {showGuestModal && (
+          <GuestModal open={showGuestModal} onClose={() => setShowGuestModal(false)} />
+        )}
+      </Suspense>
     </main>
   );
 }

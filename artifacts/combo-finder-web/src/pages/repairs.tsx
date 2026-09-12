@@ -367,7 +367,8 @@ function RepairSummaryModal({ repair, onClose, onEdit }: { repair: Repair; onClo
           const partsArr: PartEntry[] = (() => {
             try { return repair.partsUsed ? JSON.parse(repair.partsUsed) : []; } catch { return []; }
           })();
-          partsArr.forEach(p => localInventory.deductStock(summaryUser.id, p.inventoryId, Number(p.qty) || 1));
+          const uid = summaryUser.id;
+          partsArr.forEach(p => localInventory.deductStock(uid, p.inventoryId, Number(p.qty) || 1));
           saved.stockDeducted = true;
           localRepairs.update(summaryUser.id, repair.id, saved);
           qc.invalidateQueries({ queryKey: ["inventory"] });
