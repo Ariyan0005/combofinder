@@ -1,0 +1,488 @@
+You are working on my existing Poscert website/codebase. DO NOT rebuild the project from scratch and DO NOT break any existing functionality.
+
+First, inspect the entire existing architecture, database schema, admin panel, public pages, routing, API structure, authentication, existing image upload/Cloudinary integration, and current Compatibility-related implementation.
+
+The goal is to extend the existing system into a scalable technical database architecture for:
+
+1. Compatibility
+2. ISP / Test Point
+3. Pinout / Technical Data
+
+The admin panel already allows me to add data manually. I want to keep that workflow and extend it so that each record can optionally be published as a public SEO-friendly page.
+
+IMPORTANT:
+
+* Reuse the existing stack, components, database patterns, API patterns, authentication and UI wherever possible.
+* Do not duplicate existing functionality unnecessarily.
+* Do not remove existing fields/data.
+* Do not change existing public URLs unless absolutely necessary.
+* Do not break current admin functionality.
+* Before modifying anything, understand how the current system works.
+* Use database-driven dynamic pages rather than hardcoded pages.
+* The architecture must support thousands of records/pages.
+* Publishing a page should be controlled from the admin panel.
+* Existing records should continue working even if they are not published.
+
+========================================
+A. COMPATIBILITY ARCHITECTURE
+=============================
+
+The existing public Compatibility page should become the main device compatibility database.
+
+Hierarchy:
+
+Category
+→ Brand
+→ Model
+→ Compatibility
+
+Example:
+
+Category: Mobile Phone
+Brand: Apple
+Model: iPhone 15 Pro Max
+
+Compatibility data should support different part types such as:
+
+* LCD / Display
+* Battery
+* Charging Port
+* Camera
+* Speaker
+* Earpiece
+* IC
+* Housing
+* Flex Cable
+* Other relevant parts
+
+Do NOT hardcode these as separate database tables unless the existing architecture requires it. Prefer a flexible Part Type / Compatibility Type structure that can grow in the future.
+
+Each model should be able to have multiple compatibility records.
+
+Example:
+
+iPhone 15 Pro Max
+
+LCD:
+
+* Compatible part/model
+* Notes
+* Optional image
+
+Battery:
+
+* Compatible part/model
+* Notes
+* Optional image
+
+IC:
+
+* Compatible IC
+* Function/type
+* Notes
+* Optional image
+
+etc.
+
+========================================
+B. IMAGE SUPPORT FOR COMPATIBILITY
+==================================
+
+For Compatibility records, add an OPTIONAL image URL field.
+
+The image URL will normally come from Cloudinary.
+
+The admin should be able to enter/paste the Cloudinary image URL when creating or editing a compatibility record.
+
+Do NOT create a new image hosting system.
+
+Reuse the existing Cloudinary/image handling architecture if one already exists.
+
+The public compatibility page should display the image only when an image URL exists.
+
+If no image exists, the page should still work normally.
+
+========================================
+C. PUBLIC COMPATIBILITY PAGES
+=============================
+
+Create dynamic public pages from the database.
+
+For example:
+
+/compatibility/apple/iphone-15-pro-max
+
+or adapt the URL structure to the existing project's routing conventions if a better existing convention is already in use.
+
+The page should contain useful information such as:
+
+* Category
+* Brand
+* Model
+* Compatibility list
+* Part Type
+* Compatible part/model
+* Notes/specifications
+* Optional image
+* Related compatibility information
+
+The page must be generated from database records, NOT manually created.
+
+Each published model should have its own canonical public URL.
+
+Add proper SEO fundamentals:
+
+* Dynamic title
+* Meta description
+* Canonical URL
+* Clean slug
+* Open Graph metadata where the current project supports it
+* Proper H1/H2 structure
+* Breadcrumbs
+* Internal links to Brand / Model / related compatibility pages
+
+Do not generate meaningless/thin pages.
+
+If a model has no meaningful compatibility information, it should not automatically become an indexable public page.
+
+========================================
+D. ADMIN PANEL — COMPATIBILITY
+==============================
+
+Extend the existing admin panel.
+
+When adding/editing a Compatibility record, provide:
+
+* Category
+* Brand
+* Model
+* Part Type
+* Compatible Part / Model
+* Notes/details
+* Optional Cloudinary Image URL
+* Published / Unpublished toggle
+
+The admin should be able to:
+
+* Create
+* Edit
+* Delete
+* Publish
+* Unpublish
+
+A record being stored in the database must NOT automatically mean it is publicly indexable.
+
+Only published/eligible records should appear on public pages.
+
+Use the existing admin UI style and components.
+
+========================================
+E. ISP / TEST POINT ARCHITECTURE
+================================
+
+There is already an ISP-related data/image functionality in the project.
+
+DO NOT rebuild the existing image functionality.
+
+Instead, enable/extend the existing ISP/Test Point records so they can also have a public page.
+
+ISP/Test Point data should be associated with a device/model.
+
+Example:
+
+Samsung Galaxy S23
+
+ISP / Test Point
+
+* Device/model
+* Test point information
+* ISP information
+* Storage/chip information if the existing schema supports it
+* Notes
+* Existing image(s)
+* Other existing technical fields
+
+The existing image upload/add-image option must continue working.
+
+The main change required here is:
+
+ADD PUBLIC PAGE CREATION/PUBLISHING SUPPORT.
+
+========================================
+F. PINOUT / TECHNICAL DATA
+==========================
+
+Similarly, extend the existing Pinout/technical data functionality.
+
+Do not remove or redesign existing fields unless required.
+
+The existing image functionality should remain intact.
+
+Allow an admin to create/publish a public Pinout page containing the existing technical information.
+
+Possible information may include:
+
+* Device/model
+* Component/IC
+* Pin information
+* Pin number
+* Pin name/function
+* Voltage
+* Ground
+* Signal information
+* Test point
+* Technical notes
+* Existing images
+* Datasheet/technical information if already supported
+
+Use the existing schema/fields where possible.
+
+The key requirement is to make these records publishable as public pages.
+
+========================================
+G. ISP + PINOUT PUBLIC PAGES
+============================
+
+Create dynamic public pages using the existing data.
+
+For example:
+
+/isp/samsung-galaxy-s23
+
+/isp/samsung-galaxy-s23/test-point
+
+/pinout/component-name
+
+However, first inspect the current routing conventions and choose URL structures that fit the existing project.
+
+Each published record should have:
+
+* Clean URL
+* Unique slug
+* Dynamic SEO title
+* Meta description
+* Canonical URL
+* H1
+* Breadcrumbs
+* Technical information
+* Existing image(s)
+* Links back to the related device/model
+* Links to related technical records where appropriate
+
+Do not create pages for unpublished records.
+
+========================================
+H. PUBLISHING ARCHITECTURE
+==========================
+
+Introduce a consistent publishing mechanism.
+
+Prefer something like:
+
+isPublished: boolean
+
+or reuse an existing status/publishing field if the project already has one.
+
+Potential status:
+
+DRAFT
+PUBLISHED
+UNPUBLISHED
+
+Do not introduce unnecessary complexity if a simple existing pattern can be reused.
+
+The important behavior:
+
+Admin creates data
+→ saves as draft/unpublished
+→ admin publishes
+→ public page becomes accessible
+→ admin can unpublish
+→ public page becomes unavailable/noindex according to the existing site's conventions
+
+========================================
+I. SEO + INDEXING ARCHITECTURE
+==============================
+
+The system must be designed to support thousands of useful pages.
+
+Implement/extend dynamic sitemap generation so published Compatibility, ISP and Pinout pages can be discovered by search engines.
+
+If the existing project already has sitemap functionality, extend it rather than creating a second sitemap system.
+
+Only include published pages in XML sitemaps.
+
+Do NOT create sitemap entries for:
+
+* Draft records
+* Unpublished records
+* Empty records
+* Invalid slugs
+* Deleted records
+
+Use pagination/sitemap indexes if necessary for large numbers of URLs.
+
+Also ensure internal linking makes these pages discoverable.
+
+Example:
+
+Model page
+→ Compatibility
+→ ISP
+→ Test Point
+→ Pinout
+→ Related models
+
+========================================
+J. DATABASE DESIGN
+==================
+
+Before changing the database:
+
+1. Inspect the existing schema.
+2. Identify current Category, Brand, Model, Compatibility, ISP, Test Point, Pinout and Image-related tables/models.
+3. Reuse existing entities where possible.
+4. Avoid duplicate tables representing the same concept.
+5. Preserve all existing data.
+
+If new fields are required, create proper migrations.
+
+Do not use destructive migrations.
+
+Do not delete existing records.
+
+Use indexes for fields frequently used for:
+
+* slug
+* model ID
+* brand ID
+* category ID
+* published/status
+* part type
+
+The system should remain performant with tens of thousands of records.
+
+========================================
+K. ROUTING / PERFORMANCE
+========================
+
+Use database-driven dynamic routing.
+
+Avoid loading the entire database just to render one page.
+
+Pages should query only the required records.
+
+Use appropriate indexes and existing caching/data-fetching patterns where available.
+
+Do not create thousands of static files manually.
+
+The system should be able to support:
+
+10,000+
+50,000+
+100,000+
+
+records/pages if the database contains that amount of useful data.
+
+========================================
+L. ADMIN UX
+===========
+
+Keep the current admin panel design.
+
+For each relevant record, make it easy to see:
+
+* Published / Unpublished status
+* Public URL
+* Edit
+* Preview
+* Publish/Unpublish
+
+If practical, add a "Preview Public Page" button.
+
+For published records, show the public URL.
+
+Do not make the admin workflow unnecessarily complicated.
+
+========================================
+M. IMPORTANT SAFETY RULES FOR EXISTING PROJECT
+==============================================
+
+This is an EXISTING production project.
+
+Before coding:
+
+* Inspect package.json
+* Inspect database/schema
+* Inspect API
+* Inspect frontend routing
+* Inspect current admin pages
+* Inspect existing Compatibility implementation
+* Inspect existing ISP/Test Point implementation
+* Inspect existing Pinout implementation
+* Inspect Cloudinary/image handling
+* Inspect sitemap/SEO implementation
+* Inspect authentication/authorization
+
+Then create an implementation plan.
+
+Do NOT immediately rewrite files.
+
+Do NOT replace working components with a new framework.
+
+Do NOT change the database architecture unnecessarily.
+
+Do NOT remove existing functionality.
+
+Do NOT break existing APIs.
+
+Do NOT change existing URLs without checking backward compatibility.
+
+If a migration is required, make it safe and reversible.
+
+========================================
+N. FINAL IMPLEMENTATION REQUIREMENT
+===================================
+
+After implementation, test all of the following:
+
+1. Existing Compatibility functionality still works.
+2. Admin can create Compatibility records.
+3. Admin can add optional Cloudinary image URLs.
+4. Admin can publish/unpublish Compatibility records.
+5. Published Compatibility records have public pages.
+6. Unpublished Compatibility records are not publicly indexable.
+7. Existing ISP/Test Point image functionality still works.
+8. ISP/Test Point records can be published.
+9. Published ISP/Test Point records have public pages.
+10. Existing Pinout functionality still works.
+11. Pinout records can be published.
+12. Published Pinout records have public pages.
+13. Dynamic metadata works.
+14. Canonical URLs work.
+15. Sitemap contains published pages.
+16. Sitemap excludes unpublished pages.
+17. Internal links work.
+18. Existing site pages continue working.
+19. Existing admin functionality continues working.
+20. No existing database data is lost.
+
+After completing the work, provide a concise report containing:
+
+* Files changed
+* Database/schema changes
+* New routes
+* New API endpoints
+* Admin changes
+* SEO/sitemap changes
+* Migration commands
+* Testing performed
+* Any remaining issues
+
+IMPORTANT FINAL RULE:
+
+Do not just build a visually attractive frontend.
+
+The core requirement is a proper DATABASE → ADMIN → PUBLISH → PUBLIC PAGE → SEO/SITEMAP architecture that can scale to thousands of real technical records.
+
+Build it using the existing Poscert architecture rather than creating a parallel system.
