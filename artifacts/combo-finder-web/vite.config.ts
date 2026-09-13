@@ -73,9 +73,6 @@ export default defineConfig({
             if (id.includes("framer-motion") || id.includes("motion-dom") || id.includes("motion")) {
               return "vendor-motion";
             }
-            if (id.includes("@tanstack/react-query")) {
-              return "vendor-query";
-            }
             if (id.includes("cmdk") || id.includes("vaul") || id.includes("embla-carousel")) {
               return "vendor-ui";
             }

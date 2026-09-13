@@ -1,0 +1,16 @@
+# PosCert ERP
+
+PosCert is a cloud POS and business ERP platform for retail stores, multi-branch businesses, and electronics repair shops.
+
+## Product pages
+
+- [POS Counter](https://poscert.com/pos-system)
+- [ERP Inventory](https://poscert.com/erp-inventory)
+- [Repair Shop Software](https://poscert.com/repair-shop-software)
+- [Technician Tools](https://poscert.com/technician-tools)
+- [Pricing](https://poscert.com/pricing)
+
+## Site policies
+
+- [Privacy Policy](https://poscert.com/privacy)
+- [Terms of Service](https://poscert.com/terms)
