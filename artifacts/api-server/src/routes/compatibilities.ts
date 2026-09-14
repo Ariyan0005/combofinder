@@ -45,7 +45,7 @@ router.get("/compatibilities", async (req, res): Promise<void> => {
 
 // POST /compatibilities/bulk — create many entries for one model in a single transaction
 router.post("/compatibilities/bulk", async (req, res): Promise<void> => {
-  const { modelId, comboType, partType, names } = req.body;
+  const { modelId, comboType, partType, names, isPublished, createBidirectional = true } = req.body;
   const cleanNames: string[] = Array.isArray(names)
     ? Array.from(new Set(names.map((n: unknown) => String(n).trim()).filter(Boolean)))
     : [];
@@ -53,23 +53,70 @@ router.post("/compatibilities/bulk", async (req, res): Promise<void> => {
     res.status(400).json({ error: "modelId, comboType and a non-empty names array are required" }); return;
   }
 
+  const shouldPublish = isPublished !== undefined ? Boolean(isPublished) : true;
+  const numModelId = Number(modelId);
+
+  // Retrieve current model details
+  const [currentModel] = await db
+    .select({ id: modelsTable.id, name: modelsTable.name, brandName: brandsTable.name })
+    .from(modelsTable)
+    .innerJoin(brandsTable, eq(brandsTable.id, modelsTable.brandId))
+    .where(eq(modelsTable.id, numModelId));
+
   const inserted = await db.transaction(async (tx) => {
-    return tx.insert(compatibilitiesTable).values(
+    // 1. Insert primary compatibility records
+    const primaryRecords = await tx.insert(compatibilitiesTable).values(
       cleanNames.map((name) => ({
-        modelId: Number(modelId),
+        modelId: numModelId,
         name,
         comboType,
         partType: partType?.trim() || null,
+        isPublished: shouldPublish,
       }))
     ).returning();
+
+    // 2. If bidirectional linking is requested and current model exists,
+    // look for corresponding models in modelsTable to link reciprocally
+    if (createBidirectional && currentModel) {
+      const allModels = await tx
+        .select({ id: modelsTable.id, name: modelsTable.name })
+        .from(modelsTable);
+
+      const fullName = `${currentModel.brandName} ${currentModel.name}`.trim().toLowerCase();
+      const shortName = currentModel.name.trim().toLowerCase();
+
+      for (const targetName of cleanNames) {
+        const cleanTarget = targetName.trim().toLowerCase();
+        // Match either exact model name or brand + model name
+        const matchedModel = allModels.find(m => {
+          const mLower = m.name.toLowerCase();
+          return mLower === cleanTarget || cleanTarget.includes(mLower) || mLower.includes(cleanTarget);
+        });
+
+        if (matchedModel && matchedModel.id !== numModelId) {
+          // Check if reverse entry already exists
+          const existing = await tx
+            .select({ id: compatibilitiesTable.id })
+            .from(compatibilitiesTable)
+            .where(eq(compatibilitiesTable.modelId, matchedModel.id));
+
+          // Also insert current model under matchedModel
+          const recName = `${currentModel.brandName} ${currentModel.name}`.trim();
+          await tx.insert(compatibilitiesTable).values({
+            modelId: matchedModel.id,
+            name: recName,
+            comboType,
+            partType: partType?.trim() || null,
+            isPublished: shouldPublish,
+          });
+        }
+      }
+    }
+
+    return primaryRecords;
   });
 
-  const [model] = await db
-    .select({ name: modelsTable.name, brandName: brandsTable.name })
-    .from(modelsTable).innerJoin(brandsTable, eq(brandsTable.id, modelsTable.brandId))
-    .where(eq(modelsTable.id, Number(modelId)));
-
-  res.status(201).json(inserted.map((row) => ({ ...row, modelName: model?.name ?? "", brandName: model?.brandName ?? "" })));
+  res.status(201).json(inserted.map((row) => ({ ...row, modelName: currentModel?.name ?? "", brandName: currentModel?.brandName ?? "" })));
 });
 
 // POST /compatibilities

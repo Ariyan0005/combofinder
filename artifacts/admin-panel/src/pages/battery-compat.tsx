@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, ArrowLeft, Trash2, Smartphone, Search } from "lucide-react";
+import { Plus, ArrowLeft, Trash2, Smartphone, Search, ExternalLink } from "lucide-react";
 
 interface BatteryModel {
   id: number; brandId: number; brandName: string;
@@ -103,6 +103,16 @@ export default function BatteryCompat() {
           <h1 className="text-2xl font-bold truncate">
             {batteryModel ? `${batteryModel.brandName} ${batteryModel.modelNumber}` : "Battery"} — Device Compatibility
           </h1>
+          {batteryModel?.modelNumber && (
+            <a
+              className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              href={`/battery-compatibility/${batteryModel.modelNumber.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              View live published page <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
           <p className="text-sm text-muted-foreground mt-0.5">
             {batteryModel?.capacity && <span>{batteryModel.capacity}</span>}
             {batteryModel?.voltage && <span> · {batteryModel.voltage}</span>}

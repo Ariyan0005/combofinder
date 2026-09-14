@@ -100,12 +100,18 @@ export default function ModelDetail() {
   async function submitBulkNames(names: string[]) {
     if (!names.length) return;
     setSaving(true);
-    const res = await apiCall("/api/compatibilities/bulk", "POST", { modelId, comboType: bulkType, names });
+    const res = await apiCall("/api/compatibilities/bulk", "POST", {
+      modelId,
+      comboType: bulkType,
+      names,
+      isPublished: true,
+      createBidirectional: true,
+    });
     setSaving(false);
     if (res.ok) {
       const created = await res.json();
       invalidate(); setIsBulkOpen(false); setBulkNames("");
-      toast({ title: `${created.length}/${names.length} entries added` });
+      toast({ title: `${created.length} models added with bidirectional SEO links!` });
     } else {
       toast({ title: "Bulk add failed", description: await apiError(res), variant: "destructive" });
     }
@@ -219,7 +225,22 @@ export default function ModelDetail() {
               </TableCell></TableRow>
             ) : filtered.map(c => (
               <TableRow key={c.id} className="group hover:bg-muted/30 transition-colors">
-                <TableCell className="font-medium text-sm">{c.name}</TableCell>
+                <TableCell className="font-medium text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <span>{c.name}</span>
+                    {model?.brandName && (
+                      <a
+                        href={`/compatibility/${slugify(model.brandName)}/${slugify(c.name)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-muted-foreground hover:text-primary transition-colors p-0.5"
+                        title={`View live public page for ${c.name}`}
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell><ComboBadge type={c.comboType} /></TableCell>
                 <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">{c.partType || "—"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">{c.qualityGrade || "—"}</TableCell>
@@ -283,53 +304,45 @@ export default function ModelDetail() {
 
       {/* Bulk Add Dialog */}
       <Dialog open={isBulkOpen} onOpenChange={o => { if (!o) { setIsBulkOpen(false); setBulkNames(""); } }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Bulk Add</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-4">
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Bulk Add Compatible Models</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-3">
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-lg text-xs text-emerald-800 dark:text-emerald-300 space-y-1">
+              <p className="font-semibold flex items-center gap-1.5">
+                <span>⚡ Multi-Model SEO & Google Ranking Ready</span>
+              </p>
+              <p className="leading-relaxed">
+                If you enter 10 models here, <strong>all 10 models will automatically get their own unique indexable URL slug</strong> and link bidirectionally to each other. When users search for any of those 10 models on Google, they will find the compatibility page immediately!
+              </p>
+            </div>
+
             <div className="space-y-1.5">
-              <Label>Type</Label>
+              <Label>Compatibility Type</Label>
               <Select value={bulkType} onValueChange={v => setBulkType(v as CompatType)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{COMPAT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-               <div className="space-y-1.5">
-                 <Label>Part type</Label>
-                 <Input name="partType" defaultValue={editingCompat?.partType ?? ""} placeholder="Display, battery, camera…" />
-               </div>
-               <div className="space-y-1.5">
-                 <Label>Quality grade</Label>
-                 <Input name="qualityGrade" defaultValue={editingCompat?.qualityGrade ?? ""} placeholder="A+, OEM…" />
-               </div>
-               <div className="space-y-1.5">
-                 <Label>Notes</Label>
-                 <Textarea name="notes" defaultValue={editingCompat?.notes ?? ""} rows={3} />
-               </div>
-               <div className="space-y-1.5">
-                 <Label>Image URL <span className="text-muted-foreground">(optional)</span></Label>
-                 <Input name="imageUrl" defaultValue={editingCompat?.imageUrl ?? ""} placeholder="https://…" />
-               </div>
-               <label className="flex items-center gap-2 text-sm">
-                 <input type="checkbox" name="isPublished" defaultChecked={editingCompat?.isPublished === true} className="h-4 w-4" />
-                 Publish on the public compatibility page
-               </label>
+
             <div className="space-y-1.5">
-              <Label>Names <span className="text-muted-foreground">(one per line)</span></Label>
-              <Textarea rows={7} placeholder={"A18\nA17k\nA38"} value={bulkNames} onChange={e => setBulkNames(e.target.value)} />
+              <Label>Model Names <span className="text-muted-foreground">(one per line)</span></Label>
+              <Textarea rows={6} placeholder={"Galaxy A02s\nGalaxy A03s\nGalaxy M02s\nOppo A18"} value={bulkNames} onChange={e => setBulkNames(e.target.value)} />
             </div>
+
             <div className="relative">
               <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
               <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">or</span></div>
             </div>
+
             <div className="space-y-1.5">
               <Label>Upload CSV / Excel (.csv)</Label>
               <Input type="file" accept=".csv,text/csv" onChange={handleCsvUpload} disabled={saving} />
-              <p className="text-xs text-muted-foreground">One name per row, optional header row, first column used.</p>
+              <p className="text-xs text-muted-foreground">One model name per row, optional header row, first column used.</p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setIsBulkOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleBulkAdd} disabled={saving}>{saving ? "Adding…" : "Add All"}</Button>
+            <Button size="sm" onClick={handleBulkAdd} disabled={saving}>{saving ? "Adding…" : "Add All & Publish SEO Pages"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -338,10 +351,10 @@ export default function ModelDetail() {
       <Dialog open={!!editingCompat} onOpenChange={o => { if (!o) setEditingCompat(null); }}>
         <DialogContent className="max-w-sm">
           <form onSubmit={handleUpdate}>
-            <DialogHeader><DialogTitle>Edit Entry</DialogTitle></DialogHeader>
-            <div className="space-y-4 py-4">
+            <DialogHeader><DialogTitle>Edit Compatibility Entry</DialogTitle></DialogHeader>
+            <div className="space-y-3 py-3">
               <div className="space-y-1.5">
-                <Label>Name *</Label>
+                <Label>Model Name *</Label>
                 <Input name="name" required defaultValue={editingCompat?.name ?? ""} key={editingCompat?.id} />
               </div>
               <div className="space-y-1.5">
@@ -351,6 +364,26 @@ export default function ModelDetail() {
                   <SelectContent>{COMPAT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1.5">
+                <Label>Part type</Label>
+                <Input name="partType" defaultValue={editingCompat?.partType ?? ""} placeholder="Display, battery, camera…" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Quality grade</Label>
+                <Input name="qualityGrade" defaultValue={editingCompat?.qualityGrade ?? ""} placeholder="A+, OEM…" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Notes</Label>
+                <Textarea name="notes" defaultValue={editingCompat?.notes ?? ""} rows={2} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Image URL <span className="text-muted-foreground">(optional)</span></Label>
+                <Input name="imageUrl" defaultValue={editingCompat?.imageUrl ?? ""} placeholder="https://…" />
+              </div>
+              <label className="flex items-center gap-2 text-sm pt-1">
+                <input type="checkbox" name="isPublished" defaultChecked={editingCompat?.isPublished !== false} className="h-4 w-4" />
+                <span>Publish on Google & public search</span>
+              </label>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" size="sm" onClick={() => setEditingCompat(null)}>Cancel</Button>

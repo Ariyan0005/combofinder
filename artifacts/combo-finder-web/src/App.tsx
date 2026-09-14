@@ -48,7 +48,12 @@ const PublicRepair = lazy(() => import("@/pages/public-repair"));
 const PublicTechnician = lazy(() => import("@/pages/public-technician"));
 const PublicPricing = lazy(() => import("@/pages/public-pricing"));
 const PublicCompatibilityPage = lazy(() => import("@/pages/public-technical").then(m => ({ default: m.PublicCompatibilityPage })));
+const PublicCompatibilityDirectoryPage = lazy(() => import("@/pages/public-technical").then(m => ({ default: m.PublicCompatibilityDirectoryPage })));
+const PublicBatteryDirectoryPage = lazy(() => import("@/pages/public-technical").then(m => ({ default: m.PublicBatteryDirectoryPage })));
+const PublicBatteryDetailPage = lazy(() => import("@/pages/public-technical").then(m => ({ default: m.PublicBatteryDetailPage })));
+const PublicIspDirectoryPage = lazy(() => import("@/pages/public-technical").then(m => ({ default: m.PublicIspDirectoryPage })));
 const PublicIspPage = lazy(() => import("@/pages/public-technical").then(m => ({ default: m.PublicIspPage })));
+const PublicTestPointDirectoryPage = lazy(() => import("@/pages/public-technical").then(m => ({ default: m.PublicTestPointDirectoryPage })));
 const PublicPinoutPage = lazy(() => import("@/pages/public-technical").then(m => ({ default: m.PublicPinoutPage })));
 const GuestDemoDashboard = lazy(() => import("@/components/guest-demo-dashboard").then(m => ({ default: m.GuestDemoDashboard })));
 
@@ -132,8 +137,15 @@ function Router() {
           <Route path="/repair-shop-software" component={PublicRepair} />
           <Route path="/technician-tools" component={PublicTechnician} />
           <Route path="/pricing" component={PublicPricing} />
+          <Route path="/compatibility" component={PublicCompatibilityDirectoryPage} />
           <Route path="/compatibility/:brandSlug/:modelSlug" component={PublicCompatibilityPage} />
+          <Route path="/battery-compatibility" component={PublicBatteryDirectoryPage} />
+          <Route path="/battery-compatibility/:slug" component={PublicBatteryDetailPage} />
+          <Route path="/isp-pinout" component={PublicIspDirectoryPage} />
+          <Route path="/isp-pinout/:slug" component={PublicIspPage} />
           <Route path="/isp/:slug" component={PublicIspPage} />
+          <Route path="/test-point" component={PublicTestPointDirectoryPage} />
+          <Route path="/test-point/:slug" component={PublicPinoutPage} />
           <Route path="/pinout/:slug" component={PublicPinoutPage} />
           <Route path="/privacy" component={Privacy} />
           <Route path="/terms" component={Terms} />
@@ -151,7 +163,13 @@ function Router() {
         <Route path="/register" component={Register} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/compatibility/:brandSlug/:modelSlug" component={PublicCompatibilityPage} />
+        <Route path="/battery-compatibility" component={PublicBatteryDirectoryPage} />
+        <Route path="/battery-compatibility/:slug" component={PublicBatteryDetailPage} />
+        <Route path="/isp-pinout" component={PublicIspDirectoryPage} />
+        <Route path="/isp-pinout/:slug" component={PublicIspPage} />
         <Route path="/isp/:slug" component={PublicIspPage} />
+        <Route path="/test-point" component={PublicTestPointDirectoryPage} />
+        <Route path="/test-point/:slug" component={PublicPinoutPage} />
         <Route path="/pinout/:slug" component={PublicPinoutPage} />
         <Route>
           <MainLayout>
