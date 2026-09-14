@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "PosCert",
+    "slug": "poscert-mobile",
+    "version": "1.0.1",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "poscert-mobile",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.iunlockd.combofinder"
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://combofinder.iunlockd.com"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "24f26df2-3f3a-45df-935d-9894427a5008"
+      },
+      "router": {
+        "origin": "https://combofinder.iunlockd.com"
+      }
+    },
+    "owner": "ariyan0005"
+  }
+}

@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/combo-finder-web/"
+title = "ComboFinder Web"
+version = "1.0.0"
+id = "artifacts/combo-finder-web"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/combo-finder-web/" ]
+localPort = 19777
+
+[services.development]
+run = "pnpm --filter @workspace/combo-finder-web run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/combo-finder-web", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/combo-finder-web/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19777"
+BASE_PATH = "/combo-finder-web/"

@@ -1,0 +1,6 @@
+{
+  "name": "PosCert",
+  "description": "PosCert Cloud ERP & POS System — All-in-one Smart Business Management, Multi-Branch Point of Sale, Inventory, Invoicing, Supplier Ledgers, and Repair Shop Solutions.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

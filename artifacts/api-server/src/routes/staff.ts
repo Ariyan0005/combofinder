@@ -1,0 +1,206 @@
+import { Router } from "express";
+import { db, staffTable } from "@workspace/db";
+import { eq, and, desc, ne } from "drizzle-orm";
+import { pbkdf2Sync, randomBytes } from "node:crypto";
+import { migrateStaff } from "../lib/migrate-staff";
+import { getBranchCondition } from "../lib/branch-helper";
+
+const router = Router();
+
+let migrationDone = false;
+async function ensureStaffTable() {
+  if (migrationDone) return;
+  await migrateStaff();
+  migrationDone = true;
+}
+
+function isProPlan(plan: unknown): boolean {
+  return String(plan ?? "").trim().toLowerCase().startsWith("pro");
+}
+
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString("hex");
+  return `${salt}:${pbkdf2Sync(password, salt, 10000, 64, "sha512").toString("hex")}`;
+}
+
+function publicStaff(row: any) {
+  const { passwordHash: _passwordHash, ...safe } = row;
+  return safe;
+}
+
+function normalizeRole(raw: any): "Manager" | "Staff" | "Technician" {
+  const r = String(raw ?? "").trim().toLowerCase();
+  if (r === "manager") return "Manager";
+  if (r === "technician") return "Technician";
+  return "Staff";
+}
+
+// GET /api/staff — list staff for the authenticated user with optional branch filter
+router.get("/", async (req, res) => {
+  try {
+    await ensureStaffTable();
+    const userId: number = (req as any).userId;
+    const conditions = [eq(staffTable.userId, userId)];
+    const branchCond = getBranchCondition(req, staffTable.branchId);
+    if (branchCond) conditions.push(branchCond);
+
+    const rows = await db.select().from(staffTable)
+      .where(and(...conditions))
+      .orderBy(desc(staffTable.createdAt));
+    res.json(rows.map(publicStaff));
+  } catch (err: any) {
+    req.log.error(err);
+    res.status(500).json({ error: err?.message || "Failed to fetch staff" });
+  }
+});
+
+// POST /api/staff — create a new staff member
+router.post("/", async (req, res) => {
+  try {
+    await ensureStaffTable();
+    const userId: number = (req as any).userId;
+    const b = req.body;
+    const isPro = isProPlan((req.session as any).userPlan);
+    if (!isPro && (b.username || b.password)) {
+      res.status(403).json({ error: "Staff login is available on the Pro plan only" });
+      return;
+    }
+    if (!b.name || !String(b.name).trim()) {
+      res.status(400).json({ error: "Name is required" });
+      return;
+    }
+    const role = normalizeRole(b.role);
+    const isTech = role === "Technician";
+    const password = !isTech && b.password ? String(b.password) : "";
+    const username = !isTech && b.username ? String(b.username).trim().toLowerCase() : "";
+    if (!isTech && Boolean(username) !== Boolean(password)) {
+      res.status(400).json({ error: "Provide both username and password for login access, or leave both empty" });
+      return;
+    }
+    if (!isTech && password && password.length < 8) {
+      res.status(400).json({ error: "Staff password must be at least 8 characters" }); return;
+    }
+    if (username) {
+      const [existingUsername] = await db.select({ id: staffTable.id })
+        .from(staffTable)
+        .where(eq(staffTable.username, username))
+        .limit(1);
+      if (existingUsername) {
+        res.status(409).json({ error: "That username is already in use. Choose another username." });
+        return;
+      }
+    }
+    // "default" is a UI-only option. Real branches use their database ID;
+    // storing the sentinel can violate deployments where branch_id has a
+    // foreign key or integer type. NULL represents the main/default branch.
+    const branchId = b.branchId && String(b.branchId).trim() !== "default"
+      ? String(b.branchId).trim()
+      : null;
+    const branchName = b.branchName ? String(b.branchName).trim() : "Default / Main Branch";
+    const [row] = await db.insert(staffTable).values({
+      userId,
+      name:     String(b.name).trim(),
+      phone:    b.phone    ? String(b.phone).trim()    : null,
+      staffId:  b.staffId  ? String(b.staffId).trim()  : null,
+      username: username || null,
+      passwordHash: password ? hashPassword(password) : null,
+      role,
+      branchId,
+      branchName,
+      isActive: b.isActive !== undefined ? Boolean(b.isActive) : true,
+      notes:    b.notes    ? String(b.notes).trim()    : null,
+      updatedAt: new Date(),
+    }).returning();
+    res.status(201).json(publicStaff(row));
+  } catch (err: any) {
+    req.log.error(err);
+    res.status(500).json({ error: err?.message || "Failed to create staff member" });
+  }
+});
+
+// PUT /api/staff/:id — update a staff member
+router.put("/:id", async (req, res) => {
+  try {
+    await ensureStaffTable();
+    const userId: number = (req as any).userId;
+    const b = req.body;
+    const isPro = isProPlan((req.session as any).userPlan);
+    if (!isPro && (b.username !== undefined || b.password !== undefined)) {
+      res.status(403).json({ error: "Staff login is available on the Pro plan only" });
+      return;
+    }
+    const updates: Record<string, any> = { updatedAt: new Date() };
+    if (b.name     !== undefined) updates.name     = String(b.name).trim();
+    if (b.phone    !== undefined) updates.phone    = b.phone    ? String(b.phone).trim()    : null;
+    if (b.staffId  !== undefined) updates.staffId  = b.staffId  ? String(b.staffId).trim()  : null;
+    if (b.username !== undefined) {
+      const username = b.username ? String(b.username).trim().toLowerCase() : "";
+      if (username) {
+        const [existingUsername] = await db.select({ id: staffTable.id })
+          .from(staffTable)
+          .where(and(
+            eq(staffTable.username, username),
+            ne(staffTable.id, Number(req.params.id)),
+          ))
+          .limit(1);
+        if (existingUsername) {
+          res.status(409).json({ error: "That username is already in use. Choose another username." });
+          return;
+        }
+      }
+      updates.username = username || null;
+    }
+    if (b.password !== undefined && b.password !== "") {
+      if (String(b.password).length < 8) {
+        res.status(400).json({ error: "Staff password must be at least 8 characters" }); return;
+      }
+      updates.passwordHash = hashPassword(String(b.password));
+    }
+    if (b.role !== undefined) {
+      const role = normalizeRole(b.role);
+      updates.role = role;
+      if (role === "Technician") {
+        updates.username = null;
+        updates.passwordHash = null;
+      }
+    }
+    if (b.branchId !== undefined) updates.branchId = b.branchId ? String(b.branchId).trim() : null;
+    if (b.branchName !== undefined) updates.branchName = b.branchName ? String(b.branchName).trim() : null;
+    if (b.isActive !== undefined) updates.isActive = Boolean(b.isActive);
+    if (b.notes    !== undefined) updates.notes    = b.notes    ? String(b.notes).trim()    : null;
+
+    const [row] = await db.update(staffTable).set(updates)
+      .where(and(
+        eq(staffTable.id, Number(req.params.id)),
+        eq(staffTable.userId, userId),
+      ))
+      .returning();
+    if (!row) {
+      res.status(404).json({ error: "Staff member not found" });
+      return;
+    }
+    res.json(publicStaff(row));
+  } catch (err: any) {
+    req.log.error(err);
+    res.status(500).json({ error: err?.message || "Failed to update staff member" });
+  }
+});
+
+// DELETE /api/staff/:id — delete a staff member
+router.delete("/:id", async (req, res) => {
+  try {
+    await ensureStaffTable();
+    const userId: number = (req as any).userId;
+    await db.delete(staffTable)
+      .where(and(
+        eq(staffTable.id, Number(req.params.id)),
+        eq(staffTable.userId, userId),
+      ));
+    res.json({ success: true });
+  } catch (err: any) {
+    req.log.error(err);
+    res.status(500).json({ error: err?.message || "Failed to delete staff member" });
+  }
+});
+
+export default router;

@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Background Vignette Gradients -->
+    <radialGradient id="outerBg" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#180b2a" />
+      <stop offset="60%" stop-color="#0d0417" />
+      <stop offset="100%" stop-color="#05010a" />
+    </radialGradient>
+
+    <!-- App Squircle Glow & Bevel -->
+    <radialGradient id="squircleSurface" cx="50%" cy="30%" r="80%">
+      <stop offset="0%" stop-color="#551a8b" />
+      <stop offset="45%" stop-color="#3b0f69" />
+      <stop offset="85%" stop-color="#240742" />
+      <stop offset="100%" stop-color="#18032e" />
+    </radialGradient>
+
+    <linearGradient id="squircleRim" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#9d4edd" stop-opacity="0.8" />
+      <stop offset="30%" stop-color="#7b2cbf" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#10002b" stop-opacity="0.9" />
+    </linearGradient>
+
+    <!-- Outer Hexagon Top-Left Purple Blade (3D) -->
+    <linearGradient id="purpleTopFace" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c77dff" />
+      <stop offset="35%" stop-color="#9d4edd" />
+      <stop offset="70%" stop-color="#7b2cbf" />
+      <stop offset="100%" stop-color="#5a189a" />
+    </linearGradient>
+
+    <linearGradient id="purpleLeftFace" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7b2cbf" />
+      <stop offset="50%" stop-color="#5a189a" />
+      <stop offset="100%" stop-color="#3c096c" />
+    </linearGradient>
+
+    <linearGradient id="purpleSheen" x1="0%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#e0aaff" stop-opacity="0.9" />
+      <stop offset="40%" stop-color="#c77dff" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#7b2cbf" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Outer Hexagon Right White/Silver Blade (3D) -->
+    <linearGradient id="whiteMainFace" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="50%" stop-color="#f3f4f6" />
+      <stop offset="85%" stop-color="#e5e7eb" />
+      <stop offset="100%" stop-color="#d1d5db" />
+    </linearGradient>
+
+    <linearGradient id="whiteRightEdge" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#e5e7eb" />
+      <stop offset="100%" stop-color="#9ca3af" />
+    </linearGradient>
+
+    <linearGradient id="whiteBottomBevel" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#d1d5db" />
+      <stop offset="100%" stop-color="#6b7280" />
+    </linearGradient>
+
+    <!-- Center Isometric Cube Faces -->
+    <linearGradient id="cubeTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9d4edd" />
+      <stop offset="100%" stop-color="#7b2cbf" />
+    </linearGradient>
+
+    <linearGradient id="cubeLeft" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#5a189a" />
+      <stop offset="100%" stop-color="#3c096c" />
+    </linearGradient>
+
+    <linearGradient id="cubeRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7b2cbf" />
+      <stop offset="100%" stop-color="#480ca8" />
+    </linearGradient>
+
+    <!-- Drop Shadows -->
+    <filter id="appShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="40" stdDeviation="45" flood-color="#000000" flood-opacity="0.85" />
+    </filter>
+
+    <filter id="emblemShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="28" stdDeviation="24" flood-color="#000000" flood-opacity="0.65" />
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#1a0033" flood-opacity="0.8" />
+    </filter>
+
+    <filter id="cubeShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="16" stdDeviation="14" flood-color="#0a0117" flood-opacity="0.9" />
+    </filter>
+  </defs>
+
+  <!-- Canvas Background -->
+  <rect width="1024" height="1024" fill="url(#outerBg)" />
+
+  <!-- Outer Rounded Squircle Base (App Tile) -->
+  <g filter="url(#appShadow)">
+    <!-- Base Squircle -->
+    <rect x="132" y="132" width="760" height="760" rx="200" fill="url(#squircleSurface)" />
+    <!-- Top Highlights & Border Rim -->
+    <rect x="132" y="132" width="760" height="760" rx="200" fill="none" stroke="url(#squircleRim)" stroke-width="8" />
+    <!-- Soft Top Curvature Highlight -->
+    <ellipse cx="512" cy="200" rx="260" ry="60" fill="#c77dff" opacity="0.18" />
+  </g>
+
+  <!-- Central Hexagonal Emblem -->
+  <g filter="url(#emblemShadow)">
+
+    <!-- Deep 3D Cast Shadow Base for Emblem -->
+    <path d="M 512 215 L 755 355 L 755 645 L 512 785 L 269 645 L 269 355 Z" fill="#0c0217" opacity="0.6" transform="translate(0, 18)" />
+
+    <!-- 1. LEFT / TOP PURPLE 3D SEGMENT -->
+    <!-- Purple Bottom Bevel / Extrusion -->
+    <path d="M 270 355 L 512 215 L 635 286 L 565 326 L 472 272 L 345 345 L 345 615 L 270 655 Z" fill="#240046" />
+    
+    <!-- Purple Main Front Top-Left Arm -->
+    <path d="M 512 215 L 635 286 L 575 321 L 472 262 L 340 338 L 340 615 L 270 655 L 270 355 Z" fill="url(#purpleTopFace)" />
+    
+    <!-- Purple Inner Slope Face -->
+    <path d="M 340 338 L 472 262 L 472 320 L 375 375 L 375 580 L 340 615 Z" fill="url(#purpleLeftFace)" />
+
+    <!-- Purple Gloss Highlight Ridge -->
+    <path d="M 512 215 L 635 286 L 620 295 L 512 232 L 278 365 L 270 355 Z" fill="url(#purpleSheen)" />
+
+    <!-- 2. RIGHT / BOTTOM WHITE-SILVER 3D SEGMENT -->
+    <!-- White Bottom Extrusion Shadow -->
+    <path d="M 754 355 L 754 645 L 512 785 L 389 714 L 449 679 L 552 738 L 684 662 L 684 385 Z" fill="#4b5563" />
+
+    <!-- White Main Front Surface -->
+    <path d="M 512 342 L 754 202 L 754 645 L 512 785 L 389 714 L 449 679 L 552 738 L 684 662 L 684 385 L 562 314 Z" fill="url(#whiteMainFace)" />
+
+    <!-- White Inner Bevel / Contrast Step -->
+    <path d="M 684 385 L 562 314 L 562 372 L 649 422 L 649 627 L 684 662 Z" fill="url(#whiteBottomBevel)" />
+
+    <!-- White Right Side 3D Thickness Edge -->
+    <path d="M 754 355 L 754 645 L 725 662 L 725 372 Z" fill="url(#whiteRightEdge)" opacity="0.6" />
+
+    <!-- Pure White Top Rim Sheen -->
+    <path d="M 754 202 L 754 212 L 562 324 L 512 352 L 512 342 L 562 314 Z" fill="#ffffff" opacity="0.9" />
+  </g>
+
+  <!-- 3. FLOATING CENTRAL 3D ISOMETRIC CUBE -->
+  <g filter="url(#cubeShadow)">
+    <!-- Cube Top Face -->
+    <polygon points="512,425 582,465 512,505 442,465" fill="url(#cubeTop)" />
+    
+    <!-- Cube Left Face -->
+    <polygon points="442,465 512,505 512,585 442,545" fill="url(#cubeLeft)" />
+    
+    <!-- Cube Right Face -->
+    <polygon points="512,505 582,465 582,545 512,585" fill="url(#cubeRight)" />
+
+    <!-- Cube Top Ridge Crisp Highlight -->
+    <polyline points="442,465 512,425 582,465" fill="none" stroke="#e0aaff" stroke-width="4" stroke-linecap="round" />
+    <!-- Cube Vertical Ridge Highlight -->
+    <line x1="512" y1="505" x2="512" y2="585" stroke="#c77dff" stroke-width="3" opacity="0.7" />
+  </g>
+</svg>
