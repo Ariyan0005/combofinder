@@ -139,6 +139,8 @@ function Router() {
           <Route path="/pricing" component={PublicPricing} />
           <Route path="/compatibility" component={PublicCompatibilityDirectoryPage} />
           <Route path="/compatibility/:brandSlug/:modelSlug" component={PublicCompatibilityPage} />
+          <Route path="/models/:id" component={ModelDetail} />
+          <Route path="/brands/:id" component={BrandDetail} />
           <Route path="/battery-compatibility" component={PublicBatteryDirectoryPage} />
           <Route path="/battery-compatibility/:slug" component={PublicBatteryDetailPage} />
           <Route path="/isp-pinout" component={PublicIspDirectoryPage} />

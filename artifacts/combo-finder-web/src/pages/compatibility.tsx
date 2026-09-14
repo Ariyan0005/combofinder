@@ -3,7 +3,16 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Search, ChevronRight, Layers, Smartphone, ChevronDown, X, Clock, Cpu, BatteryFull,
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { SeoHead } from "@/components/seo-head";
+
+function slugify(text: string): string {
+  return (text || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
 
 // Per-section isolated recent searches
 const ALL = "all";
@@ -46,6 +55,7 @@ function readCategoryFromUrl(): string {
 }
 
 export default function Compatibility() {
+  const [, navigate] = useLocation();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>(() => getRecentSearches(readCategoryFromUrl() || "display"));
@@ -84,10 +94,19 @@ export default function Compatibility() {
     }
   }, [cats]);
 
-  // Default the selection to "Display" when no category is in the URL
+  // Handle URL category routing: redirect battery/isp or default to display
   useEffect(() => {
-    if (categories.length === 0) return;
     const urlCat = readCategoryFromUrl();
+    if (urlCat === "battery") {
+      navigate("/battery-compatibility");
+      return;
+    }
+    if (urlCat === "isp") {
+      navigate("/isp-pinout");
+      return;
+    }
+
+    if (categories.length === 0) return;
     if (urlCat === ALL) {
       const display = categories.find(c => c.name === "Display" || c.slug === "display");
       const slug = display?.slug ?? categories[0]?.slug ?? ALL;
@@ -112,6 +131,14 @@ export default function Compatibility() {
   }
 
   function selectCategory(slug: string) {
+    if (slug === "battery") {
+      navigate("/battery-compatibility");
+      return;
+    }
+    if (slug === "isp") {
+      navigate("/isp-pinout");
+      return;
+    }
     setSelectedSlug(slug);
     setShowDropdown(false);
     updateUrl(slug);
@@ -169,14 +196,24 @@ export default function Compatibility() {
     return `/brands/${id}`;
   }
 
-  function modelLink(id: number) {
-    return selectedSlug !== ALL ? `/models/${id}?category=${selectedSlug}` : `/models/${id}`;
+  function modelLink(id: number, model?: { name?: string; brandName?: string }) {
+    if (model?.brandName && model?.name) {
+      const bSlug = slugify(model.brandName);
+      const mSlug = slugify(model.name);
+      return `/compatibility/${bSlug}/${mSlug}`;
+    }
+    return `/models/${id}`;
   }
 
   const activeColor = selectedSlug !== ALL && selectedCategory ? categoryColor(selectedCategory.name).color : PRIMARY;
 
   return (
     <div className="space-y-4">
+      <SeoHead
+        title="Mobile Phone Parts & LCD Combo Compatibility Database | PosCert"
+        description="Search and verify LCD combo, display folders, and hardware compatibility across Samsung, Xiaomi, iPhone, Oppo, Vivo, and other smartphone brands."
+        canonicalPath="/compatibility"
+      />
       {/* Header + stats pills */}
       <div className="pt-1">
         <h1 className="text-xl font-extrabold">Parts Compatibility Database</h1>
@@ -323,7 +360,7 @@ export default function Compatibility() {
                   <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: MUTED }}>Models</p>
                   <div className="rounded-2xl border divide-y overflow-hidden" style={{ borderColor: BORDER, background: CARD }}>
                     {allModels.map((m: any) => (
-                      <Link key={m.id} href={modelLink(m.id)}>
+                      <Link key={m.id} href={modelLink(m.id, m)}>
                         <div onClick={() => handleSearchSelect(m.name)}
                           className="flex items-center justify-between px-4 py-3 cursor-pointer transition-colors hover:bg-muted/30">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -348,7 +385,7 @@ export default function Compatibility() {
                   <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: MUTED }}>Compatible Parts</p>
                   <div className="rounded-2xl border divide-y overflow-hidden" style={{ borderColor: BORDER, background: CARD }}>
                     {allCombos.map((c: any) => (
-                      <Link key={c.id} href={modelLink(c.modelId)}>
+                      <Link key={c.id} href={modelLink(c.modelId, { name: c.modelName, brandName: c.brandName })}>
                         <div onClick={() => handleSearchSelect(c.name)}
                           className="flex items-center justify-between px-4 py-3 cursor-pointer transition-colors hover:bg-muted/30">
                           <div className="flex items-center gap-3 flex-1 min-w-0">

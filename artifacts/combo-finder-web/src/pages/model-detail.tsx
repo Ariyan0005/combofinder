@@ -1,12 +1,21 @@
 import { useState, useEffect, type ElementType } from "react";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft, CheckCircle, BadgeCheck, Repeat2,
   Share2, Check, ZoomIn, ZoomOut, X, ExternalLink,
 } from "lucide-react";
+import { SeoHead } from "@/components/seo-head";
 
 type CompatType = "OEM" | "Compatible" | "Refurbished";
+
+function slugify(text: string): string {
+  return (text || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
 
 const compatTypeConfig: Record<CompatType, { label: string; color: string; bg: string; icon: ElementType }> = {
   OEM:          { label: "OEM",          color: "#1D4ED8", bg: "#EFF6FF", icon: BadgeCheck },
@@ -19,11 +28,11 @@ type Compatibility = {
   qualityGrade?: string | null; notes?: string | null;
 };
 
-function ShareButton({ title, text }: { title: string; text: string }) {
+function ShareButton({ title, text, canonicalPath }: { title: string; text: string; canonicalPath?: string }) {
   const [shared, setShared] = useState(false);
 
   const handleShare = async () => {
-    const url = window.location.href;
+    const url = canonicalPath ? `https://poscert.com${canonicalPath}` : window.location.href;
     if (navigator.share) {
       try {
         await navigator.share({ title, text, url });
@@ -106,7 +115,25 @@ function ImageModal({ src, title, link, onClose }: { src: string; title: string;
 function useModel(id: number) {
   return useQuery({
     queryKey: ["model", id],
-    queryFn: () => fetch(`/api/models/${id}`, { credentials: "include" }).then(r => r.json()),
+    queryFn: async () => {
+      try {
+        const pubRes = await fetch(`/api/public/model-by-id/${id}`);
+        if (pubRes.ok) {
+          const pubData = await pubRes.json();
+          // Also fetch full combos if available
+          try {
+            const fullRes = await fetch(`/api/models/${id}`, { credentials: "include" });
+            if (fullRes.ok) {
+              const fullData = await fullRes.json();
+              return { ...pubData, ...fullData };
+            }
+          } catch {}
+          return pubData;
+        }
+      } catch {}
+      const res = await fetch(`/api/models/${id}`, { credentials: "include" });
+      return res.json();
+    },
     enabled: !!id,
     staleTime: 60_000,
   });
@@ -115,9 +142,33 @@ function useModel(id: number) {
 export default function ModelDetail() {
   const { id } = useParams<{ id: string }>();
   const modelId = Number(id);
+  const [, navigate] = useLocation();
 
   const { data: model, isLoading } = useModel(modelId);
   const compatibilities: Compatibility[] = model?.combos ?? [];
+
+  const brandSlug = model?.brandSlug || (model?.brandName ? slugify(model.brandName) : "");
+  const modelSlug = model?.modelSlug || (model?.name ? slugify(model.name) : "");
+  const canonicalPath = brandSlug && modelSlug ? `/compatibility/${brandSlug}/${modelSlug}` : `/models/${modelId}`;
+
+  // Automatically replace URL with canonical SEO path whenever model is identified
+  useEffect(() => {
+    if (model?.name && model?.brandName) {
+      const bSlug = slugify(model.brandName);
+      const mSlug = slugify(model.name);
+      document.title = `${model.brandName} ${model.name} LCD Combo & Screen Compatibility List | PosCert`;
+
+      const searchParams = new URLSearchParams(window.location.search);
+      const cat = searchParams.get("category");
+      if (cat === "battery") {
+        navigate(`/battery-compatibility`, { replace: true });
+        return;
+      }
+      if (bSlug && mSlug) {
+        navigate(`/compatibility/${bSlug}/${mSlug}`, { replace: true });
+      }
+    }
+  }, [model, navigate]);
 
   if (isLoading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: "#F1F5F9" }}>
@@ -132,6 +183,11 @@ export default function ModelDetail() {
 
   return (
     <div className="min-h-screen pb-20" style={{ background: "#F1F5F9" }}>
+      <SeoHead
+        title={`${model?.brandName ?? ""} ${model?.name ?? "Model"} LCD Combo & Screen Compatibility List | PosCert`}
+        description={`Verified hardware and screen replacement compatibility list for ${model?.brandName ?? ""} ${model?.name ?? ""}.`}
+        canonicalPath={canonicalPath}
+      />
 
       {/* Back button */}
       <div className="px-4 pt-5 pb-3">
@@ -159,7 +215,11 @@ export default function ModelDetail() {
               {model?.name}
             </h1>
             <div className="pt-1">
-              <ShareButton title={model?.name ?? "PosCert"} text={`Check out ${model?.name} on PosCert`} />
+              <ShareButton
+                title={`${model?.brandName ?? ""} ${model?.name ?? "Model"} LCD Compatibility`}
+                text={`Check out ${model?.brandName ?? ""} ${model?.name ?? "Model"} LCD Combo compatibility on PosCert`}
+                canonicalPath={canonicalPath}
+              />
             </div>
           </div>
 

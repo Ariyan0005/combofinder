@@ -17,9 +17,17 @@ function MobileLcdIcon({ className }: { className?: string }) {
   );
 }
 
+function slugify(text: string): string {
+  return (text || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 const SHORTCUTS = [
-  { label: "LCD / Display", icon: MobileLcdIcon, color: "bg-blue-500", href: "/compatibility?category=display" },
-  { label: "Battery", icon: Battery, color: "bg-emerald-500", href: "/compatibility?category=battery" },
+  { label: "LCD / Display", icon: MobileLcdIcon, color: "bg-blue-500", href: "/compatibility" },
+  { label: "Battery", icon: Battery, color: "bg-emerald-500", href: "/battery-compatibility" },
   { label: "IC Compatible", icon: Cpu, color: "bg-violet-500", href: "/compatibility?category=ic" },
 ];
 
@@ -96,21 +104,26 @@ export default function Home() {
               {results.models.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Models</p>
-                  {results.models.map(m => (
-                    <button key={m.id} onClick={() => navigate(`/models/${m.id}`)}
-                      className="w-full bg-card rounded-xl border border-border p-3 flex items-center justify-between hover:border-primary/50 hover:shadow-sm transition-all text-left group">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                          <Smartphone className="w-4 h-4 text-primary" />
+                  {results.models.map(m => {
+                    const bSlug = slugify(m.brandName || "");
+                    const mSlug = slugify(m.name || "");
+                    const targetUrl = bSlug && mSlug ? `/compatibility/${bSlug}/${mSlug}` : `/models/${m.id}`;
+                    return (
+                      <button key={m.id} onClick={() => navigate(targetUrl)}
+                        className="w-full bg-card rounded-xl border border-border p-3 flex items-center justify-between hover:border-primary/50 hover:shadow-sm transition-all text-left group">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <Smartphone className="w-4 h-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm">{m.name}</p>
+                            <p className="text-xs text-muted-foreground">{m.brandName}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-sm">{m.name}</p>
-                          <p className="text-xs text-muted-foreground">{m.brandName}</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </button>
-                  ))}
+                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </button>
+                    );
+                  })}
                 </div>
               )}
               {results.brands.length === 0 && results.models.length === 0 && (

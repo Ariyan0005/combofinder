@@ -80,6 +80,55 @@ function parseBrandAndModel(name: string, fallbackBrandName: string = ""): { bra
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 0. GET /public/model-by-id/:id — Resolves legacy /models/:id to SEO slug URL
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/public/model-by-id/:id", async (req, res): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    if (isNaN(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid model ID" });
+      return;
+    }
+
+    const [model] = await db
+      .select({
+        id: modelsTable.id,
+        name: modelsTable.name,
+        brandId: brandsTable.id,
+        brandName: brandsTable.name,
+        categoryName: categoriesTable.name,
+        categorySlug: categoriesTable.slug,
+      })
+      .from(modelsTable)
+      .innerJoin(brandsTable, eq(brandsTable.id, modelsTable.brandId))
+      .leftJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
+      .where(eq(modelsTable.id, id));
+
+    if (!model) {
+      res.status(404).json({ error: "Model not found" });
+      return;
+    }
+
+    const brandSlug = slugify(model.brandName);
+    const modelSlug = slugify(model.name);
+    const canonicalPath = `/compatibility/${brandSlug}/${modelSlug}`;
+
+    res.json({
+      id: model.id,
+      name: model.name,
+      brandName: model.brandName,
+      brandSlug,
+      modelSlug,
+      categoryName: model.categoryName,
+      categorySlug: model.categorySlug,
+      canonicalPath,
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 1. GET /public/compatibility — Public Catalog & Search Directory
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/public/compatibility", async (req, res): Promise<void> => {

@@ -1,6 +1,15 @@
+import { useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useGetBrand, useGetBrandModels } from "@workspace/api-client-react";
 import { ArrowLeft, Smartphone, ChevronRight } from "lucide-react";
+
+function slugify(text: string): string {
+  return (text || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
 
 export default function BrandDetail() {
   const { id } = useParams<{ id: string }>();
@@ -9,6 +18,12 @@ export default function BrandDetail() {
 
   const { data: brand, isLoading: brandLoading } = useGetBrand(brandId);
   const { data: models, isLoading: modelsLoading } = useGetBrandModels(brandId);
+
+  useEffect(() => {
+    if (brand?.name) {
+      document.title = `${brand.name} Phone Models & LCD Compatibility List | PosCert`;
+    }
+  }, [brand]);
 
   const isLoading = brandLoading || modelsLoading;
 
@@ -34,26 +49,31 @@ export default function BrandDetail() {
           </div>
 
           <div className="space-y-2">
-            {models?.map((model) => (
-              <button
-                key={model.id}
-                onClick={() => navigate(`/models/${model.id}`)}
-                className="w-full bg-white rounded-xl border border-border p-3 flex items-center justify-between hover:border-primary/40 hover:shadow-sm transition-all text-left"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Smartphone className="w-5 h-5 text-primary" />
+            {models?.map((model) => {
+              const bSlug = slugify(brand?.name || "");
+              const mSlug = slugify(model.name || "");
+              const targetUrl = bSlug && mSlug ? `/compatibility/${bSlug}/${mSlug}` : `/models/${model.id}`;
+              return (
+                <button
+                  key={model.id}
+                  onClick={() => navigate(targetUrl)}
+                  className="w-full bg-white rounded-xl border border-border p-3 flex items-center justify-between hover:border-primary/40 hover:shadow-sm transition-all text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Smartphone className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">{model.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {model.releaseYear ? `${model.releaseYear} · ` : ""}{model.comboCount} entries
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-sm">{model.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {model.releaseYear ? `${model.releaseYear} · ` : ""}{model.comboCount} entries
-                    </p>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-              </button>
-            ))}
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </button>
+              );
+            })}
             {models?.length === 0 && (
               <p className="text-center py-8 text-sm text-muted-foreground">No models found for this brand</p>
             )}
