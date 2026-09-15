@@ -738,6 +738,32 @@ export function PublicCompatibilityDirectoryPage() {
     },
   });
 
+  // The public directory is also the cross-resource finder. Keep the
+  // directory response for the empty state, but use the API search contract
+  // once a visitor enters a model token such as "A12".
+  const { data: unifiedSearch, isFetching: isSearching } = useQuery<{
+    models?: Array<{ id: number; name: string; brandName: string; imageUrl?: string | null }>;
+    combos?: Array<{ id: number; modelId: number; modelName: string; brandName: string; name: string; comboType?: string | null }>;
+    batteryModels?: Array<{ id: number; modelNumber: string; brandName: string; capacity?: string | null; voltage?: string | null; slugUrl: string }>;
+    technicalRecords?: Array<{
+      id: number;
+      title: string;
+      slugUrl: string;
+      schematicType?: string | null;
+      deviceBrand?: string | null;
+      deviceModel?: string | null;
+      thumbnailUrl?: string | null;
+    }>;
+  }>({
+    queryKey: ["public-unified-search", searchTerm.trim().toLowerCase()],
+    queryFn: async () => {
+      const response = await fetch(`/api/search?q=${encodeURIComponent(searchTerm.trim())}`);
+      if (!response.ok) throw new Error("Failed to search technical database");
+      return response.json();
+    },
+    enabled: searchTerm.trim().length >= 2,
+  });
+
   const filteredModels = useMemo(() => {
     if (!data?.models) return [];
     if (!searchTerm.trim()) {
@@ -834,7 +860,97 @@ export function PublicCompatibilityDirectoryPage() {
           </h2>
         </div>
 
-        {filteredModels.length === 0 ? (
+        {searchTerm.trim().length >= 2 ? (
+          isSearching ? (
+            <div className="rounded-2xl border border-dashed p-12 text-center text-sm text-muted-foreground">
+              Searching display, battery, ISP and test-point records…
+            </div>
+          ) : (
+            <div className="space-y-8">
+              {(unifiedSearch?.models?.length ?? 0) > 0 && (
+                <section>
+                  <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-muted-foreground">Phone Models</h2>
+                  <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                    {unifiedSearch?.models?.map((m) => (
+                      <Link
+                        key={m.id}
+                        href={`/compatibility/${m.brandName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}/${m.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`}
+                        className="rounded-2xl border bg-card p-4 transition-all hover:border-primary hover:shadow-md"
+                      >
+                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{m.brandName}</span>
+                        <h3 className="mt-1 font-bold">{m.name}</h3>
+                        <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary">View compatibility <ChevronRight className="h-3.5 w-3.5" /></span>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {(unifiedSearch?.combos?.length ?? 0) > 0 && (
+                <section>
+                  <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-muted-foreground">Display Compatibility</h2>
+                  <div className="divide-y overflow-hidden rounded-2xl border bg-card">
+                    {unifiedSearch?.combos?.map((combo) => (
+                      <Link key={combo.id} href={`/compatibility/${combo.brandName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}/${combo.modelName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`} className="flex items-center justify-between px-4 py-3 hover:bg-muted/30">
+                        <span className="min-w-0">
+                          <strong className="block truncate text-sm">{combo.name}</strong>
+                          <span className="block truncate text-xs text-muted-foreground">{combo.brandName} {combo.modelName}{combo.comboType ? ` · ${combo.comboType}` : ""}</span>
+                        </span>
+                        <ChevronRight className="ml-3 h-4 w-4 shrink-0 text-muted-foreground" />
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {(unifiedSearch?.batteryModels?.length ?? 0) > 0 && (
+                <section>
+                  <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-muted-foreground">Battery Compatibility</h2>
+                  <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                    {unifiedSearch?.batteryModels?.map((battery) => (
+                      <Link key={battery.id} href={battery.slugUrl} className="rounded-2xl border bg-card p-4 transition-all hover:border-emerald-500 hover:shadow-md">
+                        <div className="flex items-center gap-2 text-emerald-600"><Battery className="h-4 w-4" /><span className="text-xs font-bold uppercase tracking-wider">Battery</span></div>
+                        <h3 className="mt-2 font-bold">{battery.modelNumber}</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">{battery.brandName}{battery.capacity ? ` · ${battery.capacity}` : ""}{battery.voltage ? ` · ${battery.voltage}` : ""}</p>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {(unifiedSearch?.technicalRecords?.length ?? 0) > 0 && (
+                <section>
+                  <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-muted-foreground">ISP Pinouts & Test Points</h2>
+                  <div className="divide-y overflow-hidden rounded-2xl border bg-card">
+                    {unifiedSearch?.technicalRecords?.map((record) => (
+                      <Link key={`${record.schematicType}-${record.id}`} href={record.slugUrl} className="flex items-center justify-between px-4 py-3 hover:bg-muted/30">
+                        <span className="flex min-w-0 items-center gap-3">
+                          <Wrench className="h-4 w-4 shrink-0 text-primary" />
+                          <span className="min-w-0">
+                            <strong className="block truncate text-sm">{record.title}</strong>
+                            <span className="block truncate text-xs text-muted-foreground">{record.schematicType === "ISP Pinout" ? "ISP Pinout" : "Test Point"}{record.deviceBrand || record.deviceModel ? ` · ${record.deviceBrand ?? ""} ${record.deviceModel ?? ""}` : ""}</span>
+                          </span>
+                        </span>
+                        <ChevronRight className="ml-3 h-4 w-4 shrink-0 text-muted-foreground" />
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {(unifiedSearch?.models?.length ?? 0) === 0 &&
+                (unifiedSearch?.combos?.length ?? 0) === 0 &&
+                (unifiedSearch?.batteryModels?.length ?? 0) === 0 &&
+                (unifiedSearch?.technicalRecords?.length ?? 0) === 0 && (
+                  <div className="rounded-2xl border border-dashed p-12 text-center">
+                    <SearchX className="mx-auto h-10 w-10 text-muted-foreground" />
+                    <p className="mt-3 font-semibold text-foreground">No technical records found</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Try a model number, battery code, or brand name.</p>
+                  </div>
+                )}
+            </div>
+          )
+        ) : filteredModels.length === 0 ? (
           <div className="rounded-2xl border border-dashed p-12 text-center">
             <Smartphone className="mx-auto h-10 w-10 text-muted-foreground" />
             <p className="mt-3 font-semibold text-foreground">No matching models found</p>

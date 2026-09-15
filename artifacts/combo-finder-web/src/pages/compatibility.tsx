@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Search, ChevronRight, Layers, Smartphone, ChevronDown, X, Clock, Cpu, BatteryFull,
+  Search, ChevronRight, Layers, Smartphone, ChevronDown, X, Clock, Cpu, BatteryFull, Wrench,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { SeoHead } from "@/components/seo-head";
@@ -144,7 +144,14 @@ export default function Compatibility() {
     updateUrl(slug);
   }
 
-  const { data: searchResults, isLoading: searching } = useQuery<{ brands?: any[]; models?: any[]; combos?: any[]; icModels?: any[]; batteryModels?: any[] }>({
+  const { data: searchResults, isLoading: searching } = useQuery<{
+    brands?: any[];
+    models?: any[];
+    combos?: any[];
+    icModels?: any[];
+    batteryModels?: any[];
+    technicalRecords?: any[];
+  }>({
     queryKey: ["search", debouncedQuery, selectedCategoryId],
     queryFn: () =>
       fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}${selectedCategoryId ? `&category_id=${selectedCategoryId}` : ""}`, { credentials: "include" }).then(r => r.json()),
@@ -184,6 +191,7 @@ export default function Compatibility() {
   const allCombos = Array.isArray(searchResults?.combos) ? searchResults!.combos : [];
   const allIcModels = Array.isArray(searchResults?.icModels) ? searchResults!.icModels : [];
   const allBatteryModels = Array.isArray(searchResults?.batteryModels) ? searchResults!.batteryModels : [];
+  const allTechnicalRecords = Array.isArray(searchResults?.technicalRecords) ? searchResults!.technicalRecords : [];
   const brandList = Array.isArray(brands) ? brands.slice(0, 10) : [];
 
   // Section-specific routing: battery and IC get their own pages
@@ -441,7 +449,7 @@ export default function Compatibility() {
                   <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: MUTED }}>Battery Models</p>
                   <div className="rounded-2xl border divide-y overflow-hidden" style={{ borderColor: BORDER, background: CARD }}>
                     {allBatteryModels.map((m: any) => (
-                      <Link key={m.id} href={`/battery-model/${m.id}`}>
+                      <Link key={m.id} href={m.slugUrl || `/battery-compatibility/${slugify(m.modelNumber)}`}>
                         <div onClick={() => handleSearchSelect(m.modelNumber)}
                           className="flex items-center justify-between px-4 py-3 cursor-pointer transition-colors hover:bg-muted/30">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -464,7 +472,40 @@ export default function Compatibility() {
                 </div>
               )}
 
-              {allBrands.length === 0 && allModels.length === 0 && allCombos.length === 0 && allIcModels.length === 0 && allBatteryModels.length === 0 && (
+              {/* ISP pinout and test-point results */}
+              {allTechnicalRecords.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: MUTED }}>ISP Pinouts & Test Points</p>
+                  <div className="rounded-2xl border divide-y overflow-hidden" style={{ borderColor: BORDER, background: CARD }}>
+                    {allTechnicalRecords.map((record: any) => {
+                      const isIsp = record.schematicType === "ISP Pinout";
+                      return (
+                        <Link key={`${record.schematicType}-${record.id}`} href={record.slugUrl}>
+                          <div onClick={() => handleSearchSelect(record.deviceModel || record.title)}
+                            className="flex items-center justify-between px-4 py-3 cursor-pointer transition-colors hover:bg-muted/30">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                                style={{ background: isIsp ? "#EEF2FF" : "#ECFDF5" }}>
+                                <Wrench className="w-4 h-4" style={{ color: isIsp ? "#6366F1" : "#10B981" }} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold truncate">{record.title}</p>
+                                <p className="text-[10px] truncate" style={{ color: MUTED }}>
+                                  {isIsp ? "ISP Pinout" : "Test Point"}
+                                  {record.deviceBrand || record.deviceModel ? ` · ${record.deviceBrand ?? ""} ${record.deviceModel ?? ""}` : ""}
+                                </p>
+                              </div>
+                            </div>
+                            <ChevronRight className="w-4 h-4 flex-shrink-0 ml-2" style={{ color: MUTED }} />
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {allBrands.length === 0 && allModels.length === 0 && allCombos.length === 0 && allIcModels.length === 0 && allBatteryModels.length === 0 && allTechnicalRecords.length === 0 && (
                 <div className="text-center py-12 rounded-2xl border border-dashed" style={{ borderColor: BORDER }}>
                   <Smartphone className="w-9 h-9 mx-auto mb-2" style={{ color: MUTED, opacity: 0.4 }} />
                   <p className="text-sm font-semibold">No results for "{debouncedQuery}"</p>

@@ -2,9 +2,10 @@ import { Router, type IRouter } from "express";
 import { ilike, eq, or, sql, and } from "drizzle-orm";
 import {
   db, brandsTable, modelsTable, compatibilitiesTable, categoriesTable,
-  icModelsTable, batteryModelsTable,
+  icModelsTable, batteryModelsTable, batteryCompatibilityTable, schematicsTable,
 } from "@workspace/db";
 import { SearchModelsQueryParams } from "@workspace/api-zod";
+import { slugify } from "../lib/slug";
 
 const router: IRouter = Router();
 
@@ -58,7 +59,7 @@ router.get("/search", async (req, res): Promise<void> => {
   };
 
   if (q) {
-    const [brands, models, combos] = await Promise.all([
+    const [brands, models, combos, batteryRows, technicalRecords] = await Promise.all([
       db.select(brandSelect).from(brandsTable)
         .leftJoin(modelsTable, eq(modelsTable.brandId, brandsTable.id))
         .leftJoin(categoriesTable, eq(categoriesTable.id, brandsTable.categoryId))
@@ -78,7 +79,74 @@ router.get("/search", async (req, res): Promise<void> => {
         .where(and(ilike(compatibilitiesTable.name, `%${q}%`), categoryWhere))
         .orderBy(compatibilitiesTable.name)
         .limit(20),
+      // Battery results are intentionally searched independently of the
+      // selected display/IC category. A phone-model query must expose its
+      // battery relation in the same result set.
+      db.selectDistinct({
+        id: batteryModelsTable.id,
+        modelNumber: batteryModelsTable.modelNumber,
+        capacity: batteryModelsTable.capacity,
+        voltage: batteryModelsTable.voltage,
+        brandId: batteryModelsTable.brandId,
+        brandName: brandsTable.name,
+      })
+        .from(batteryModelsTable)
+        .innerJoin(brandsTable, eq(brandsTable.id, batteryModelsTable.brandId))
+        .leftJoin(
+          batteryCompatibilityTable,
+          eq(batteryCompatibilityTable.batteryModelId, batteryModelsTable.id),
+        )
+        .where(or(
+          ilike(batteryModelsTable.modelNumber, `%${q}%`),
+          ilike(batteryModelsTable.capacity, `%${q}%`),
+          ilike(batteryModelsTable.voltage, `%${q}%`),
+          ilike(batteryCompatibilityTable.deviceName, `%${q}%`),
+          ilike(brandsTable.name, `%${q}%`),
+        ))
+        .orderBy(batteryModelsTable.modelNumber)
+        .limit(30),
+      // Only published technical records are public and indexable.
+      db.select({
+        id: schematicsTable.id,
+        title: schematicsTable.title,
+        slug: schematicsTable.slug,
+        schematicType: schematicsTable.schematicType,
+        deviceBrand: schematicsTable.deviceBrand,
+        deviceModel: schematicsTable.deviceModel,
+        fileUrl: schematicsTable.fileUrl,
+        thumbnailUrl: schematicsTable.thumbnailUrl,
+        tags: schematicsTable.tags,
+      })
+        .from(schematicsTable)
+        .where(and(
+          eq(schematicsTable.isPublished, true),
+          or(
+            ilike(schematicsTable.title, `%${q}%`),
+            ilike(schematicsTable.deviceBrand, `%${q}%`),
+            ilike(schematicsTable.deviceModel, `%${q}%`),
+            ilike(schematicsTable.tags, `%${q}%`),
+          ),
+        ))
+        .orderBy(schematicsTable.deviceBrand, schematicsTable.deviceModel, schematicsTable.title)
+        .limit(30),
     ]);
+
+    const batteryModels = batteryRows.map(row => ({
+      ...row,
+      slug: slugify(row.modelNumber),
+      slugUrl: `/battery-compatibility/${slugify(row.modelNumber)}`,
+    }));
+    const publicTechnicalRecords = technicalRecords
+      .filter(row => Boolean(row.slug))
+      .map(row => ({
+        ...row,
+        slugUrl: row.schematicType === "ISP Pinout"
+          ? `/isp-pinout/${row.slug}`
+          : `/test-point/${row.slug}`,
+        compatibilityUrl: row.deviceBrand && row.deviceModel
+          ? `/compatibility/${slugify(row.deviceBrand)}/${slugify(row.deviceModel)}`
+          : null,
+      }));
 
     // IC number search — only when IC category is active
     if (categorySlug === "ic") {
@@ -101,34 +169,15 @@ router.get("/search", async (req, res): Promise<void> => {
         )
         .orderBy(icModelsTable.icNumber)
         .limit(30);
-      res.json({ brands, models, combos, icModels }); return;
+      res.json({ brands, models, combos, batteryModels, technicalRecords: publicTechnicalRecords, icModels }); return;
     }
 
     // Battery model search — only when Battery category is active
     if (categorySlug === "battery") {
-      const batteryModels = await db
-        .select({
-          id: batteryModelsTable.id,
-          modelNumber: batteryModelsTable.modelNumber,
-          capacity: batteryModelsTable.capacity,
-          voltage: batteryModelsTable.voltage,
-          brandId: batteryModelsTable.brandId,
-          brandName: brandsTable.name,
-        })
-        .from(batteryModelsTable)
-        .innerJoin(brandsTable, eq(brandsTable.id, batteryModelsTable.brandId))
-        .where(
-          or(
-            ilike(batteryModelsTable.modelNumber, `%${q}%`),
-            ilike(batteryModelsTable.capacity, `%${q}%`),
-          )
-        )
-        .orderBy(batteryModelsTable.modelNumber)
-        .limit(30);
-      res.json({ brands, models, combos, batteryModels }); return;
+      res.json({ brands, models, combos, batteryModels, technicalRecords: publicTechnicalRecords }); return;
     }
 
-    res.json({ brands, models, combos }); return;
+    res.json({ brands, models, combos, batteryModels, technicalRecords: publicTechnicalRecords }); return;
   }
 
   if (brandId) {
